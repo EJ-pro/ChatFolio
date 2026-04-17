@@ -1,38 +1,34 @@
-from github import Github
-from github.Repository import Repository
 import base64
 import os
+from github import Github, Auth
 
 class GitHubFetcher:
-    def __init__(self, token: str = None):
-        """
-        GitHub API 클라이언트 초기화. Token이 없으면 익명으로 제한적인 호출만 가능.
-        """
-        self.g = Github(token)
-        self.target_extensions = {'.py', '.md', '.txt'} # PoC 타겟 확장자
+    def __init__(self, token: str):
+        auth = Auth.Token(token)
+        self.g = Github(auth=auth)
+        # 분석 대상 확장자 정의
+        self.target_extensions = ('.kt', '.kts')
 
     def fetch_repo_files(self, repo_url: str) -> dict:
-        """
-        주어진 레포지토리 URL에서 분석 대상 파일들의 경로와 내용을 딕셔너리로 반환합니다.
-        """
-        # URL에서 "owner/repo" 형태 추출 (예: https://github.com/ej-pro/chatfolio -> ej-pro/chatfolio)
-        repo_path = repo_url.replace("https://github.com/", "").strip("/")
-        repo: Repository = self.g.get_repo(repo_path)
+        repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+        repo = self.g.get_repo(repo_path)
         
-        # 레포지토리 최상단 트리부터 재귀적으로 탐색
-        tree = repo.get_git_tree("HEAD", recursive=True)
+        branch = repo.default_branch
+        tree = repo.get_git_tree(branch, recursive=True)
         
         files_data = {}
+        print(f"📂 [{repo.full_name}] ({branch}) 스캔 중...")
+
         for element in tree.tree:
-            # 파일이 아니거나(blob 아님), 타겟 확장자가 아니면 스킵
-            if element.type != "blob":
-                continue
-                
-            _, ext = os.path.splitext(element.path)
-            if ext in self.target_extensions:
-                # 파일 내용 가져오기 (base64 디코딩)
-                blob = repo.get_git_blob(element.sha)
-                content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
-                files_data[element.path] = content
-                
+            if element.type == "blob":
+                # 소문자로 변환하여 확장자 체크
+                if element.path.lower().endswith(self.target_extensions):
+                    print(f"   ✅ 수집됨: {element.path}")
+                    try:
+                        blob = repo.get_git_blob(element.sha)
+                        content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
+                        files_data[element.path] = content
+                    except Exception as e:
+                        print(f"   ❌ 읽기 실패: {element.path} ({e})")
+        
         return files_data

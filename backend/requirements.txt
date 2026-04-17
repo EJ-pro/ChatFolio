@@ -1,3 +1,10 @@
 PyGithub>=2.1.1
 networkx>=3.1
 python-dotenv>=1.0.0
+
+langchain
+langchain-openai
+chromadb
+tiktoken
+langchain-community
+langchain-text-splitters
