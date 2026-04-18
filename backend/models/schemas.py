@@ -30,3 +30,10 @@ class DiagramRequest(BaseModel):
 
 class DiagramResponse(BaseModel):
     mermaid_code: str
+
+# README 자동 생성 요청 및 응답
+class ReadmeRequest(BaseModel):
+    session_id: str
+
+class ReadmeResponse(BaseModel):
+    readme_content: str

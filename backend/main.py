@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse
+from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import os
@@ -305,3 +305,34 @@ async def generate_network_data(request: DiagramRequest, db: Session = Depends(g
         })
         
     return {"nodes": nodes, "links": links}
+
+@app.post("/generate/readme", response_model=ReadmeResponse)
+async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
+    
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        
+    project = chat_session.project
+    if not project or not project.graph_data:
+        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        
+    engine = engine_cache.get(session_id)
+    if not engine:
+        graph = nx.node_link_graph(project.graph_data)
+        all_project_files = {f.file_path: f.content for f in project.files}
+        
+        engine = ChatFolioEngine(
+            all_project_files, 
+            graph, 
+            provider=chat_session.provider, 
+            model_name=chat_session.model_name
+        )
+        engine_cache[session_id] = engine
+        
+    try:
+        readme_content = engine.generate_readme()
+        return ReadmeResponse(readme_content=readme_content)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

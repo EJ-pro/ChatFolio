@@ -16,7 +16,8 @@
     "react-router-dom": "^7.14.1",
     "mermaid": "^11.4.1",
     "react-zoom-pan-pinch": "^3.4.4",
-    "react-force-graph-2d": "^1.25.4"
+    "react-force-graph-2d": "^1.25.4",
+    "react-markdown": "^9.0.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",
