@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
 
@@ -10,6 +10,28 @@ function Analysis() {
   const [error, setError] = useState('');
   const [provider, setProvider] = useState('groq');
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
+  const [logs, setLogs] = useState([]);
+  const [currentLog, setCurrentLog] = useState('');
+  const [projects, setProjects] = useState([]);
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/projects', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch projects:', err);
+    }
+  };
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
@@ -18,6 +40,8 @@ function Analysis() {
     setIsLoading(true);
     setError('');
     setResult(null);
+    setLogs([]);
+    setCurrentLog('분석 시작 중...');
 
     try {
       const token = localStorage.getItem('token');
@@ -37,18 +61,41 @@ function Analysis() {
       if (response.status === 401 || response.status === 403 || response.status === 404) {
         localStorage.removeItem('token');
         navigate('/login');
-        throw new Error('인증이 만료되었거나 유효하지 않습니다. 다시 로그인해주세요.');
+        return;
       }
 
-      if (!response.ok) {
-        throw new Error('분석 중 오류가 발생했습니다. URL을 확인해주세요.');
-      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
-      const data = await response.json();
-      setResult(data);
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n\n');
+        buffer = lines.pop();
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const msg = line.replace('data: ', '').trim();
+            
+            if (msg.startsWith('RESULT:')) {
+              const resultData = JSON.parse(msg.replace('RESULT:', ''));
+              setResult(resultData);
+              setIsLoading(false);
+              return;
+            } else if (msg.startsWith('ERROR:')) {
+              throw new Error(msg.replace('ERROR:', ''));
+            } else {
+              setCurrentLog(msg);
+              setLogs(prev => [...prev.slice(-4), msg]); // 최근 5개 로그 유지
+            }
+          }
+        }
+      }
     } catch (err) {
       setError(err.message);
-    } finally {
       setIsLoading(false);
     }
   };
@@ -125,6 +172,81 @@ function Analysis() {
               </button>
             </div>
           </form>
+
+          {/* Analysis Progress Logs */}
+          {isLoading && (
+            <div className="mt-8 w-full animate-fade-in">
+              <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+                <div className="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between">
+                  <div className="flex gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
+                    <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
+                    <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
+                  </div>
+                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Analysis Engine Terminal</span>
+                </div>
+                <div className="p-6 font-mono text-sm space-y-2">
+                  <div className="flex items-center gap-3 text-blue-400">
+                    <span className="shrink-0 opacity-50">➜</span>
+                    <span className="font-bold animate-pulse">{currentLog}</span>
+                  </div>
+                  <div className="space-y-1 opacity-40">
+                    {logs.map((log, i) => (
+                      <div key={i} className="flex items-center gap-3 text-slate-300">
+                        <span className="shrink-0 opacity-30">#</span>
+                        <span className="truncate">{log}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recent Projects Section */}
+          {projects.length > 0 && !result && !error && !isLoading && (
+            <div className="mt-16 w-full animate-fade-in delay-400">
+              <div className="flex items-center gap-2 mb-6 px-2">
+                <div className="w-1 h-6 bg-blue-500 rounded-full"></div>
+                <h3 className="text-xl font-bold text-white tracking-tight">Recent Analysis</h3>
+                <span className="ml-2 px-2 py-0.5 rounded-md bg-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-700">History</span>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {projects.slice(0, 4).map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => {
+                      setUrl(project.repo_url);
+                      // 약간의 딜레이 후 실행 (UI 업데이트를 위해)
+                      setTimeout(() => {
+                        const form = document.querySelector('form');
+                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                      }, 100);
+                    }}
+                    className="flex items-center gap-4 p-4 bg-slate-800/20 border border-slate-700/50 rounded-2xl hover:bg-slate-800/40 hover:border-blue-500/50 transition-all group text-left relative overflow-hidden"
+                  >
+                    <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Share2 className="w-4 h-4 text-slate-500" />
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform shadow-inner">
+                      <Github className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-slate-200 truncate group-hover:text-white transition-colors">
+                        {project.repo_url.split('/').slice(-2).join('/')}
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] text-slate-500 font-mono">{project.file_count} files</span>
+                        <span className="w-1 h-1 rounded-full bg-slate-700"></span>
+                        <span className="text-[10px] text-slate-500 font-mono">{new Date(project.created_at).toLocaleDateString()}</span>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Quick Try Buttons */}
           {!result && !error && !isLoading && (

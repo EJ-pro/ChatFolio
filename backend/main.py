@@ -2,9 +2,14 @@ from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 import os
 import networkx as nx
 from dotenv import load_dotenv
+import json
+import asyncio
+from queue import Queue
+from threading import Thread
 
 from core.parser.github_fetcher import GitHubFetcher
 from core.parser.kotlin_parser import parse_kotlin_code
@@ -12,12 +17,9 @@ from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
 from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User
 from database.database import get_db
-
-# 라우터 및 의존성 추가
 from api.auth import router as auth_router, get_current_user
 
 load_dotenv()
-
 init_db()
 
 app = FastAPI(title="ChatFolio API")
@@ -35,72 +37,120 @@ engine_cache = {}
 
 @app.post("/analyze")
 async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    token = os.getenv("GITHUB_TOKEN")
-    try:
-        fetcher = GitHubFetcher(token=token)
-        all_files = fetcher.fetch_repo_files(request.repo_url)
+    # 1. 이미 분석된 프로젝트가 있는지 확인
+    existing_project = db.query(Project).filter(
+        Project.repo_url == request.repo_url,
+        Project.user_id == current_user.id
+    ).first()
+    
+    if existing_project:
+        existing_session = db.query(ChatSession).filter(
+            ChatSession.project_id == existing_project.id,
+            ChatSession.user_id == current_user.id
+        ).order_by(ChatSession.created_at.desc()).first()
         
-        # 1. 그래프용 필터 (현재는 Kotlin 중심)
-        kt_files_for_graph = {p: c for p, c in all_files.items() if p.endswith(('.kt', '.kts'))}
+        if existing_session:
+            # 엔진 캐시 확인 및 복구
+            if existing_session.id not in engine_cache:
+                all_project_files = {f.file_path: f.content for f in existing_project.files}
+                graph = nx.node_link_graph(existing_project.graph_data)
+                engine = ChatFolioEngine(
+                    all_project_files, 
+                    graph, 
+                    provider=existing_session.provider, 
+                    model_name=existing_session.model_name
+                )
+                engine_cache[existing_session.id] = engine
+                
+            async def quick_return():
+                result = {
+                    "status": "success",
+                    "session_id": existing_session.id,
+                    "file_count": existing_project.file_count,
+                    "node_count": existing_project.node_count,
+                    "edge_count": existing_project.edge_count,
+                    "message": "기존 분석 결과를 불러왔습니다."
+                }
+                yield f"data: RESULT:{json.dumps(result)}\n\n"
+            
+            return StreamingResponse(quick_return(), media_type="text/event-stream")
+
+    def generate():
+        q = Queue()
         
-        # 2. 전체 수집용 필터 (RAG 컨텍스트용)
-        # 소스코드, 설정파일, 문서 등 포함
-        relevant_extensions = (
-            '.kt', '.kts', '.java', '.py', '.js', '.ts', '.tsx', '.jsx', 
-            '.cpp', '.h', '.c', '.go', '.rs', '.swift', '.svelte', '.html', '.css',
-            '.json', '.yaml', '.yml', '.toml', '.xml', '.properties', '.gradle',
-            '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
-        )
-        relevant_files = {p: c for p, c in all_files.items() if p.lower().endswith(relevant_extensions) or p.lower() == 'dockerfile'}
+        def progress_callback(msg):
+            q.put(msg)
+            
+        def run_analysis():
+            try:
+                token = os.getenv("GITHUB_TOKEN")
+                fetcher = GitHubFetcher(token=token)
+                all_files = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
+                
+                # 1. 그래프용 필터
+                kt_files_for_graph = {p: c for p, c in all_files.items() if p.endswith(('.kt', '.kts'))}
+                
+                q.put("📊 의존성 그래프 분석 중...")
+                all_meta = {p: parse_kotlin_code(c) for p, c in kt_files_for_graph.items()}
+                builder = DependencyGraphBuilder()
+                graph = builder.build_graph(all_meta)
+                graph_data = nx.node_link_data(graph)
+                
+                q.put("💾 데이터베이스 저장 중...")
+                project = Project(
+                    user_id=current_user.id,
+                    repo_url=request.repo_url,
+                    file_count=len(all_files), 
+                    node_count=graph.number_of_nodes(),
+                    edge_count=graph.number_of_edges(),
+                    graph_data=graph_data
+                )
+                db.add(project)
+                db.commit()
+                db.refresh(project)
+                
+                project_files = [
+                    ProjectFile(project_id=project.id, file_path=p, content=c)
+                    for p, c in all_files.items()
+                ]
+                db.add_all(project_files)
+                
+                chat_session = ChatSession(
+                    user_id=current_user.id,
+                    project_id=project.id,
+                    provider=request.provider,
+                    model_name=request.model_name
+                )
+                db.add(chat_session)
+                db.commit()
+                db.refresh(chat_session)
+                
+                engine = ChatFolioEngine(all_files, graph, provider=request.provider, model_name=request.model_name)
+                engine_cache[chat_session.id] = engine
+                
+                result = {
+                    "status": "success",
+                    "session_id": chat_session.id,
+                    "file_count": project.file_count,
+                    "node_count": project.node_count,
+                    "edge_count": project.edge_count,
+                    "message": "분석이 완료되었습니다."
+                }
+                q.put(f"RESULT:{json.dumps(result)}")
+                q.put(None)
+            except Exception as e:
+                q.put(f"ERROR:{str(e)}")
+                q.put(None)
+
+        Thread(target=run_analysis).start()
         
-        all_meta = {p: parse_kotlin_code(c) for p, c in kt_files_for_graph.items()}
-        builder = DependencyGraphBuilder()
-        graph = builder.build_graph(all_meta)
-        
-        graph_data = nx.node_link_data(graph)
-        
-        project = Project(
-            user_id=current_user.id,
-            repo_url=request.repo_url,
-            file_count=len(relevant_files),
-            node_count=graph.number_of_nodes(),
-            edge_count=graph.number_of_edges(),
-            graph_data=graph_data
-        )
-        db.add(project)
-        db.commit()
-        db.refresh(project)
-        
-        project_files = [
-            ProjectFile(project_id=project.id, file_path=p, content=c)
-            for p, c in relevant_files.items()
-        ]
-        db.add_all(project_files)
-        
-        chat_session = ChatSession(
-            user_id=current_user.id,
-            project_id=project.id,
-            provider=request.provider,
-            model_name=request.model_name
-        )
-        db.add(chat_session)
-        db.commit()
-        db.refresh(chat_session)
-        
-        engine = ChatFolioEngine(relevant_files, graph, provider=request.provider, model_name=request.model_name)
-        engine_cache[chat_session.id] = engine
-        
-        return {
-            "status": "success",
-            "session_id": chat_session.id,
-            "file_count": project.file_count,
-            "node_count": project.node_count,
-            "edge_count": project.edge_count,
-            "message": "분석이 완료되었습니다."
-        }
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        while True:
+            msg = q.get()
+            if msg is None:
+                break
+            yield f"data: {msg}\n\n"
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
 
 @app.post("/chat")
 async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -110,7 +160,6 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
     if not chat_session:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
         
-    # 권한 검사
     if chat_session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="이 세션에 접근할 권한이 없습니다.")
         
@@ -124,7 +173,6 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
         
-        # 세션에 저장된 모델 정보 사용
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
@@ -164,11 +212,17 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
     if chat_session.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
         
+    project = chat_session.project
+    if not project or not project.graph_data:
+        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+
+    # 1. DB에 캐시된 다이어그램이 있고, 강제 재생성 요청이 아니라면 즉시 반환
+    if project.mermaid_code and not request.force_regenerate:
+        return DiagramResponse(mermaid_code=project.mermaid_code)
+
+    # 2. 캐시가 없거나 강제 재생성 요청이면 LLM을 통해 생성
     engine = engine_cache.get(session_id)
     if not engine:
-        project = chat_session.project
-        if not project or not project.graph_data:
-            raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
         
@@ -182,6 +236,72 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
         
     try:
         mermaid_code = engine.generate_mermaid()
+        
+        # 생성된 코드를 DB에 캐싱
+        project.mermaid_code = mermaid_code
+        db.commit()
+        
         return DiagramResponse(mermaid_code=mermaid_code)
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/projects")
+async def get_user_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    projects = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.created_at.desc()).all()
+    
+    result = []
+    for p in projects:
+        # 각 프로젝트의 최신 세션 가져오기
+        latest_session = db.query(ChatSession).filter(ChatSession.project_id == p.id).order_by(ChatSession.created_at.desc()).first()
+        result.append({
+            "id": p.id,
+            "repo_url": p.repo_url,
+            "file_count": p.file_count,
+            "created_at": p.created_at,
+            "latest_session_id": latest_session.id if latest_session else None
+        })
+        
+    return result
+
+@app.post("/generate/network")
+async def generate_network_data(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
+    
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        
+    project = chat_session.project
+    if not project or not project.graph_data:
+        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        
+    graph = nx.node_link_graph(project.graph_data)
+    
+    nodes = []
+    links = []
+    
+    degree_dict = dict(graph.degree())
+    
+    for node in graph.nodes():
+        parts = node.split('/')
+        name = parts[-1]
+        group = parts[-2] if len(parts) > 1 else "root"
+        
+        # 노드의 연결 수(degree)를 계산하여 크기(val) 결정 (최소 1, 최대 20으로 제한)
+        val = max(1, min(20, degree_dict.get(node, 1)))
+        
+        nodes.append({
+            "id": node,
+            "name": name,
+            "group": group,
+            "val": val
+        })
+        
+    for u, v in graph.edges():
+        links.append({
+            "source": u,
+            "target": v
+        })
+        
+    return {"nodes": nodes, "links": links}

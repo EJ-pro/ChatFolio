@@ -26,6 +26,7 @@ class AnalysisResponse(BaseModel):
 # 아키텍처 다이어그램 요청 및 응답
 class DiagramRequest(BaseModel):
     session_id: str
+    force_regenerate: Optional[bool] = False
 
 class DiagramResponse(BaseModel):
     mermaid_code: str

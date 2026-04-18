@@ -15,7 +15,7 @@ class GitHubFetcher:
             '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
         )
 
-    def fetch_repo_files(self, repo_url: str) -> dict:
+    def fetch_repo_files(self, repo_url: str, progress_callback=None) -> dict:
         repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
         repo = self.g.get_repo(repo_path)
         
@@ -23,18 +23,25 @@ class GitHubFetcher:
         tree = repo.get_git_tree(branch, recursive=True)
         
         files_data = {}
-        print(f"📂 [{repo.full_name}] ({branch}) 스캔 중...")
+        msg = f"📂 [{repo.full_name}] ({branch}) 스캔 중..."
+        print(msg)
+        if progress_callback: progress_callback(msg)
 
         for element in tree.tree:
             if element.type == "blob":
                 # 소문자로 변환하여 확장자 체크
-                if element.path.lower().endswith(self.target_extensions):
-                    print(f"   ✅ 수집됨: {element.path}")
+                if element.path.lower().endswith(self.target_extensions) or element.path.lower() == 'dockerfile':
+                    msg = f"   ✅ 수집됨: {element.path}"
+                    print(msg)
+                    if progress_callback: progress_callback(msg)
+                    
                     try:
                         blob = repo.get_git_blob(element.sha)
                         content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
                         files_data[element.path] = content
                     except Exception as e:
-                        print(f"   ❌ 읽기 실패: {element.path} ({e})")
+                        err_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
+                        print(err_msg)
+                        if progress_callback: progress_callback(err_msg)
         
         return files_data

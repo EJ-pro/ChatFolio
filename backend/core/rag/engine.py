@@ -94,38 +94,92 @@ class ChatFolioEngine:
             "graph_trace": visited_nodes
         }
 
-    def generate_mermaid(self):
-        # 1. 그래프 정보 요약 (노드 및 엣지)
-        nodes = list(self.graph.nodes)
-        edges = list(self.graph.edges)
+    def generate_mermaid(self) -> str:
+        if not self.llm:
+            return "graph TD\n    A[LLM Not Configured]"
+            
+        nodes = list(self.graph.nodes())
+        nodes_str = "\n".join(nodes)
         
-        graph_info = "Nodes (Files):\n" + "\n".join(nodes)
-        graph_info += "\n\nEdges (Dependencies):\n"
-        for u, v in edges:
-            graph_info += f"{u} -> {v}\n"
-
-        # 2. LLM 프롬프트 구성
         system_prompt = SystemMessage(content="""
-        당신은 소프트웨어 아키텍트입니다. 주어진 파일 간 의존성 정보를 바탕으로 Mermaid.js (graph TD) 코드를 생성하세요.
+        당신은 소프트웨어 아키텍트입니다. 다음은 안드로이드/소프트웨어 프로젝트의 파일 경로 목록입니다.
+        이 파일들을 도메인이나 역할(예: Adapter, Fragment, Model, Network 등)에 따라 그룹화하세요.
         
-        [규칙]
-        1. 출력은 오직 ```mermaid ... ``` 블록만 반환하세요.
-        2. 관련 있는 파일들은 폴더(package) 구조를 기반으로 'subgraph'로 묶어주세요.
-        3. 노드 이름은 가독성을 위해 파일명만 표시하거나 짧게 줄이세요.
-        4. 화살표 방향은 '상위 -> 하위' 또는 '의존하는 쪽 -> 의존받는 쪽'으로 표시하세요.
-        5. 너무 많은 화살표가 겹치지 않도록 핵심적인 도메인 흐름 위주로 정리하세요.
+        [출력 형식 - 반드시 JSON만 출력하세요]
+        ```json
+        {
+          "subgraphs": [
+            {
+              "name": "Adapter",
+              "nodes": ["app/src/main/.../Adapter.kt", "app/.../AnotherAdapter.kt"]
+            },
+            {
+              "name": "Fragment",
+              "nodes": ["app/src/main/.../Fragment.kt"]
+            }
+          ]
+        }
+        ```
         """)
         
-        user_prompt = HumanMessage(content=f"Dependency Data:\n{graph_info}\n\nPlease generate a clean and organized Mermaid diagram code.")
+        user_prompt = HumanMessage(content=f"Files:\n{nodes_str}")
         
-        # 3. LLM 호출
-        response = self.llm.invoke([system_prompt, user_prompt])
-        
-        # 결과에서 코드 블록만 추출
-        content = response.content.strip()
-        if "```mermaid" in content:
-            content = content.split("```mermaid")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].strip()
+        try:
+            response = self.llm.invoke([system_prompt, user_prompt])
+            content = response.content.strip()
             
-        return content
+            if "```json" in content:
+                content = content.split("```json")[1].split("```")[0].strip()
+            elif "```" in content:
+                content = content.split("```")[1].split("```")[0].strip()
+                
+            grouping = json.loads(content)
+            
+            # 1. 안전한 노드 ID 매핑 생성
+            node_id_map = {}
+            for i, node in enumerate(nodes):
+                node_id_map[node] = f"Node_{i}"
+                
+            # 2. Mermaid 코드 조합
+            mermaid_lines = ["graph TD"]
+            
+            # 서브그래프 작성
+            used_nodes = set()
+            for sg in grouping.get("subgraphs", []):
+                name = sg.get("name", "Unknown").replace(" ", "_").replace('"', '')
+                mermaid_lines.append(f"    subgraph {name}")
+                for node in sg.get("nodes", []):
+                    if node in node_id_map:
+                        node_id = node_id_map[node]
+                        display_name = node.split('/')[-1]
+                        mermaid_lines.append(f'        {node_id}["{display_name}"]')
+                        used_nodes.add(node)
+                mermaid_lines.append("    end")
+                
+            # 그룹화되지 않은 노드들
+            for node in nodes:
+                if node not in used_nodes:
+                    node_id = node_id_map[node]
+                    display_name = node.split('/')[-1]
+                    mermaid_lines.append(f'    {node_id}["{display_name}"]')
+                    
+            mermaid_lines.append("")
+            
+            # 엣지(의존성) 작성
+            for u, v in self.graph.edges():
+                if u in node_id_map and v in node_id_map:
+                    mermaid_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
+                    
+            return "\n".join(mermaid_lines)
+            
+        except Exception as e:
+            # 실패 시 단순 폴백 반환
+            print(f"Mermaid generation failed: {e}")
+            fallback_lines = ["graph TD"]
+            node_id_map = {node: f"N_{i}" for i, node in enumerate(nodes)}
+            for node, nid in node_id_map.items():
+                fallback_lines.append(f'    {nid}["{node.split("/")[-1]}"]')
+            for u, v in self.graph.edges():
+                if u in node_id_map and v in node_id_map:
+                    fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
+            return "\n".join(fallback_lines)

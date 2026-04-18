@@ -28,6 +28,7 @@ class Project(Base):
     node_count = Column(Integer)
     edge_count = Column(Integer)
     graph_data = Column(JSONB, nullable=True) # 직렬화된 NetworkX 그래프 저장
+    mermaid_code = Column(Text, nullable=True) # 생성된 Mermaid 다이어그램 캐싱
     status = Column(String, default="COMPLETED") # 분석 상태
     created_at = Column(DateTime, default=datetime.utcnow)
 
