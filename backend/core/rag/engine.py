@@ -184,7 +184,7 @@ class ChatFolioEngine:
                     fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
             return "\n".join(fallback_lines)
 
-    def generate_readme(self, template: str = "default") -> str:
+    def generate_readme(self) -> str:
         if not self.llm:
             return "# README\n\nLLM이 구성되지 않았습니다."
             
@@ -230,54 +230,92 @@ class ChatFolioEngine:
         {core_files_code}
         """
         
-        template_prompts = {
-            "default": """
-            [스타일: Standard Professional]
-            가장 표준적이고 전문적인 실리콘밸리 오픈소스 스타일.
-            - 헤더, 주요 기능, 기술 스택, 아키텍처, 폴더 구조를 균형있게 포함.
-            - 적절한 이모지와 뱃지 사용.
-            - 분량: 1500자 이상 상세하게.
-            """,
-            "minimal": """
-            [스타일: Minimalist & Clean]
-            핵심만 간결하게 전달하는 깔끔한 미니멀 스타일.
-            - 장황한 설명을 생략하고 요점만 빠르게 전달.
-            - 뱃지, 프로젝트 이름, 한 줄 소개, 빠른 시작(Quick Start), 핵심 기능 3줄 요약.
-            - 이모지 사용을 최소화하고 텍스트 가독성에 집중.
-            - 분량: 500자 내외 핵심 위주.
-            """,
-            "academic": """
-            [스타일: Academic & Research]
-            연구나 학술 프로젝트에 적합한 깊이 있는 아키텍처 중심 문서.
-            - 시스템 설계 배경, 디자인 패턴, 알고리즘, 컴포넌트 간의 데이터 흐름에 집중.
-            - 왜 이 아키텍처를 선택했는지 심도 깊은 분석 제공.
-            - 논문 초록(Abstract)처럼 시작하여, 방법론(Methodology) 및 구현 세부사항(Implementation Details) 섹션 포함.
-            - 분량: 2000자 이상 매우 상세하게.
-            """,
-            "startup": """
-            [스타일: Startup Pitch & Product]
-            비즈니스 가치와 제품 관점에서 어필하는 스타트업 피칭 스타일.
-            - "이 프로덕트가 왜 가치 있는가?(Value Proposition)"에 집중.
-            - 유저 관점의 주요 기능(Features)과 비즈니스 로직 강조.
-            - 엄청나게 많은 이모지와 화려한 마크다운 요소 사용. "🚀", "✨", "🔥" 등을 적극 활용.
-            - 세일즈 피치처럼 매력적으로 작성.
-            """,
-            "detailed": """
-            [스타일: Extremely Detailed Documentation]
-            거의 모든 컴포넌트와 파일을 뜯어 설명하는 방대한 개발자 가이드 스타일.
-            - 프로젝트의 모든 주요 클래스, 함수, 폴더 역할을 최대한 길고 상세하게 나열.
-            - 환경 설정, 트러블슈팅, 향후 개선점(Roadmap) 섹션 포함.
-            - 분량: 3000자 이상 가능한 한 길게.
-            """
-        }
-        
-        selected_style = template_prompts.get(template, template_prompts["default"])
-        
-        system_prompt = SystemMessage(content=f"""
+        system_prompt = SystemMessage(content="""
         당신은 탑티어 시니어 테크니컬 라이터입니다.
         제공된 프로젝트 코드 스니펫과 구조를 바탕으로 GitHub README.md를 마크다운으로 작성하세요.
 
-        {selected_style}
+        [스타일: Standard Professional]
+        사용자가 제공한 마크다운 템플릿 구조를 정확히 따르는 표준적인 실리콘밸리 오픈소스 스타일.
+        
+        [반드시 지켜야 할 마크다운 구조]
+        아래 구조를 100% 동일하게 따르되, 괄호 [] 안의 내용이나 기술 스택, 프로젝트 이름, 폴더 구조 등은 제공된 코드와 데이터를 바탕으로 알맞게 채워 넣으세요.
+        사용자가 직접 스크린샷이나 링크 등을 넣어야 하는 부분은 "[직접 입력해야 합니다]"와 같이 명시하세요.
+
+        # 🚀 [프로젝트명 유추]
+        > "[한 줄 소개 유추]" <br/>
+        > [추가 소개 유추]
+
+        ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+        (이외에 사용된 핵심 기술 스택 뱃지 2~3개 추가)
+        ![License](https://img.shields.io/badge/license-MIT-green.svg)
+
+        <br/>
+
+        ## 📝 목차
+        1. [프로젝트 소개](#-프로젝트-소개)
+        2. [주요 기능](#-주요-기능-key-features)
+        3. [기술 스택](#-기술-스택-tech-stack)
+        4. [화면 구성 및 사용법](#-화면-구성-및-사용법-usage)
+        5. [시작하기](#-시작하기-getting-started)
+        6. [폴더 구조](#-폴더-구조-directory-structure)
+
+        <br/>
+
+        ## 💡 프로젝트 소개
+        [프로젝트 코드를 분석하여 유추한 프로젝트의 목적과 해결하려는 문제점 작성]
+
+        <br/>
+
+        ## ✨ 주요 기능 (Key Features)
+        (제공된 핵심 파일 스니펫을 분석하여 3~4가지 주요 기능 구체적 작성)
+        - ⚡ **[기능명]:** [기능 상세 설명]
+
+        <br/>
+
+        ## 🛠 기술 스택 (Tech Stack)
+        (매니페스트 파일을 기반으로 정확히 분류)
+        ### Frontend
+        - (예: React, Kotlin, Android SDK 등)
+        ### Backend
+        - (예: Spring, FastAPI 등)
+        ### Infra & Tools
+
+        <br/>
+
+        ## 📱 화면 구성 및 사용법 (Usage)
+        > 💡 실제 구현된 화면 캡처나 GIF(움짤)를 추가하면 신뢰도가 대폭 상승합니다.
+
+        | 메인 화면 | 상세 화면 |
+        | :---: | :---: |
+        | <img src="https://via.placeholder.com/400x250.png?text=Screenshot+1" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Screenshot+2" width="400"/> |
+        | [메인 화면 설명 - 직접 입력해야 합니다] | [상세 화면 설명 - 직접 입력해야 합니다] |
+
+        <br/>
+
+        ## 🚀 시작하기 (Getting Started)
+        ### 1. 요구 사항 (Prerequisites)
+        (필요한 언어/프레임워크 버전 명시)
+
+        ### 2. 설치 및 실행 (Installation)
+        ```bash
+        # 1. 저장소 클론
+        $ git clone [저장소 링크 - 직접 입력해야 합니다]
+
+        # 2. 실행 명령어 (유추하여 작성)
+        $ [실행 명령어]
+        ```
+
+        <br/>
+
+        ## 📂 폴더 구조 (Directory Structure)
+        ```text
+        (제공된 디렉토리 데이터를 바탕으로 ASCII Tree 형태로 작성)
+        ```
+
+        <br/>
+
+        ## 👨‍💻 팀원 및 기여 (Contact)
+        - [팀원 이름 - 직접 입력해야 합니다] : [역할] - [Github 링크]
 
         코드를 읽고 '이 앱이 정확히 무슨 기능을 하는지' 깊이 있게 추론하여 상세히 적어야 합니다.
         응답은 오직 README.md 마크다운 코드만 출력하세요. 다른 말은 절대 금지합니다.

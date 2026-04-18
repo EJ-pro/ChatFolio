@@ -1,15 +1,9 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Loader2, Copy, Sparkles, CheckCircle2, ChevronDown } from 'lucide-react';
+import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
-const TEMPLATES = [
-  { id: 'default', name: 'Standard Professional', desc: '표준적이고 전문적인 기본 스타일' },
-  { id: 'minimal', name: 'Minimalist & Clean', desc: '핵심만 간결하게 전달하는 깔끔한 스타일' },
-  { id: 'academic', name: 'Academic & Research', desc: '아키텍처 중심의 깊이 있는 논문 스타일' },
-  { id: 'startup', name: 'Startup Pitch', desc: '비즈니스 가치와 제품 관점에서 어필하는 스타일' },
-  { id: 'detailed', name: 'Extremely Detailed', desc: '거의 모든 컴포넌트를 뜯어 설명하는 방대한 스타일' }
-];
+const DEFAULT_EXAMPLE = `# 🚀 AwesomeProject\n> "개발자를 위한 최고의 생산성 도구" <br/>\n> 업무 효율을 200% 끌어올려주는 실시간 협업 플랫폼입니다.\n\n![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)\n![React](https://img.shields.io/badge/React-18.0-61DAFB.svg?logo=react)\n![License](https://img.shields.io/badge/license-MIT-green.svg)\n\n<br/>\n\n## 📝 목차\n1. [프로젝트 소개](#-프로젝트-소개)\n2. [주요 기능](#-주요-기능-key-features)\n3. [기술 스택](#-기술-스택-tech-stack)\n4. [화면 구성 및 사용법](#-화면-구성-및-사용법-usage)\n5. [시작하기](#-시작하기-getting-started)\n6. [폴더 구조](#-폴더-구조-directory-structure)\n\n<br/>\n\n## 💡 프로젝트 소개\n기존의 협업 툴들이 가진 [어떤 문제점/불편함]을 해결하기 위해 기획되었습니다. 단순한 텍스트 공유를 넘어, 실시간 동기화와 직관적인 UX를 통해 팀의 커뮤니케이션 비용을 최소화하는 것이 목표입니다.\n\n<br/>\n\n## ✨ 주요 기능 (Key Features)\n- ⚡ **0.1초 실시간 동기화:** WebSocket을 활용한 지연 없는 데이터 통신\n- 🎨 **완벽한 다크모드 지원:** TailwindCSS 기반의 테마 시스템\n\n<br/>\n\n## 🛠 기술 스택 (Tech Stack)\n### Frontend\n- React 18, TailwindCSS\n### Backend\n- FastAPI, PostgreSQL\n\n<br/>\n\n## 📱 화면 구성 및 사용법 (Usage)\n| 메인 대시보드 | 실시간 채팅 화면 |\n| :---: | :---: |\n| <img src="https://via.placeholder.com/400x250.png?text=Dashboard" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Chat" width="400"/> |\n| [메인 화면 설명 - 직접 입력해야 합니다] | [채팅 화면 설명 - 직접 입력해야 합니다] |\n\n<br/>\n\n## 🚀 시작하기 (Getting Started)\n\`\`\`bash\n# 1. 저장소 클론\n$ git clone [https://github.com/username/AwesomeProject.git - 직접 입력해야 합니다]\n\n# 2. 패키지 설치\n$ npm install\n\`\`\`\n\n<br/>\n\n## 📂 폴더 구조 (Directory Structure)\n\`\`\`text\nsrc/\n ├── components/\n ├── pages/\n └── utils/\n\`\`\`\n\n<br/>\n\n## 👨‍💻 팀원 및 기여 (Contact)\n- [팀원 이름 - 직접 입력해야 합니다] : Frontend - [Github 링크]\n`;
 
 function DocsTab() {
   const location = useLocation();
@@ -19,7 +13,6 @@ function DocsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('default');
 
   const handleGenerateReadme = async () => {
     if (!sessionId) return;
@@ -38,8 +31,7 @@ function DocsTab() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          session_id: sessionId,
-          template: selectedTemplate
+          session_id: sessionId
         })
       });
 
@@ -83,28 +75,6 @@ function DocsTab() {
           <p className="text-slate-600 text-sm mb-6 leading-relaxed">
             전체 파일 개수, 가장 많이 참조된 핵심 파일 Top 5, 그리고 디렉토리 구조를 바탕으로 Github에 올릴 수 있는 README.md를 자동 작성합니다.
           </p>
-
-          <div className="mb-6">
-            <label className="block text-sm font-bold text-slate-700 mb-2">템플릿 선택</label>
-            <div className="relative">
-              <select
-                value={selectedTemplate}
-                onChange={(e) => setSelectedTemplate(e.target.value)}
-                className="w-full appearance-none bg-white border border-slate-300 text-slate-700 py-3 px-4 pr-10 rounded-xl leading-tight focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-                disabled={isLoading}
-              >
-                {TEMPLATES.map(t => (
-                  <option key={t.id} value={t.id}>{t.name} - {t.desc}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
-            <p className="text-xs text-slate-500 mt-2">
-              {TEMPLATES.find(t => t.id === selectedTemplate)?.desc}
-            </p>
-          </div>
           
           <button
             onClick={handleGenerateReadme}
@@ -134,7 +104,13 @@ function DocsTab() {
 
       {/* Right Panel: Viewer */}
       <div className="flex-1 bg-slate-900 overflow-hidden flex flex-col relative">
-        {readmeContent ? (
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-500">
+            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+            <p className="text-slate-400 font-medium text-lg">AI가 아키텍처를 분석하여 README를 작성하고 있습니다...</p>
+            <p className="text-slate-500 text-sm mt-2">이 작업은 약 10~20초 정도 소요됩니다.</p>
+          </div>
+        ) : readmeContent ? (
           <>
             <div className="absolute top-4 right-4 z-10">
               <button
@@ -148,13 +124,11 @@ function DocsTab() {
             
             <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
               <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden min-h-full">
-                {/* GitHub Style Header */}
                 <div className="bg-slate-100 border-b border-slate-200 px-6 py-3 flex items-center gap-2">
                   <FileText className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700">README.md</span>
+                  <span className="text-sm font-semibold text-slate-700">README.md (Generated)</span>
                 </div>
                 
-                {/* Markdown Content */}
                 <div className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-slate-800 prose-pre:text-slate-100">
                   <ReactMarkdown>{readmeContent}</ReactMarkdown>
                 </div>
@@ -162,22 +136,33 @@ function DocsTab() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-500">
-            {isLoading ? (
-              <div className="flex flex-col items-center">
-                <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-                <p className="text-slate-400 font-medium text-lg">AI가 아키텍처를 분석하여 README를 작성하고 있습니다...</p>
-                <p className="text-slate-500 text-sm mt-2">이 작업은 약 10~20초 정도 소요됩니다.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center">
-                <div className="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-6 border border-slate-700">
-                  <FileText className="w-10 h-10 text-slate-600" />
+          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar relative">
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-5 z-0">
+              <FileText className="w-96 h-96" />
+            </div>
+
+            <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden min-h-full border border-slate-200 relative z-10 opacity-80 hover:opacity-100 transition-opacity">
+              <div className="bg-slate-100 border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-4 h-4 text-slate-500" />
+                  <span className="text-sm font-semibold text-slate-700">스타일 미리보기 (Preview)</span>
                 </div>
-                <h3 className="text-xl font-bold text-slate-300 mb-2">생성된 문서가 없습니다</h3>
-                <p className="text-slate-500">좌측의 생성 버튼을 눌러 프로젝트 README를 만들어보세요.</p>
+                <span className="text-xs font-mono text-slate-600 bg-slate-200 px-2 py-1 rounded font-bold">
+                  Standard Professional
+                </span>
               </div>
-            )}
+              
+              <div className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-slate-800 prose-pre:text-slate-100">
+                <ReactMarkdown>{DEFAULT_EXAMPLE}</ReactMarkdown>
+              </div>
+              
+              {/* Preview Watermark */}
+              <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
+                <span className="transform -rotate-12 text-7xl font-black text-slate-900/5 uppercase tracking-widest border-8 border-slate-900/5 px-12 py-6 rounded-3xl select-none">
+                  Preview
+                </span>
+              </div>
+            </div>
           </div>
         )}
       </div>
