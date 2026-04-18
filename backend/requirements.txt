@@ -7,6 +7,9 @@ uvicorn
 pydantic
 httpx
 
+sqlalchemy
+psycopg2-binary
+
 langchain
 langchain-openai
 chromadb

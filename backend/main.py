@@ -10,8 +10,13 @@ from core.parser.github_fetcher import GitHubFetcher
 from core.parser.kotlin_parser import parse_kotlin_code
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
+from database.models import init_db
 
 load_dotenv()
+
+# DB 초기화 (스키마 생성)
+init_db()
+
 app = FastAPI(title="ChatFolio API")
 
 # CORS 설정 (프론트엔드 통신 허용)
