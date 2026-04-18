@@ -16,3 +16,6 @@ chromadb
 tiktoken
 langchain-community
 langchain-text-splitters
+
+fastapi-sso>=0.15.0
+PyJWT>=2.8.0

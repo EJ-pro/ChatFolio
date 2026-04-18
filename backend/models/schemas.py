@@ -7,11 +7,13 @@ class AnalyzeRequest(BaseModel):
 
 # 채팅 메시지 요청
 class ChatRequest(BaseModel):
+    session_id: str
     query: str
 
 # 분석 상태 및 결과 응답
 class AnalysisResponse(BaseModel):
     status: str
+    session_id: str
     file_count: int
     node_count: int
     edge_count: int

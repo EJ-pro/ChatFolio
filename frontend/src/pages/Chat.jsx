@@ -1,15 +1,25 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, ArrowLeft, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function Chat() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const sessionId = location.state?.sessionId;
+
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
-  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!sessionId) {
+      alert("유효한 세션이 없습니다. 분석을 먼저 진행해주세요.");
+      navigate('/');
+    }
+  }, [sessionId, navigate]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -21,7 +31,7 @@ function Chat() {
 
   const handleSend = async (e) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || !sessionId) return;
 
     const userMessage = { role: 'user', content: input };
     setMessages(prev => [...prev, userMessage]);
@@ -29,11 +39,15 @@ function Chat() {
     setIsLoading(true);
 
     try {
+      const token = localStorage.getItem('token');
       // FastAPI 백엔드 호출
       const response = await fetch('http://localhost:8000/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: input })
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ session_id: sessionId, query: input })
       });
 
       if (!response.ok) {
@@ -50,23 +64,7 @@ function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-slate-50">
-      {/* 상단 헤더 */}
-      <header className="bg-white border-b border-slate-200 p-4 flex items-center gap-4 shadow-sm">
-        <button 
-          onClick={() => navigate('/')}
-          className="p-2 hover:bg-slate-100 rounded-full transition-colors"
-        >
-          <ArrowLeft className="w-5 h-5 text-slate-600" />
-        </button>
-        <div>
-          <h2 className="font-bold text-slate-800">ChatFolio AI</h2>
-          <p className="text-xs text-emerald-500 font-medium flex items-center gap-1">
-            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-            분석 완료됨
-          </p>
-        </div>
-      </header>
+    <div className="flex flex-col h-full bg-slate-50">
 
       {/* 메시지 영역 */}
       <main className="flex-1 overflow-y-auto p-4 space-y-6">

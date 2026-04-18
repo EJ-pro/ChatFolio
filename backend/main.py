@@ -1,25 +1,27 @@
-from fastapi import FastAPI, HTTPException
-# models 폴더 안의 schemas.py 파일에서 우리가 만든 클래스들을 가져옵니다.
+from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy.orm import Session
 from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
+import networkx as nx
 from dotenv import load_dotenv
 
-# 우리가 만든 모듈들
 from core.parser.github_fetcher import GitHubFetcher
 from core.parser.kotlin_parser import parse_kotlin_code
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
-from database.models import init_db
+from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User
+from database.database import get_db
+
+# 라우터 및 의존성 추가
+from api.auth import router as auth_router, get_current_user
 
 load_dotenv()
 
-# DB 초기화 (스키마 생성)
 init_db()
 
 app = FastAPI(title="ChatFolio API")
 
-# CORS 설정 (프론트엔드 통신 허용)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -27,53 +29,106 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 세션별 엔진 관리를 위한 임시 저장소
-# (실제 운영시에는 Redis나 인메모리 캐시 사용 권장)
-project_session = {
-    "engine": None,
-    "files": None,
-    "graph": None
-}
+app.include_router(auth_router)
+
+engine_cache = {}
 
 @app.post("/analyze")
-async def analyze_repository(request: AnalyzeRequest):
+async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     token = os.getenv("GITHUB_TOKEN")
     try:
-        # 1. 수집
         fetcher = GitHubFetcher(token=token)
         files = fetcher.fetch_repo_files(request.repo_url)
         kt_files = {p: c for p, c in files.items() if p.endswith(('.kt', '.kts'))}
         
-        # 2. 분석 및 그래프 구축
         all_meta = {p: parse_kotlin_code(c) for p, c in kt_files.items()}
         builder = DependencyGraphBuilder()
         graph = builder.build_graph(all_meta)
         
-        # 3. RAG 엔진 초기화
-        engine = ChatFolioEngine(kt_files, graph)
+        graph_data = nx.node_link_data(graph)
         
-        # 세션 저장
-        project_session["engine"] = engine
-        project_session["files"] = kt_files
-        project_session["graph"] = graph
+        project = Project(
+            user_id=current_user.id,
+            repo_url=request.repo_url,
+            file_count=len(kt_files),
+            node_count=graph.number_of_nodes(),
+            edge_count=graph.number_of_edges(),
+            graph_data=graph_data
+        )
+        db.add(project)
+        db.commit()
+        db.refresh(project)
+        
+        project_files = [
+            ProjectFile(project_id=project.id, file_path=p, content=c)
+            for p, c in kt_files.items()
+        ]
+        db.add_all(project_files)
+        
+        chat_session = ChatSession(
+            user_id=current_user.id,
+            project_id=project.id
+        )
+        db.add(chat_session)
+        db.commit()
+        db.refresh(chat_session)
+        
+        engine = ChatFolioEngine(kt_files, graph)
+        engine_cache[chat_session.id] = engine
         
         return {
             "status": "success",
-            "file_count": len(kt_files),
-            "node_count": graph.number_of_nodes(),
-            "edge_count": graph.number_of_edges(),
+            "session_id": chat_session.id,
+            "file_count": project.file_count,
+            "node_count": project.node_count,
+            "edge_count": project.edge_count,
             "message": "분석이 완료되었습니다."
         }
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/chat")
-async def chat_with_code(request: ChatRequest):
-    if not project_session["engine"]:
-        raise HTTPException(status_code=400, detail="먼저 프로젝트를 분석해야 합니다.")
+async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
     
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        
+    # 권한 검사
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="이 세션에 접근할 권한이 없습니다.")
+        
+    engine = engine_cache.get(session_id)
+    
+    if not engine:
+        project = chat_session.project
+        if not project or not project.graph_data:
+            raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+            
+        graph = nx.node_link_graph(project.graph_data)
+        kt_files = {f.file_path: f.content for f in project.files}
+        
+        engine = ChatFolioEngine(kt_files, graph)
+        engine_cache[session_id] = engine
+
     try:
-        result = project_session["engine"].ask(request.query)
-        return result # {answer, sources, graph_trace} 반환
+        user_msg = ChatMessage(session_id=session_id, role="user", content=request.query)
+        db.add(user_msg)
+        
+        result = engine.ask(request.query)
+        
+        ai_msg = ChatMessage(
+            session_id=session_id, 
+            role="assistant", 
+            content=result["answer"],
+            sources=result["sources"]
+        )
+        db.add(ai_msg)
+        db.commit()
+        
+        return result
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
