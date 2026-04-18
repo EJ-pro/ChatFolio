@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse
+from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import networkx as nx
@@ -131,4 +131,31 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
         return result
     except Exception as e:
         db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/generate/diagram", response_model=DiagramResponse)
+async def generate_architecture_diagram(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
+    
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    engine = engine_cache.get(session_id)
+    if not engine:
+        project = chat_session.project
+        if not project or not project.graph_data:
+            raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        graph = nx.node_link_graph(project.graph_data)
+        kt_files = {f.file_path: f.content for f in project.files}
+        engine = ChatFolioEngine(kt_files, graph)
+        engine_cache[session_id] = engine
+        
+    try:
+        mermaid_code = engine.generate_mermaid()
+        return DiagramResponse(mermaid_code=mermaid_code)
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

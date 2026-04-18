@@ -18,3 +18,10 @@ class AnalysisResponse(BaseModel):
     node_count: int
     edge_count: int
     message: str
+
+# 아키텍처 다이어그램 요청 및 응답
+class DiagramRequest(BaseModel):
+    session_id: str
+
+class DiagramResponse(BaseModel):
+    mermaid_code: str

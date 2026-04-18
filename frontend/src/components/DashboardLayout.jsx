@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, LogOut } from 'lucide-react';
+import { MessageSquare, FileText, Target, Github, LogOut, Share2 } from 'lucide-react';
 import { useEffect } from 'react';
 
 function DashboardLayout() {
@@ -17,6 +17,7 @@ function DashboardLayout() {
 
   const navItems = [
     { path: '/dashboard/chat', icon: MessageSquare, label: '일반 채팅' },
+    { path: '/dashboard/architecture', icon: Share2, label: '아키텍처' },
     { path: '/dashboard/docs', icon: FileText, label: '문서 자동화' },
     { path: '/dashboard/interview', icon: Target, label: '모의 면접' },
   ];

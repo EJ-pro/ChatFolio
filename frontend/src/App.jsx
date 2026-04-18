@@ -4,6 +4,7 @@ import Analysis from './pages/Analysis';
 import Chat from './pages/Chat';
 import DocsTab from './pages/DocsTab';
 import InterviewTab from './pages/InterviewTab';
+import ArchitectureTab from './pages/ArchitectureTab';
 import AuthCallback from './pages/AuthCallback';
 import DashboardLayout from './components/DashboardLayout';
 
@@ -37,6 +38,7 @@ function App() {
           </ProtectedRoute>
         }>
           <Route path="chat" element={<Chat />} />
+          <Route path="architecture" element={<ArchitectureTab />} />
           <Route path="docs" element={<DocsTab />} />
           <Route path="interview" element={<InterviewTab />} />
         </Route>
