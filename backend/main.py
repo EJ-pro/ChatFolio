@@ -332,7 +332,7 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         engine_cache[session_id] = engine
         
     try:
-        readme_content = engine.generate_readme()
+        readme_content = engine.generate_readme(template=request.template)
         return ReadmeResponse(readme_content=readme_content)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

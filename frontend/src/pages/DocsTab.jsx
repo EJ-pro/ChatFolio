@@ -1,7 +1,15 @@
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Loader2, Copy, Sparkles, CheckCircle2 } from 'lucide-react';
+import { FileText, Loader2, Copy, Sparkles, CheckCircle2, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
+const TEMPLATES = [
+  { id: 'default', name: 'Standard Professional', desc: '표준적이고 전문적인 기본 스타일' },
+  { id: 'minimal', name: 'Minimalist & Clean', desc: '핵심만 간결하게 전달하는 깔끔한 스타일' },
+  { id: 'academic', name: 'Academic & Research', desc: '아키텍처 중심의 깊이 있는 논문 스타일' },
+  { id: 'startup', name: 'Startup Pitch', desc: '비즈니스 가치와 제품 관점에서 어필하는 스타일' },
+  { id: 'detailed', name: 'Extremely Detailed', desc: '거의 모든 컴포넌트를 뜯어 설명하는 방대한 스타일' }
+];
 
 function DocsTab() {
   const location = useLocation();
@@ -11,6 +19,7 @@ function DocsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('default');
 
   const handleGenerateReadme = async () => {
     if (!sessionId) return;
@@ -28,7 +37,10 @@ function DocsTab() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ session_id: sessionId })
+        body: JSON.stringify({ 
+          session_id: sessionId,
+          template: selectedTemplate
+        })
       });
 
       if (!response.ok) {
@@ -71,6 +83,28 @@ function DocsTab() {
           <p className="text-slate-600 text-sm mb-6 leading-relaxed">
             전체 파일 개수, 가장 많이 참조된 핵심 파일 Top 5, 그리고 디렉토리 구조를 바탕으로 Github에 올릴 수 있는 README.md를 자동 작성합니다.
           </p>
+
+          <div className="mb-6">
+            <label className="block text-sm font-bold text-slate-700 mb-2">템플릿 선택</label>
+            <div className="relative">
+              <select
+                value={selectedTemplate}
+                onChange={(e) => setSelectedTemplate(e.target.value)}
+                className="w-full appearance-none bg-white border border-slate-300 text-slate-700 py-3 px-4 pr-10 rounded-xl leading-tight focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+                disabled={isLoading}
+              >
+                {TEMPLATES.map(t => (
+                  <option key={t.id} value={t.id}>{t.name} - {t.desc}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+                <ChevronDown className="w-4 h-4" />
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mt-2">
+              {TEMPLATES.find(t => t.id === selectedTemplate)?.desc}
+            </p>
+          </div>
           
           <button
             onClick={handleGenerateReadme}

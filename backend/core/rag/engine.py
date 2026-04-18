@@ -184,7 +184,7 @@ class ChatFolioEngine:
                     fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
             return "\n".join(fallback_lines)
 
-    def generate_readme(self) -> str:
+    def generate_readme(self, template: str = "default") -> str:
         if not self.llm:
             return "# README\n\nLLM이 구성되지 않았습니다."
             
@@ -230,25 +230,57 @@ class ChatFolioEngine:
         {core_files_code}
         """
         
-        system_prompt = SystemMessage(content="""
-        당신은 실리콘밸리 탑티어 오픈소스 메인테이너이자 시니어 테크니컬 라이터입니다.
-        제공된 프로젝트의 의존성 구조, 매니페스트 파일(build.gradle 등), 그리고 핵심 파일의 실제 코드 스니펫을 분석하여 
-        최고급 퀄리티의 GitHub README.md를 마크다운으로 작성하세요.
-
-        단순한 나열이 절대 아닙니다. 코드를 읽고 '이 앱이 정확히 무슨 기능을 하는지' 깊이 있게 추론하여 상세히 적어야 합니다.
-
-        [반드시 포함할 내용 및 양식]
-        1. **프로젝트 헤더**: 프로젝트 이름 (멋지게 추론), 뱃지들 (기술 스택 기반 마크다운 뱃지), 한 줄 소개.
-        2. **✨ 주요 기능 (Key Features)**: 핵심 코드 스니펫을 읽고 이 앱이 어떤 비즈니스 로직(로그인, 메모, 매칭 등)을 수행하는지 구체적으로 3~5가지 작성.
-        3. **🛠 기술 스택 (Tech Stack)**: 제공된 매니페스트(build.gradle 등)에 명시된 라이브러리 버전을 포함하여 상세히 분류 (Frontend, Backend, Database 등).
-        4. **🏗 아키텍처 및 핵심 컴포넌트 (Architecture)**: Top 5 파일들이 어떤 역할을 하며 서로 어떻게 데이터를 주고받는지(MVVM, Clean Architecture 등) 심층 분석.
-        5. **📂 폴더 구조 (Project Structure)**: 주요 디렉토리를 ASCII Tree 구조로 멋지게 포매팅.
+        template_prompts = {
+            "default": """
+            [스타일: Standard Professional]
+            가장 표준적이고 전문적인 실리콘밸리 오픈소스 스타일.
+            - 헤더, 주요 기능, 기술 스택, 아키텍처, 폴더 구조를 균형있게 포함.
+            - 적절한 이모지와 뱃지 사용.
+            - 분량: 1500자 이상 상세하게.
+            """,
+            "minimal": """
+            [스타일: Minimalist & Clean]
+            핵심만 간결하게 전달하는 깔끔한 미니멀 스타일.
+            - 장황한 설명을 생략하고 요점만 빠르게 전달.
+            - 뱃지, 프로젝트 이름, 한 줄 소개, 빠른 시작(Quick Start), 핵심 기능 3줄 요약.
+            - 이모지 사용을 최소화하고 텍스트 가독성에 집중.
+            - 분량: 500자 내외 핵심 위주.
+            """,
+            "academic": """
+            [스타일: Academic & Research]
+            연구나 학술 프로젝트에 적합한 깊이 있는 아키텍처 중심 문서.
+            - 시스템 설계 배경, 디자인 패턴, 알고리즘, 컴포넌트 간의 데이터 흐름에 집중.
+            - 왜 이 아키텍처를 선택했는지 심도 깊은 분석 제공.
+            - 논문 초록(Abstract)처럼 시작하여, 방법론(Methodology) 및 구현 세부사항(Implementation Details) 섹션 포함.
+            - 분량: 2000자 이상 매우 상세하게.
+            """,
+            "startup": """
+            [스타일: Startup Pitch & Product]
+            비즈니스 가치와 제품 관점에서 어필하는 스타트업 피칭 스타일.
+            - "이 프로덕트가 왜 가치 있는가?(Value Proposition)"에 집중.
+            - 유저 관점의 주요 기능(Features)과 비즈니스 로직 강조.
+            - 엄청나게 많은 이모지와 화려한 마크다운 요소 사용. "🚀", "✨", "🔥" 등을 적극 활용.
+            - 세일즈 피치처럼 매력적으로 작성.
+            """,
+            "detailed": """
+            [스타일: Extremely Detailed Documentation]
+            거의 모든 컴포넌트와 파일을 뜯어 설명하는 방대한 개발자 가이드 스타일.
+            - 프로젝트의 모든 주요 클래스, 함수, 폴더 역할을 최대한 길고 상세하게 나열.
+            - 환경 설정, 트러블슈팅, 향후 개선점(Roadmap) 섹션 포함.
+            - 분량: 3000자 이상 가능한 한 길게.
+            """
+        }
         
-        [작성 가이드라인]
-        - 이모지(Emoji)를 적절히 활용하여 시각적으로 아름답게 꾸미세요.
-        - 분량은 아주 상세하고 깁니다 (최소 1500자 이상). 절대 짧게 대충 쓰지 마세요.
-        - 개발자가 이 README만 보고도 프로젝트 전체 흐름을 완벽히 이해할 수 있도록 '전문적이고 세련된 어투'로 작성하세요.
-        - 응답은 오직 README.md 마크다운 코드만 출력하세요.
+        selected_style = template_prompts.get(template, template_prompts["default"])
+        
+        system_prompt = SystemMessage(content=f"""
+        당신은 탑티어 시니어 테크니컬 라이터입니다.
+        제공된 프로젝트 코드 스니펫과 구조를 바탕으로 GitHub README.md를 마크다운으로 작성하세요.
+
+        {selected_style}
+
+        코드를 읽고 '이 앱이 정확히 무슨 기능을 하는지' 깊이 있게 추론하여 상세히 적어야 합니다.
+        응답은 오직 README.md 마크다운 코드만 출력하세요. 다른 말은 절대 금지합니다.
         """)
         
         user_prompt = HumanMessage(content=context)
