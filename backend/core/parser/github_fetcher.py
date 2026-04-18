@@ -7,7 +7,13 @@ class GitHubFetcher:
         auth = Auth.Token(token)
         self.g = Github(auth=auth)
         # 분석 대상 확장자 정의
-        self.target_extensions = ('.kt', '.kts')
+        # 분석 대상 확장자 정의 (텍스트 기반의 소스코드, 설정, 문서)
+        self.target_extensions = (
+            '.kt', '.kts', '.java', '.py', '.js', '.ts', '.tsx', '.jsx', 
+            '.cpp', '.h', '.c', '.go', '.rs', '.swift', '.svelte', '.html', '.css',
+            '.json', '.yaml', '.yml', '.toml', '.xml', '.properties', '.gradle',
+            '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
+        )
 
     def fetch_repo_files(self, repo_url: str) -> dict:
         repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")

@@ -8,6 +8,8 @@ function Analysis() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
+  const [provider, setProvider] = useState('groq');
+  const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
 
   const handleAnalyze = async (e) => {
     e.preventDefault();
@@ -19,14 +21,17 @@ function Analysis() {
 
     try {
       const token = localStorage.getItem('token');
-      // FastAPI 백엔드 호출
       const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ repo_url: url })
+        body: JSON.stringify({ 
+          repo_url: url,
+          provider: provider,
+          model_name: modelName
+        })
       });
 
       if (response.status === 401 || response.status === 403 || response.status === 404) {
@@ -69,6 +74,24 @@ function Analysis() {
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
             복잡한 레포지토리의 의존성을 시각화하고, AI와 대화하며 코드의 숨은 맥락을 파악하세요. 단 하나의 링크면 충분합니다.
           </p>
+        </div>
+
+        {/* Model Selector */}
+        <div className="flex items-center justify-center gap-4 mb-10 animate-fade-in-up delay-100">
+          <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-white/10 backdrop-blur-md shadow-inner">
+            <button
+              onClick={() => { setProvider('groq'); setModelName('llama-3.3-70b-versatile'); }}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${provider === 'groq' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+            >
+              Groq (Free)
+            </button>
+            <button
+              onClick={() => { setProvider('openai'); setModelName('gpt-4o-mini'); }}
+              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${provider === 'openai' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+            >
+              OpenAI (Paid)
+            </button>
+          </div>
         </div>
 
         {/* Search Section */}

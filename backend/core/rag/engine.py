@@ -1,14 +1,21 @@
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_groq import ChatGroq
 # Chroma 대신 순수 파이썬 인메모리 스토어 사용
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
 
 class ChatFolioEngine:
-    def __init__(self, files_data, graph):
+    def __init__(self, files_data, graph, provider="groq", model_name=None):
         self.files_data = files_data
-        self.graph = graph           
-        self.llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        self.graph = graph
+        
+        # LLM 초기화
+        if provider == "openai":
+            self.llm = ChatOpenAI(model=model_name or "gpt-4o-mini", temperature=0)
+        else: # Default is groq
+            self.llm = ChatGroq(model=model_name or "llama-3.3-70b-versatile", temperature=0)
+            
         self.embeddings = OpenAIEmbeddings()
         
         # 1. 벡터 스토어 구축

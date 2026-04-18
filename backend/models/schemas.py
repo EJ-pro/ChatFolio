@@ -4,11 +4,15 @@ from typing import List, Dict, Any, Optional
 # 저장소 분석 요청
 class AnalyzeRequest(BaseModel):
     repo_url: str
+    provider: Optional[str] = "groq"
+    model_name: Optional[str] = None
 
 # 채팅 메시지 요청
 class ChatRequest(BaseModel):
     session_id: str
     query: str
+    provider: Optional[str] = "groq"
+    model_name: Optional[str] = None
 
 # 분석 상태 및 결과 응답
 class AnalysisResponse(BaseModel):

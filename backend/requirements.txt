@@ -12,6 +12,7 @@ psycopg2-binary
 
 langchain
 langchain-openai
+langchain-groq
 chromadb
 tiktoken
 langchain-community
