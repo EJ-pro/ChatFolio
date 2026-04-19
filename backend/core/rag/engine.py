@@ -213,20 +213,51 @@ class ChatFolioEngine:
         dirs = set()
         for node in nodes:
             dirs.add(os.path.dirname(node))
-        dir_str = "\n".join([f"- {d}" for d in sorted(list(dirs))[:30]])
+        dir_tree = "\n".join([f"- {d}/" for d in sorted(list(dirs))[:15]])
         
+        # 4. [NEW] 프로젝트 정체성(언어/프레임워크) 자동 추론 로직
+        extensions = {}
+        framework_hints = set()
+        
+        for path in self.files_data.keys():
+            # 확장자 빈도수 체크
+            ext = path.split('.')[-1].lower() if '.' in path else ''
+            if ext:
+                extensions[ext] = extensions.get(ext, 0) + 1
+                
+            # 설정 파일로 프레임워크 힌트 획득
+            path_lower = path.lower()
+            if "package.json" in path_lower: framework_hints.add("Node.js / NPM")
+            if "build.gradle" in path_lower or "settings.gradle" in path_lower: framework_hints.add("Gradle (Android/Spring)")
+            if "pom.xml" in path_lower: framework_hints.add("Maven (Java/Spring)")
+            if "requirements.txt" in path_lower or "pipfile" in path_lower or "pyproject.toml" in path_lower: framework_hints.add("Python Ecosystem")
+            if "dockerfile" in path_lower or "docker-compose" in path_lower: framework_hints.add("Docker Containerization")
+            if "cmakelists.txt" in path_lower: framework_hints.add("C/C++ Build System")
+            if "tsconfig.json" in path_lower: framework_hints.add("TypeScript")
+            if "next.config" in path_lower: framework_hints.add("Next.js")
+            if "tailwind.config" in path_lower: framework_hints.add("TailwindCSS")
+
+        # 가장 많이 쓰인 확장자 Top 3
+        top_exts = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:3]
+        top_exts_str = ", ".join([f".{ext}({cnt}개)" for ext, cnt in top_exts])
+        framework_str = ", ".join(list(framework_hints)) if framework_hints else "특정 프레임워크 추론 불가"
+
         context = f"""
-        [프로젝트 정보 요약]
-        - 총 파일 수: {file_count}개
+        [🤖 프로젝트 정체성 분석 결과]
+        - 주 사용 언어/확장자: {top_exts_str}
+        - 감지된 환경/프레임워크 힌트: {framework_str}
         
-        [주요 디렉토리 구조]
-        {dir_str}
+        [📂 프로젝트 구조 및 핵심 데이터]
+        - 총 파일 수: {file_count}개
+        - 가장 많이 참조된 핵심 파일(의존성 중심): {", ".join([f.split('/')[-1] for f, _ in top_files])}
+        
+        [주요 디렉토리]
+        {dir_tree}
 
         [기술 스택 정보 (매니페스트 파일)]
         {manifest_content}
         
-        [가장 많이 참조된 핵심 파일 Top 5 및 코드 스니펫]
-        {top_files_str}
+        [핵심 파일 코드 스니펫]
         {core_files_code}
         """
         
