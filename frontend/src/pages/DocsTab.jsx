@@ -10,17 +10,15 @@ const DEFAULT_EXAMPLE = `# 🚀 AwesomeProject\n> "개발자를 위한 최고의
 
 function DocsTab() {
   const location = useLocation();
-  const sessionId = location.state?.sessionId;
+  const [sessionId, setSessionId] = useState(location.state?.sessionId || sessionStorage.getItem('last_session_id'));
   
   const [readmeContent, setReadmeContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
-  const [hasLoadedExisting, setHasLoadedExisting] = useState(false);
   const [viewMode, setViewMode] = useState('code'); // 'code' or 'md'
   const [readmes, setReadmes] = useState([]);
   const [currentProjectId, setCurrentProjectId] = useState(null);
-  
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userInputs, setUserInputs] = useState({
     "프로젝트 이름": "",
@@ -37,14 +35,27 @@ function DocsTab() {
     setUserInputs(prev => ({ ...prev, [field]: value }));
   };
 
-  // 컴포넌트 마운트 시 기존에 생성된 README가 있는지 확인
+
+  // location.state.sessionId가 변경되면 상태 동기화 및 데이터 재요청
   useEffect(() => {
-    if (sessionId && !hasLoadedExisting) {
-      fetchInitialData();
+    const newSessionId = location.state?.sessionId || sessionStorage.getItem('last_session_id');
+    if (newSessionId && newSessionId !== sessionId) {
+      setSessionId(newSessionId);
+      // 데이터 초기화 후 재요청
+      setReadmeContent('');
+      setReadmes([]);
+      setCurrentProjectId(null);
+    }
+  }, [location.state?.sessionId]);
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchInitialData(sessionId);
     }
   }, [sessionId]);
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (sid) => {
+
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -80,10 +91,9 @@ function DocsTab() {
       }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
-    } finally {
-      setHasLoadedExisting(true);
     }
   };
+
 
   const fetchReadmesHistory = async (projectId, headers) => {
     try {
