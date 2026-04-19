@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye, Code } from 'lucide-react';
+import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye, Code, Clock, ChevronRight, Settings, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
+
+
 
 
 const DEFAULT_EXAMPLE = `# 🚀 AwesomeProject\n> "개발자를 위한 최고의 생산성 도구" <br/>\n> 업무 효율을 200% 끌어올려주는 실시간 협업 플랫폼입니다.\n\n![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)\n![React](https://img.shields.io/badge/React-18.0-61DAFB.svg?logo=react)\n![FastAPI](https://img.shields.io/badge/FastAPI-0.95-009688.svg?logo=fastapi)\n![License](https://img.shields.io/badge/license-MIT-green.svg)\n\n<br/>\n\n## 📝 목차\n1. [프로젝트 소개](#-프로젝트-소개)\n2. [주요 기능](#-주요-기능-key-features)\n3. [기술 스택](#-기술-스택-tech-stack)\n4. [화면 구성 및 사용법](#-화면-구성-및-사용법-usage)\n5. [시작하기](#-시작하기-getting-started)\n6. [폴더 구조](#-폴더-구조-directory-structure)\n\n<br/>\n\n## 💡 프로젝트 소개\n기존의 협업 툴들이 가진 [어떤 문제점/불편함]을 해결하기 위해 기획되었습니다. \n단순한 텍스트 공유를 넘어, 실시간 동기화와 직관적인 UX를 통해 팀의 커뮤니케이션 비용을 최소화하는 것이 목표입니다.\n\n<br/>\n\n## ✨ 주요 기능 (Key Features)\n- ⚡ **0.1초 실시간 동기화:** WebSocket(Socket.io)을 활용한 지연 없는 데이터 통신 및 상태 공유\n- 🎨 **완벽한 다크모드 지원:** TailwindCSS 기반의 테마 시스템으로 사용자의 눈 피로도 최소화\n- 🔒 **안전한 인증 시스템:** JWT 기반의 토큰 발급 및 OAuth 2.0 (Google, Github) 소셜 로그인 지원\n- 📊 **대시보드 통계:** 사용자 활동 데이터를 차트(Chart.js)로 시각화하여 제공\n\n<br/>\n\n## 🛠 기술 스택 (Tech Stack)\n### Frontend\n- **Framework:** React 18\n- **Styling:** TailwindCSS, Framer Motion (애니메이션)\n- **State Management:** Zustand / React Query\n\n### Backend\n- **Framework:** FastAPI (Python 3.10+)\n- **Database:** PostgreSQL, SQLAlchemy (ORM)\n- **Real-time:** WebSockets\n\n### Infra & Tools\n- **Deployment:** Docker, AWS EC2, Vercel\n- **Version Control:** Git, Github Actions (CI/CD)\n\n<br/>\n\n## 📱 화면 구성 및 사용법 (Usage)\n> 💡 실제 구현된 화면 캡처나 GIF(움짤)를 추가하면 신뢰도가 대폭 상승합니다.\n\n| 메인 대시보드 | 실시간 채팅 화면 |\n| :---: | :---: |\n| <img src="https://via.placeholder.com/400x250.png?text=Dashboard+Screenshot" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Chat+Screenshot" width="400"/> |\n| 대시보드에서 프로젝트 전체 진행률을 확인합니다. | 웹소켓을 통한 실시간 채팅 및 파일 공유 화면입니다. |\n\n<br/>\n\n## 🚀 시작하기 (Getting Started)\n프로젝트를 로컬에서 직접 실행해보기 위한 가이드입니다.\n\n### 1. 요구 사항 (Prerequisites)\n- Node.js 18.0 이상\n- Python 3.10 이상\n- PostgreSQL 14 이상\n\n### 2. 설치 및 실행 (Installation)\n\`\`\`bash\n# 1. 저장소 클론\n$ git clone [https://github.com/username/AwesomeProject.git](https://github.com/username/AwesomeProject.git)\n\n# 2. 프론트엔드 종속성 설치 및 실행\n$ cd frontend\n$ npm install\n$ npm run dev\n\n# 3. 백엔드 환경 설정 및 실행 (새 터미널)\n$ cd backend\n$ pip install -r requirements.txt\n$ uvicorn main:app --reload\n\`\`\`\n\n<br/>\n\n## 📂 폴더 구조 (Directory Structure)\n\`\`\`text\n📦 AwesomeProject\n ┣ 📂 frontend\n ┃ ┣ 📂 src\n ┃ ┃ ┣ 📂 components   # 공통으로 사용되는 UI 컴포넌트\n ┃ ┃ ┣ 📂 pages        # 라우팅되는 페이지 단위 컴포넌트\n ┃ ┃ ┣ 📂 hooks        # 커스텀 훅 모음\n ┃ ┃ ┗ 📂 utils        # 유틸리티 함수 (날짜 변환, 포맷팅 등)\n ┃ ┗ 📜 package.json\n ┣ 📂 backend\n ┃ ┣ 📂 api            # 라우터 및 엔드포인트 정의\n ┃ ┣ 📂 core           # 인증, 설정 등 핵심 로직\n ┃ ┣ 📂 models         # DB 모델 (SQLAlchemy)\n ┃ ┗ 📜 main.py\n ┗ 📜 README.md\n\`\`\`\n\n<br/>\n\n## 👨‍💻 팀원 및 기여 (Contact)\n홍길동 - Frontend & UI/UX - Github 링크\n김개발 - Backend & Infra - Github 링크\n`;
@@ -16,17 +18,48 @@ function DocsTab() {
   const [copied, setCopied] = useState(false);
   const [hasLoadedExisting, setHasLoadedExisting] = useState(false);
   const [viewMode, setViewMode] = useState('code'); // 'code' or 'md'
+  const [readmes, setReadmes] = useState([]);
+  const [currentProjectId, setCurrentProjectId] = useState(null);
+  
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [userInputs, setUserInputs] = useState({
+    "프로젝트 이름": "",
+    "한 줄 소개": "",
+    "해결하려는 문제": "",
+    "주요 기능": "",
+    "타겟 사용자": "",
+    "기술 스택 부연 설명": "",
+    "향후 계획 / 로드맵": "",
+    "프로젝트 로고/대표 이미지 URL": ""
+  });
+
+  const handleInputChange = (field, value) => {
+    setUserInputs(prev => ({ ...prev, [field]: value }));
+  };
 
   // 컴포넌트 마운트 시 기존에 생성된 README가 있는지 확인
   useEffect(() => {
     if (sessionId && !hasLoadedExisting) {
-      fetchExistingReadme();
+      fetchInitialData();
     }
   }, [sessionId]);
 
-  const fetchExistingReadme = async () => {
+  const fetchInitialData = async () => {
     try {
       const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // 1. Get Session Info to get project_id
+      const infoRes = await fetch(`http://localhost:8000/chat/session/${sessionId}/info`, { headers });
+      if (!infoRes.ok) throw new Error('Failed to get session info');
+      const infoData = await infoRes.json();
+      setCurrentProjectId(infoData.project_id);
+
+      // 2. Fetch all readmes for this project
+      fetchReadmesHistory(infoData.project_id, headers);
+
+      // 3. Fetch latest generated readme content (if any)
+
       const response = await fetch('http://localhost:8000/generate/readme', {
         method: 'POST',
         headers: { 
@@ -46,9 +79,21 @@ function DocsTab() {
         }
       }
     } catch (err) {
-      console.error('Failed to fetch existing readme:', err);
+      console.error('Failed to fetch initial data:', err);
     } finally {
       setHasLoadedExisting(true);
+    }
+  };
+
+  const fetchReadmesHistory = async (projectId, headers) => {
+    try {
+      const res = await fetch(`http://localhost:8000/readmes/${projectId}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setReadmes(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch readmes history:', err);
     }
   };
 
@@ -70,7 +115,8 @@ function DocsTab() {
         },
         body: JSON.stringify({ 
           session_id: sessionId,
-          force_regenerate: true
+          force_regenerate: true,
+          user_inputs: userInputs
         })
       });
 
@@ -80,12 +126,18 @@ function DocsTab() {
 
       const data = await response.json();
       setReadmeContent(data.readme_content);
+      
+      // 새로 생성되었으므로 히스토리 갱신
+      if (currentProjectId) {
+        fetchReadmesHistory(currentProjectId, { 'Authorization': `Bearer ${token}` });
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(readmeContent);
@@ -115,6 +167,47 @@ function DocsTab() {
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
             전체 파일 개수, 가장 많이 참조된 핵심 파일 Top 5, 그리고 디렉토리 구조를 바탕으로 Github에 올릴 수 있는 README.md를 자동 작성합니다.
           </p>
+
+          {/* User Inputs Form (Accordion) */}
+          <div className="mb-6">
+            <button 
+              onClick={() => setIsFormOpen(!isFormOpen)}
+              className="w-full flex items-center justify-between p-3 bg-slate-900/50 hover:bg-slate-800/80 border border-white/5 hover:border-white/10 rounded-xl transition-all"
+            >
+              <div className="flex items-center gap-2">
+                <Settings className="w-4 h-4 text-blue-400" />
+                <span className="text-sm font-bold text-slate-300">맞춤 설정 (선택 항목)</span>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isFormOpen ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {isFormOpen && (
+              <div className="mt-3 space-y-3 max-h-80 overflow-y-auto custom-scrollbar p-1 pr-2 animate-in fade-in slide-in-from-top-2 duration-200">
+                {Object.keys(userInputs).map((field) => (
+                  <div key={field} className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-400">{field}</label>
+                    {field.includes("URL") || field.includes("이름") || field.includes("소개") ? (
+                      <input 
+                        type="text" 
+                        value={userInputs[field]}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
+                        placeholder={`${field}을(를) 입력하세요...`}
+                        className="w-full bg-slate-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all"
+                      />
+                    ) : (
+                      <textarea 
+                        value={userInputs[field]}
+                        onChange={(e) => handleInputChange(field, e.target.value)}
+                        placeholder={`${field}에 대한 자세한 설명을 적어주세요...`}
+                        rows={2}
+                        className="w-full bg-slate-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all resize-none"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           
           <button
             onClick={handleGenerateReadme}
@@ -140,9 +233,41 @@ function DocsTab() {
             </div>
           )}
         </div>
+
+        {/* History List */}
+        {readmes.length > 0 && (
+          <div className="mt-8 animate-fade-in-up">
+            <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Generated History
+            </h3>
+            <div className="space-y-2">
+              {readmes.map((readme, idx) => (
+                <button
+                  key={readme.id}
+                  onClick={() => setReadmeContent(readme.content)}
+                  className="w-full text-left bg-slate-900/40 hover:bg-slate-800/60 border border-white/5 hover:border-white/10 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                >
+                  <div>
+                    <div className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-400" />
+                      버전 {readmes.length - idx}
+                      {idx === 0 && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full uppercase">Latest</span>}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {new Date(readme.created_at).toLocaleString()}
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Panel: Viewer */}
+
       <div className="flex-1 bg-slate-950 overflow-hidden flex flex-col relative">
         {/* Background Gradients */}
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[100px] rounded-full pointer-events-none"></div>

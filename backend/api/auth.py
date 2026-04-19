@@ -165,7 +165,7 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                 "file_count": p.file_count,
                 "created_at": p.created_at,
                 "status": p.status,
-                "has_readme": p.readme is not None,
+                "has_readme": len(p.readmes) > 0 if p.readmes else False,
                 "has_diagram": p.mermaid_code is not None,
                 "latest_session_id": (
                     db.query(ChatSession.id)

@@ -38,7 +38,7 @@ class Project(Base):
     user = relationship("User", back_populates="projects")
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete")
     sessions = relationship("ChatSession", back_populates="project", cascade="all, delete")
-    readme = relationship("GeneratedReadme", back_populates="project", uselist=False, cascade="all, delete")
+    readmes = relationship("GeneratedReadme", back_populates="project", cascade="all, delete")
     insight = relationship("ProjectInsight", back_populates="project", uselist=False, cascade="all, delete")
 
 class ProjectFile(Base):
@@ -57,12 +57,12 @@ class GeneratedReadme(Base):
     __tablename__ = "generated_readmes"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     content = Column(Text)
     template_type = Column(String, default="default")
     created_at = Column(DateTime, default=datetime.utcnow)
 
-    project = relationship("Project", back_populates="readme")
+    project = relationship("Project", back_populates="readmes")
 
 class ProjectInsight(Base):
     __tablename__ = "project_insights"
@@ -115,6 +115,8 @@ def init_db():
             with engine.connect() as conn:
                 try:
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
+                    # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
+                    conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))
                     conn.commit()
                 except Exception as e:
                     print(f"Migration error: {e}")

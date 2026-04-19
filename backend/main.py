@@ -451,8 +451,11 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
         
     # 1. 캐시 확인
-    if project.readme and not request.force_regenerate:
-        return ReadmeResponse(readme_content=project.readme.content)
+    from database.models import GeneratedReadme
+    latest_readme = db.query(GeneratedReadme).filter(GeneratedReadme.project_id == project.id).order_by(GeneratedReadme.created_at.desc()).first()
+    
+    if latest_readme and not request.force_regenerate:
+        return ReadmeResponse(readme_content=latest_readme.content)
         
     engine = engine_cache.get(session_id)
     if not engine:
@@ -468,17 +471,34 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         engine_cache[session_id] = engine
         
     try:
-        readme_content = engine.generate_readme()
+        readme_content = engine.generate_readme(request.user_inputs)
         
-        from database.models import GeneratedReadme
-        if project.readme:
-            project.readme.content = readme_content
-        else:
-            new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
-            db.add(new_readme)
+        # 항상 새로운 버전을 생성
+        new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
+        db.add(new_readme)
         db.commit()
         
         return ReadmeResponse(readme_content=readme_content)
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/readmes/{project_id}")
+async def get_project_readmes(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    from database.models import GeneratedReadme
+    readmes = db.query(GeneratedReadme).filter(GeneratedReadme.project_id == project.id).order_by(GeneratedReadme.created_at.desc()).all()
+    
+    return [
+        {
+            "id": r.id,
+            "content": r.content,
+            "template_type": r.template_type,
+            "created_at": r.created_at
+        } for r in readmes
+    ]

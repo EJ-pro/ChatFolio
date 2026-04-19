@@ -35,6 +35,7 @@ class DiagramResponse(BaseModel):
 class ReadmeRequest(BaseModel):
     session_id: str
     force_regenerate: Optional[bool] = False
+    user_inputs: Optional[Dict[str, str]] = None
 
 class ReadmeResponse(BaseModel):
     readme_content: str

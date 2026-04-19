@@ -184,7 +184,7 @@ class ChatFolioEngine:
                     fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
             return "\n".join(fallback_lines)
 
-    def generate_readme(self) -> str:
+    def generate_readme(self, user_inputs: dict = None) -> str:
         if not self.llm:
             return "# README\n\nLLM이 구성되지 않았습니다."
             
@@ -242,36 +242,43 @@ class ChatFolioEngine:
         top_exts_str = ", ".join([f".{ext}({cnt}개)" for ext, cnt in top_exts])
         framework_str = ", ".join(list(framework_hints)) if framework_hints else "특정 프레임워크 추론 불가"
 
+        user_input_context = ""
+        if user_inputs and any(user_inputs.values()):
+            user_input_context = "\n[👤 사용자 추가 정보 (우선 반영)]\n"
+            for k, v in user_inputs.items():
+                if v and str(v).strip():
+                    user_input_context += f"- {k}: {v}\n"
+
         context = f"""
         [🤖 프로젝트 정체성 분석 결과]
         - 주 사용 언어/확장자: {top_exts_str}
         - 감지된 환경/프레임워크 힌트: {framework_str}
+        {user_input_context}
         
         [📂 프로젝트 구조 및 핵심 데이터]
-        - 총 파일 수: {file_count}개
-        - 가장 많이 참조된 핵심 파일(의존성 중심): {", ".join([f.split('/')[-1] for f, _ in top_files])}
-        
-        [주요 디렉토리]
+        1. 전체 파일 수: {file_count}개
+        2. 디렉토리 구조 (최상위 일부):
         {dir_tree}
-
-        [기술 스택 정보 (매니페스트 파일)]
-        {manifest_content}
         
-        [핵심 파일 코드 스니펫]
+        3. 핵심 파일 (많이 참조된 파일):
+        {top_files_str}
+        
+        4. 주요 파일들의 실제 내용 (일부):
+        {manifest_content}
         {core_files_code}
         """
         
         system_prompt = SystemMessage(content="""
         당신은 세계 최고의 오픈소스 메인테이너이자 테크니컬 라이터입니다. 
-        사용자가 제공한 코드베이스의 '영혼'을 읽어내어, GitHub 상단에 노출되었을 때 모든 개발자가 별(Star)을 누르고 싶게 만드는 [압도적 퀄리티의 README.md]를 작성하세요.
+        사용자가 제공한 정보와 코드베이스를 바탕으로, GitHub 상단에 노출되었을 때 모든 개발자가 별(Star)을 누르고 싶게 만드는 [압도적 퀄리티의 README.md]를 작성하세요.
 
         [분석 필수 사항]
-        - **비즈니스 로직**: 이 프로젝트가 정확히 무엇을 하는지, 어떤 문제를 해결하는지 코드로부터 깊이 있게 유추하세요.
-        - **아키텍처**: MVVM, Clean Architecture, Repository Pattern, MVC 등 사용된 디자인 패턴을 파악하여 명시하세요.
-        - **기술 스택**: 매니페스트를 통해 버전까지 정확히 명시하세요.
+        - **비즈니스 로직**: 이 프로젝트가 정확히 무엇을 하는지, 어떤 문제를 해결하는지 코드와 사용자 입력으로부터 깊이 있게 파악하세요.
+        - **사용자 입력 최우선**: [👤 사용자 추가 정보]가 있다면 해당 내용을 프로젝트 제목, 소개, 주요 기능, 대상 사용자 등에 적극적으로 반영하세요.
+        - **아키텍처**: 사용된 디자인 패턴과 프레임워크를 파악하여 명시하세요.
         - **시작하기**: 사용자가 복사-붙여넣기만 하면 바로 실행될 수 있도록 '진짜' 명령어를 작성하세요.
 
-        [레퍼런스: 아래는 당신이 지향해야 할 ChatFolio의 README 구조입니다. 이와 동일한 수준의 깊이와 디자인을 유지하세요.]
+        [레퍼런스: 아래는 당신이 지향해야 할 README 구조입니다. 이와 동일한 수준의 깊이와 디자인을 유지하세요.]
         # 🚀 [프로젝트명]
         > "[한 줄 소개]" <br/>
         > [상세 소개]
@@ -286,7 +293,7 @@ class ChatFolioEngine:
 
         [작성 규칙]
         1. **Overview**: 프로젝트의 가치를 3~5문장으로 깊이 있게 설명하세요.
-        2. **Features**: 단순 나열이 아닌, "어떤 기술을 써서 어떻게 동작하는지" 기술적 디테일을 포함하세요. (예: `Zustand`를 이용한 상태 최적화, `Retrofit2`를 통한 비동기 통신 등)
+        2. **Features**: 단순 나열이 아닌, "어떤 기술을 써서 어떻게 동작하는지" 기술적 디테일을 포함하세요.
         3. **Directory Structure**: 이모지를 활용해 프로젝트의 뼈대를 아름답게 그리세요.
         4. **Style**: 볼드체, 인용구(>), 표, 하이라이트 등을 적극적으로 사용하여 읽기 즐거운 문서를 만드세요.
 
