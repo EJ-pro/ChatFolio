@@ -110,7 +110,7 @@ function MyPage() {
 
   const [updatingProjectId, setUpdatingProjectId] = useState(null);
 
-  const handleCheckUpdate = async (projectId, repoUrl) => {
+  const handleUpdateProject = async (projectId, repoUrl) => {
     setUpdatingProjectId(projectId);
     try {
       const token = localStorage.getItem('token');
@@ -122,9 +122,8 @@ function MyPage() {
       if (response.ok) {
         const data = await response.json();
         if (data.is_updated) {
-          if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
-            navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
-          }
+          // 변경사항이 있으면 즉시 분석 페이지로 이동하여 업데이트 시작
+          navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
         } else {
           alert('이미 최신 상태입니다.');
         }
@@ -132,7 +131,7 @@ function MyPage() {
         alert('업데이트 확인 중 오류가 발생했습니다.');
       }
     } catch (err) {
-      console.error('Failed to check update:', err);
+      console.error('Failed to update project:', err);
       alert('서버와 통신 중 오류가 발생했습니다.');
     } finally {
       setUpdatingProjectId(null);
@@ -488,7 +487,7 @@ function MyPage() {
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
                       <button 
-                        onClick={() => handleCheckUpdate(project.id, project.repo_url)}
+                        onClick={() => handleUpdateProject(project.id, project.repo_url)}
                         disabled={updatingProjectId === project.id}
                         className={`px-3 py-2.5 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition-all ${updatingProjectId === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
                         title="업데이트 확인"

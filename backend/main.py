@@ -44,72 +44,86 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
     ).first()
     
     if existing_project and not request.force_update:
-        existing_session = db.query(ChatSession).filter(
-            ChatSession.project_id == existing_project.id,
-            ChatSession.user_id == current_user.id,
-            ChatSession.provider == request.provider,
-            ChatSession.model_name == request.model_name
-        ).order_by(ChatSession.created_at.desc()).first()
-        
-        if existing_session:
-            # 엔진 캐시 확인 및 복구
-            if existing_session.id not in engine_cache:
-                all_project_files = {f.file_path: f.content for f in existing_project.files}
-                graph = nx.node_link_graph(existing_project.graph_data)
-                engine = ChatFolioEngine(
-                    all_project_files, 
-                    graph, 
-                    provider=existing_session.provider, 
-                    model_name=existing_session.model_name
-                )
-                engine_cache[existing_session.id] = engine
+        # GitHub에서 최신 커밋 확인
+        token = current_user.github_token or os.getenv("GITHUB_TOKEN")
+        fetcher = GitHubFetcher(token=token)
+        try:
+            latest_commit = fetcher.fetch_latest_commit(request.repo_url)
+            if latest_commit["hash"] == existing_project.last_commit_hash:
+                # 커밋이 동일하면 기존 결과 반환
+                existing_session = db.query(ChatSession).filter(
+                    ChatSession.project_id == existing_project.id,
+                    ChatSession.user_id == current_user.id,
+                    ChatSession.provider == request.provider,
+                    ChatSession.model_name == request.model_name
+                ).order_by(ChatSession.created_at.desc()).first()
                 
-            async def quick_return():
-                result = {
-                    "status": "success",
-                    "session_id": existing_session.id,
-                    "file_count": existing_project.file_count,
-                    "node_count": existing_project.node_count,
-                    "edge_count": existing_project.edge_count,
-                    "message": "기존 분석 결과를 불러왔습니다."
-                }
-                yield f"data: RESULT:{json.dumps(result)}\n\n"
-            
-            return StreamingResponse(quick_return(), media_type="text/event-stream")
-        else:
-            # 동일 프로젝트지만 모델이 변경된 경우: 새 ChatSession 생성 및 기존 데이터 재사용
-            new_session = ChatSession(
-                user_id=current_user.id,
-                project_id=existing_project.id,
-                provider=request.provider,
-                model_name=request.model_name
-            )
-            db.add(new_session)
-            db.commit()
-            db.refresh(new_session)
+                if existing_session:
+                    # 엔진 캐시 확인 및 복구
+                    if existing_session.id not in engine_cache:
+                        all_project_files = {f.file_path: f.content for f in existing_project.files}
+                        graph = nx.node_link_graph(existing_project.graph_data)
+                        engine = ChatFolioEngine(
+                            all_project_files, 
+                            graph, 
+                            provider=existing_session.provider, 
+                            model_name=existing_session.model_name
+                        )
+                        engine_cache[existing_session.id] = engine
+                        
+                    async def quick_return():
+                        result = {
+                            "status": "success",
+                            "session_id": existing_session.id,
+                            "file_count": existing_project.file_count,
+                            "node_count": existing_project.node_count,
+                            "edge_count": existing_project.edge_count,
+                            "message": "기존 분석 결과를 불러왔습니다. (최신 상태)"
+                        }
+                        yield f"data: RESULT:{json.dumps(result)}\n\n"
+                    
+                    return StreamingResponse(quick_return(), media_type="text/event-stream")
+                else:
+                    # 동일 프로젝트지만 모델이 변경된 경우: 새 ChatSession 생성 및 기존 데이터 재사용
+                    new_session = ChatSession(
+                        user_id=current_user.id,
+                        project_id=existing_project.id,
+                        provider=request.provider,
+                        model_name=request.model_name
+                    )
+                    db.add(new_session)
+                    db.commit()
+                    db.refresh(new_session)
 
-            all_project_files = {f.file_path: f.content for f in existing_project.files}
-            graph = nx.node_link_graph(existing_project.graph_data)
-            engine = ChatFolioEngine(
-                all_project_files, 
-                graph, 
-                provider=request.provider, 
-                model_name=request.model_name
-            )
-            engine_cache[new_session.id] = engine
+                    all_project_files = {f.file_path: f.content for f in existing_project.files}
+                    graph = nx.node_link_graph(existing_project.graph_data)
+                    engine = ChatFolioEngine(
+                        all_project_files, 
+                        graph, 
+                        provider=request.provider, 
+                        model_name=request.model_name
+                    )
+                    engine_cache[new_session.id] = engine
 
-            async def new_session_return():
-                result = {
-                    "status": "success",
-                    "session_id": new_session.id,
-                    "file_count": existing_project.file_count,
-                    "node_count": existing_project.node_count,
-                    "edge_count": existing_project.edge_count,
-                    "message": "기존 프로젝트 데이터를 기반으로 새로운 분석 세션을 시작합니다."
-                }
-                yield f"data: RESULT:{json.dumps(result)}\n\n"
-            
-            return StreamingResponse(new_session_return(), media_type="text/event-stream")
+                    async def new_session_return():
+                        result = {
+                            "status": "success",
+                            "session_id": new_session.id,
+                            "file_count": existing_project.file_count,
+                            "node_count": existing_project.node_count,
+                            "edge_count": existing_project.edge_count,
+                            "message": "기존 프로젝트 데이터를 기반으로 새로운 분석 세션을 시작합니다."
+                        }
+                        yield f"data: RESULT:{json.dumps(result)}\n\n"
+                    
+                    return StreamingResponse(new_session_return(), media_type="text/event-stream")
+            else:
+                # 커밋이 다름 -> 아래의 분석 로직으로 진행
+                print(f"Update detected for {request.repo_url}. Re-analyzing...")
+        except Exception as e:
+            print(f"Error checking for updates: {e}")
+            # 에러 발생 시 안전하게 기존 결과 반환 시도 (또는 무시하고 분석 진행)
+            pass
 
     def generate():
         q = Queue()
