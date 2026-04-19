@@ -16,7 +16,7 @@ from core.parser.kotlin_parser import parse_kotlin_code
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
 from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User
-from database.database import get_db
+from database.database import get_db, SessionLocal
 from api.auth import router as auth_router, get_current_user
 
 load_dotenv()
@@ -46,7 +46,9 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
     if existing_project:
         existing_session = db.query(ChatSession).filter(
             ChatSession.project_id == existing_project.id,
-            ChatSession.user_id == current_user.id
+            ChatSession.user_id == current_user.id,
+            ChatSession.provider == request.provider,
+            ChatSession.model_name == request.model_name
         ).order_by(ChatSession.created_at.desc()).first()
         
         if existing_session:
@@ -74,6 +76,40 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 yield f"data: RESULT:{json.dumps(result)}\n\n"
             
             return StreamingResponse(quick_return(), media_type="text/event-stream")
+        else:
+            # 동일 프로젝트지만 모델이 변경된 경우: 새 ChatSession 생성 및 기존 데이터 재사용
+            new_session = ChatSession(
+                user_id=current_user.id,
+                project_id=existing_project.id,
+                provider=request.provider,
+                model_name=request.model_name
+            )
+            db.add(new_session)
+            db.commit()
+            db.refresh(new_session)
+
+            all_project_files = {f.file_path: f.content for f in existing_project.files}
+            graph = nx.node_link_graph(existing_project.graph_data)
+            engine = ChatFolioEngine(
+                all_project_files, 
+                graph, 
+                provider=request.provider, 
+                model_name=request.model_name
+            )
+            engine_cache[new_session.id] = engine
+
+            async def new_session_return():
+                result = {
+                    "status": "success",
+                    "session_id": new_session.id,
+                    "file_count": existing_project.file_count,
+                    "node_count": existing_project.node_count,
+                    "edge_count": existing_project.edge_count,
+                    "message": "기존 프로젝트 데이터를 기반으로 새로운 분석 세션을 시작합니다."
+                }
+                yield f"data: RESULT:{json.dumps(result)}\n\n"
+            
+            return StreamingResponse(new_session_return(), media_type="text/event-stream")
 
     def generate():
         q = Queue()
@@ -82,6 +118,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
             q.put(msg)
             
         def run_analysis():
+            db_session = SessionLocal() # 스레드 안전성을 위해 별도의 세션 생성
             try:
                 # 사용자의 개인 토큰 사용 (프라이빗 레포 접근 가능)
                 token = current_user.github_token or os.getenv("GITHUB_TOKEN")
@@ -106,15 +143,14 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     edge_count=graph.number_of_edges(),
                     graph_data=graph_data
                 )
-                db.add(project)
-                db.commit()
-                db.refresh(project)
+                db_session.add(project)
+                db_session.flush() # ID 발급을 위해 커밋 전에 flush
                 
                 project_files = [
                     ProjectFile(project_id=project.id, file_path=p, content=c)
                     for p, c in all_files.items()
                 ]
-                db.add_all(project_files)
+                db_session.add_all(project_files)
                 
                 chat_session = ChatSession(
                     user_id=current_user.id,
@@ -122,9 +158,12 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     provider=request.provider,
                     model_name=request.model_name
                 )
-                db.add(chat_session)
-                db.commit()
-                db.refresh(chat_session)
+                db_session.add(chat_session)
+                
+                # 원자적 트랜잭션 커밋
+                db_session.commit()
+                db_session.refresh(project)
+                db_session.refresh(chat_session)
                 
                 engine = ChatFolioEngine(all_files, graph, provider=request.provider, model_name=request.model_name)
                 engine_cache[chat_session.id] = engine
@@ -140,8 +179,11 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 q.put(f"RESULT:{json.dumps(result)}")
                 q.put(None)
             except Exception as e:
+                db_session.rollback()
                 q.put(f"ERROR:{str(e)}")
                 q.put(None)
+            finally:
+                db_session.close()
 
         Thread(target=run_analysis).start()
         
