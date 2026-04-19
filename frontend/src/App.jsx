@@ -11,6 +11,8 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MyPage from './pages/MyPage';
 import DashboardLayout from './components/DashboardLayout';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 // 인증 가드 컴포넌트
 function ProtectedRoute({ children }) {
@@ -92,6 +94,10 @@ function App() {
 
         {/* 기본 경로는 로그인 상태에 따라 리다이렉트 */}
         <Route path="/" element={<Home />} />
+        
+        {/* 법적 고지 페이지 */}
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/terms" element={<Terms />} />
       </Routes>
     </Router>
   );

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import html2canvas from 'html2canvas';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Github, Mail, Calendar, MapPin, Link as LinkIcon, 
-  ExternalLink, MessageSquare, Share2, FileText, 
-  Sparkles, ShieldCheck, Trophy, GitBranch, 
+import {
+  Github, Mail, Calendar, MapPin, Link as LinkIcon,
+  ExternalLink, MessageSquare, Share2, FileText,
+  Sparkles, ShieldCheck, Trophy, GitBranch,
   Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight,
   ArrowLeft, RefreshCw
 } from 'lucide-react';
@@ -71,7 +71,7 @@ function MyPage() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         setProfile(prev => ({
@@ -118,12 +118,13 @@ function MyPage() {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.is_updated) {
-          // 변경사항이 있으면 즉시 분석 페이지로 이동하여 업데이트 시작
-          navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
+          if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
+            navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
+          }
         } else {
           alert('이미 최신 상태입니다.');
         }
@@ -163,7 +164,7 @@ function MyPage() {
   // Radar Chart Data Calculation
   const skillEntries = Object.entries(profile.skills);
   const totalSkillCount = skillEntries.reduce((sum, [_, count]) => sum + count, 0);
-  
+
   const radarData = skillEntries.map(([lang, count], i) => {
     const angle = (i / skillEntries.length) * 2 * Math.PI - Math.PI / 2;
     const value = (count / totalSkillCount) * 100 + 30; // Min scale
@@ -196,17 +197,17 @@ function MyPage() {
       </header>
 
       <main className="flex-1 w-full max-w-7xl mx-auto p-6 md:p-10 space-y-10 relative z-10">
-        
+
         {/* Profile Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Left: Identity Card */}
           <div className="lg:col-span-1 glass-panel rounded-3xl p-8 border border-white/10 relative overflow-hidden flex flex-col items-center text-center">
             <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-500 to-purple-600"></div>
-            
+
             <div className="relative mb-6">
-              <img 
-                src={profile.user.avatar_url} 
-                alt={profile.user.name} 
+              <img
+                src={profile.user.avatar_url}
+                alt={profile.user.name}
                 className="w-32 h-32 rounded-3xl border-4 border-white/10 object-cover shadow-2xl"
               />
               <div className="absolute -bottom-2 -right-2 bg-blue-600 p-2 rounded-xl shadow-lg border-4 border-slate-900">
@@ -249,12 +250,12 @@ function MyPage() {
               <p className="text-slate-400 text-lg leading-relaxed mb-6">
                 최근 분석한 저장소들의 코드를 바탕으로 당신의 기술 스택을 분석했습니다. 당신은 <span className="text-white font-bold">주로 {skillEntries[0]?.[0]} 환경</span>에서 강력한 퍼포먼스를 보여주고 있군요!
               </p>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 {skillEntries.slice(0, 4).map(([lang, count]) => (
                   <div key={lang} className="p-3 rounded-2xl bg-slate-900/50 border border-white/5">
                     <div className="text-xs text-slate-500 font-bold uppercase mb-1">{lang}</div>
-                    <div className="text-xl font-black text-white">{Math.round((count/totalSkillCount)*100)}%</div>
+                    <div className="text-xl font-black text-white">{Math.round((count / totalSkillCount) * 100)}%</div>
                   </div>
                 ))}
               </div>
@@ -267,7 +268,7 @@ function MyPage() {
                 {[0.2, 0.4, 0.6, 0.8, 1].map(r => (
                   <circle key={r} cx="150" cy="150" r={r * 100} fill="none" stroke="white" strokeWidth="0.5" strokeOpacity="0.1" />
                 ))}
-                
+
                 {/* Axis lines */}
                 {radarData.map(d => (
                   <line key={d.lang} x1="150" y1="150" x2={d.x} y2={d.y} stroke="white" strokeWidth="0.5" strokeOpacity="0.1" />
@@ -288,11 +289,11 @@ function MyPage() {
                   const labelX = 150 + (d.x - 150) * 1.25;
                   const labelY = 150 + (d.y - 150) * 1.25;
                   return (
-                    <text 
-                      key={d.lang} 
-                      x={labelX} 
-                      y={labelY} 
-                      textAnchor="middle" 
+                    <text
+                      key={d.lang}
+                      x={labelX}
+                      y={labelY}
+                      textAnchor="middle"
                       dominantBaseline="middle"
                       className="text-[10px] font-bold fill-slate-400 uppercase tracking-tighter"
                     >
@@ -311,23 +312,23 @@ function MyPage() {
             </div>
           </div>
         </section>
-        
+
         {/* Coder Persona (MBTI) Section */}
         <section className="glass-panel rounded-3xl p-10 border border-white/10 relative overflow-hidden group">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all duration-700"></div>
           <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full -ml-20 -mb-20 group-hover:bg-purple-500/20 transition-all duration-700"></div>
-          
+
           <div className="flex flex-col lg:flex-row items-center gap-12 relative z-10">
             {/* Card UI for sharing */}
-            <div 
+            <div
               ref={cardRef}
               className="w-full max-w-[380px] aspect-[4/5] bg-slate-900 rounded-[2.5rem] border border-white/10 p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between group/card"
             >
               <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20 opacity-50"></div>
-              
+
               <div className="flex justify-between items-start relative">
                 <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-md border border-white/10">
-                   <Github className="w-6 h-6 text-white" />
+                  <Github className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Developer Identity</div>
@@ -377,12 +378,12 @@ function MyPage() {
                 Coder Persona (MBTI)
               </div>
               <h2 className="text-4xl font-black text-white tracking-tighter">
-                코드 속에 숨겨진<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">당신의 정체성</span>을 발견하세요
+                코드 속에 숨겨진<br /><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">당신의 정체성</span>을 발견하세요
               </h2>
               <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
                 커밋 시간대, 언어 비율, 주석 스타일, 모듈화 전략을 AI가 심층 분석하여 당신만의 독특한 개발자 페르소나를 정의해 줍니다. 인스타그램이나 링크드인 공유용 이미지로 최적화되어 있습니다.
               </p>
-              
+
               {errorMessage && (
                 <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm animate-shake">
                   <AlertCircle className="w-5 h-5 shrink-0" />
@@ -391,7 +392,7 @@ function MyPage() {
               )}
 
               <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
-                <button 
+                <button
                   onClick={handleAnalyzePersona}
                   disabled={isLoading}
                   className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 flex items-center gap-2"
@@ -400,7 +401,7 @@ function MyPage() {
                   {profile.user.persona_data ? "페르소나 재분석하기" : "나의 페르소나 분석하기"}
                 </button>
                 {profile.user.persona_data && (
-                  <button 
+                  <button
                     onClick={handleDownloadImage}
                     className="px-8 py-4 bg-slate-900 border border-white/10 text-slate-300 hover:text-white rounded-2xl font-bold transition-all flex items-center gap-2"
                   >
@@ -415,14 +416,14 @@ function MyPage() {
 
         {/* Navigation Tabs */}
         <div className="flex items-center gap-6 border-b border-white/5 pb-4">
-          <button 
+          <button
             onClick={() => setActiveTab('projects')}
             className={`px-4 py-2 font-bold transition-all relative ${activeTab === 'projects' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
             프로젝트 허브
             {activeTab === 'projects' && <div className="absolute bottom-[-17px] left-0 w-full h-1 bg-blue-500 rounded-full"></div>}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('assets')}
             className={`px-4 py-2 font-bold transition-all relative ${activeTab === 'assets' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
@@ -456,7 +457,7 @@ function MyPage() {
                       {project.repo_url.split('/').slice(-1)}
                     </h4>
                     <p className="text-slate-500 text-sm mb-4 truncate">{project.repo_url}</p>
-                    
+
                     {project.last_commit_message && (
                       <div className="mb-4 p-2.5 rounded-xl bg-white/5 border border-white/5">
                         <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
@@ -465,28 +466,28 @@ function MyPage() {
                         <p className="text-xs text-slate-300 line-clamp-2 italic">"{project.last_commit_message}"</p>
                       </div>
                     )}
-                    
+
                     <div className="flex items-center gap-4 mb-6 text-xs text-slate-400 font-mono">
                       <span className="flex items-center gap-1"><GitBranch className="w-3 h-3" /> {project.file_count} files</span>
                       <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(project.created_at).toLocaleDateString()}</span>
                     </div>
 
                     <div className="flex gap-2">
-                      <button 
+                      <button
                         onClick={() => navigate(`/${username}/dashboard/chat`, { state: { sessionId: project.latest_session_id } })}
                         className="flex-1 py-2.5 bg-slate-800 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
                         채팅 진입
                       </button>
-                      <button 
+                      <button
                         onClick={() => navigate(`/${username}/dashboard/architecture`, { state: { sessionId: project.latest_session_id } })}
                         className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all"
                         title="아키텍처 보기"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => handleUpdateProject(project.id, project.repo_url)}
                         disabled={updatingProjectId === project.id}
                         className={`px-3 py-2.5 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition-all ${updatingProjectId === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -508,7 +509,7 @@ function MyPage() {
                     <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
                     <h3 className="text-2xl font-bold text-white tracking-tight">내 깃허브 저장소</h3>
                   </div>
-                  <button 
+                  <button
                     onClick={handleViewAllGithub}
                     className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 font-bold transition-colors"
                   >
@@ -529,7 +530,7 @@ function MyPage() {
                           {isAnalyzed ? (
                             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">완료</span>
                           ) : (
-                            <button 
+                            <button
                               onClick={() => handleAnalyzeRepo(repo.html_url)}
                               className="text-[10px] text-blue-400 font-bold hover:underline"
                             >
@@ -575,14 +576,14 @@ function MyPage() {
                         <div className="h-2 w-5/6 bg-white/10 rounded"></div>
                         <div className="h-2 w-2/3 bg-white/10 rounded"></div>
                       </div>
-                       <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/80">
-                         <button 
-                           onClick={() => navigate(`/${username}/dashboard/docs`, { state: { sessionId: readme.latest_session_id } })}
-                           className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg transform scale-90 group-hover:scale-100 transition-transform"
-                         >
-                           문서 보기
-                         </button>
-                       </div>
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/80">
+                        <button
+                          onClick={() => navigate(`/${username}/dashboard/docs`, { state: { sessionId: readme.latest_session_id } })}
+                          className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg transform scale-90 group-hover:scale-100 transition-transform"
+                        >
+                          문서 보기
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -600,10 +601,10 @@ function MyPage() {
                   <div key={diag.id} className="glass-panel rounded-3xl p-6 border border-white/5 hover:border-blue-500/30 transition-all group overflow-hidden">
                     <div className="flex justify-between items-center mb-6">
                       <h4 className="font-bold text-white flex items-center gap-2">
-                         <GitBranch className="w-4 h-4 text-blue-400" />
-                         {diag.repo_url.split('/').slice(-2).join('/')}
+                        <GitBranch className="w-4 h-4 text-blue-400" />
+                        {diag.repo_url.split('/').slice(-2).join('/')}
                       </h4>
-                       <button 
+                      <button
                         onClick={() => navigate(`/${username}/dashboard/architecture`, { state: { sessionId: diag.latest_session_id || diag.id } })}
                         className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
                       >
@@ -632,8 +633,12 @@ function MyPage() {
         )}
       </main>
 
-      <footer className="w-full text-center p-10 text-slate-600 text-sm border-t border-white/5 mt-20 relative z-10">
-        &copy; 2026 ChatFolio. Designed for the Next Generation of Developers.
+      <footer className="w-full text-center p-10 text-slate-600 text-sm border-t border-white/5 mt-20 relative z-10 flex flex-col items-center gap-4">
+        <div className="flex gap-6 font-bold">
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+        </div>
+        <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
       </footer>
     </div>
   );

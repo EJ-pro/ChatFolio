@@ -46,11 +46,17 @@ function Login() {
 
         <button
           onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-slate-800 text-slate-200 rounded-xl font-semibold text-lg border border-slate-700 hover:bg-slate-700 transition-all shadow-md transform hover:-translate-y-1"
+          className="w-full flex items-center justify-center gap-3 py-4 px-6 bg-slate-800 text-slate-200 rounded-xl font-semibold text-lg border border-slate-700 hover:bg-slate-700 transition-all shadow-md transform hover:-translate-y-1 mb-8"
         >
           <Chrome className="w-6 h-6 text-blue-400" />
           <span>Continue with Google</span>
         </button>
+
+        <div className="flex justify-center gap-4 text-xs text-slate-500 font-medium">
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
+          <span className="opacity-20">|</span>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+        </div>
       </div>
     </div>
   );

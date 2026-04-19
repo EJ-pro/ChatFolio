@@ -366,8 +366,12 @@ function Analysis() {
 
       </main>
 
-      <footer className="w-full text-center p-6 text-slate-500 text-sm animate-fade-in delay-500 relative z-10">
-        &copy; 2026 ChatFolio. Designed for developers.
+      <footer className="w-full text-center p-8 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-4 border-t border-white/5">
+        <div className="flex gap-6 font-medium">
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+        </div>
+        <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
       </footer>
     </div>
   );
