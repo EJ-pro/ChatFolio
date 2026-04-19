@@ -64,25 +64,27 @@ function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-50">
+    <div className="flex flex-col h-full bg-slate-900 text-slate-100 relative overflow-hidden font-sans">
+      {/* Background Decorative Elements */}
+      <div className="absolute top-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* 메시지 영역 */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-6">
+      <main className="flex-1 overflow-y-auto p-4 space-y-6 relative z-10 custom-scrollbar">
         {messages.map((msg, idx) => (
           <div 
             key={idx} 
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div className={`flex gap-3 max-w-[80%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-sm ${
-                msg.role === 'user' ? 'bg-slate-800' : 'bg-blue-600'
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 shadow-md ${
+                msg.role === 'user' ? 'bg-blue-600' : 'bg-purple-600'
               }`}>
                 {msg.role === 'user' ? <User className="w-5 h-5 text-white" /> : <Bot className="w-5 h-5 text-white" />}
               </div>
-              <div className={`p-4 rounded-2xl shadow-sm text-sm leading-relaxed ${
+              <div className={`p-4 rounded-2xl shadow-md text-sm leading-relaxed ${
                 msg.role === 'user' 
-                  ? 'bg-slate-800 text-white rounded-tr-none' 
-                  : 'bg-white text-slate-800 border border-slate-100 rounded-tl-none'
+                  ? 'bg-blue-600 text-white rounded-tr-none' 
+                  : 'bg-slate-800/80 backdrop-blur-sm text-slate-200 border border-slate-700/50 rounded-tl-none'
               }`}>
                 {msg.content}
               </div>
@@ -92,11 +94,11 @@ function Chat() {
         {isLoading && (
           <div className="flex justify-start">
             <div className="flex gap-3">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+              <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md">
                 <Bot className="w-5 h-5 text-white" />
               </div>
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 rounded-tl-none">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+              <div className="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-700/50 rounded-tl-none">
+                <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
               </div>
             </div>
           </div>
@@ -105,11 +107,11 @@ function Chat() {
       </main>
 
       {/* 입력 영역 */}
-      <footer className="bg-white border-t border-slate-200 p-4 pb-8">
+      <footer className="bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-4 pb-8 relative z-10">
         <form onSubmit={handleSend} className="max-w-4xl mx-auto relative">
           <input
             type="text"
-            className="w-full p-4 pr-14 border border-slate-300 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-50 placeholder-slate-400"
+            className="w-full p-4 pr-14 border border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-800 text-slate-100 placeholder-slate-500"
             placeholder="코드의 구조나 특정 기능에 대해 물어보세요..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -118,7 +120,7 @@ function Chat() {
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="absolute right-2 top-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
+            className="absolute right-2 top-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
           >
             <Send className="w-5 h-5" />
           </button>

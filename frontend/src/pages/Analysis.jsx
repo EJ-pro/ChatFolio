@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
+import UserProfile from '../components/UserProfile';
 
 function Analysis() {
   const navigate = useNavigate();
@@ -105,6 +106,11 @@ function Analysis() {
       {/* Background Decorative Elements */}
       <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+
+      {/* Top Header */}
+      <header className="w-full px-8 py-4 flex justify-end items-center relative z-50">
+        <UserProfile />
+      </header>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full max-w-5xl mx-auto mt-10">

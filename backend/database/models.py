@@ -35,6 +35,8 @@ class Project(Base):
     user = relationship("User", back_populates="projects")
     files = relationship("ProjectFile", back_populates="project", cascade="all, delete")
     sessions = relationship("ChatSession", back_populates="project", cascade="all, delete")
+    readme = relationship("GeneratedReadme", back_populates="project", uselist=False, cascade="all, delete")
+    insight = relationship("ProjectInsight", back_populates="project", uselist=False, cascade="all, delete")
 
 class ProjectFile(Base):
     __tablename__ = "project_files"
@@ -43,8 +45,32 @@ class ProjectFile(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     file_path = Column(String, index=True)
     content = Column(Text)
+    content_summary = Column(Text, nullable=True) # 요약본
+    importance_score = Column(Integer, default=0) # 참조 횟수 기반
 
     project = relationship("Project", back_populates="files")
+
+class GeneratedReadme(Base):
+    __tablename__ = "generated_readmes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+    content = Column(Text)
+    template_type = Column(String, default="default")
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="readme")
+
+class ProjectInsight(Base):
+    __tablename__ = "project_insights"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), unique=True)
+    tech_stack = Column(JSONB, nullable=True)
+    summary = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    project = relationship("Project", back_populates="insight")
 
 class ChatSession(Base):
     __tablename__ = "chat_sessions"

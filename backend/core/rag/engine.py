@@ -262,30 +262,42 @@ class ChatFolioEngine:
         <br/>
 
         ## 💡 프로젝트 소개
-        [프로젝트 코드를 분석하여 유추한 프로젝트의 목적과 해결하려는 문제점 작성]
+        기존의 프로젝트들이 가진 [유추한 문제점/불편함]을 해결하기 위해 기획되었습니다. 
+        [프로젝트 목적 상세 작성]
 
         <br/>
 
         ## ✨ 주요 기능 (Key Features)
         (제공된 핵심 파일 스니펫을 분석하여 3~4가지 주요 기능 구체적 작성)
         - ⚡ **[기능명]:** [기능 상세 설명]
+        - 🎨 **[기능명]:** [기능 상세 설명]
+        - 🔒 **[기능명]:** [기능 상세 설명]
+        - 📊 **[기능명]:** [기능 상세 설명]
 
         <br/>
 
         ## 🛠 기술 스택 (Tech Stack)
-        (매니페스트 파일을 기반으로 정확히 분류)
+        (매니페스트 파일을 기반으로 정확히 분류하여 아래 형식을 유지하세요)
         ### Frontend
-        - (예: React, Kotlin, Android SDK 등)
+        - **Framework:** [React, Kotlin 등 유추]
+        - **Styling:** [TailwindCSS, XML 등 유추]
+        - **State Management:** [Zustand, ViewModel 등 유추]
+
         ### Backend
-        - (예: Spring, FastAPI 등)
+        - **Framework:** [FastAPI, Spring 등 유추]
+        - **Database:** [PostgreSQL, MySQL 등 유추]
+        - **Real-time/Core:** [WebSockets, Firebase 등 유추]
+
         ### Infra & Tools
+        - **Deployment:** [Docker, AWS 등 유추]
+        - **Version Control:** [Git, Github Actions 등 유추]
 
         <br/>
 
         ## 📱 화면 구성 및 사용법 (Usage)
         > 💡 실제 구현된 화면 캡처나 GIF(움짤)를 추가하면 신뢰도가 대폭 상승합니다.
 
-        | 메인 화면 | 상세 화면 |
+        | 메인 대시보드 | 상세 화면 |
         | :---: | :---: |
         | <img src="https://via.placeholder.com/400x250.png?text=Screenshot+1" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Screenshot+2" width="400"/> |
         | [메인 화면 설명 - 직접 입력해야 합니다] | [상세 화면 설명 - 직접 입력해야 합니다] |
@@ -293,29 +305,38 @@ class ChatFolioEngine:
         <br/>
 
         ## 🚀 시작하기 (Getting Started)
+        프로젝트를 로컬에서 직접 실행해보기 위한 가이드입니다.
+
         ### 1. 요구 사항 (Prerequisites)
-        (필요한 언어/프레임워크 버전 명시)
+        - [필요한 언어/프레임워크 및 버전 명시 1]
+        - [필요한 언어/프레임워크 및 버전 명시 2]
 
         ### 2. 설치 및 실행 (Installation)
         ```bash
         # 1. 저장소 클론
         $ git clone [저장소 링크 - 직접 입력해야 합니다]
 
-        # 2. 실행 명령어 (유추하여 작성)
-        $ [실행 명령어]
+        # 2. 패키지 설치 및 실행 (반드시 한 줄에 하나의 명령어만 작성하세요)
+        $ [패키지 설치 명령어 유추]
+        $ [실행 명령어 유추]
         ```
 
         <br/>
 
         ## 📂 폴더 구조 (Directory Structure)
         ```text
-        (제공된 디렉토리 데이터를 바탕으로 ASCII Tree 형태로 작성)
+        📦 [프로젝트명]
+         ┣ 📂 [폴더명]
+         ┃ ┣ 📂 [서브폴더명]   # [역할 설명]
+         ┃ ┗ 📜 [파일명]
+         ┗ 📜 README.md
+        (제공된 디렉토리 데이터를 바탕으로 위와 같은 이모지 트리 형태로 작성)
         ```
 
         <br/>
 
         ## 👨‍💻 팀원 및 기여 (Contact)
-        - [팀원 이름 - 직접 입력해야 합니다] : [역할] - [Github 링크]
+        [팀원 이름 - 직접 입력해야 합니다] - [역할] - [Github 링크]
 
         코드를 읽고 '이 앱이 정확히 무슨 기능을 하는지' 깊이 있게 추론하여 상세히 적어야 합니다.
         응답은 오직 README.md 마크다운 코드만 출력하세요. 다른 말은 절대 금지합니다.

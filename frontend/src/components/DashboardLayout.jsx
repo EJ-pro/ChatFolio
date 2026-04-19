@@ -1,6 +1,7 @@
 import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, LogOut, Share2 } from 'lucide-react';
+import { MessageSquare, FileText, Target, Github, LogOut, Share2, Search, Bell } from 'lucide-react';
 import { useEffect } from 'react';
+import UserProfile from './UserProfile';
 
 function DashboardLayout() {
   const location = useLocation();
@@ -74,8 +75,31 @@ function DashboardLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-white relative">
-        <Outlet />
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-slate-50/50 relative">
+        {/* Header Bar */}
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-20">
+          <div className="flex items-center gap-4 text-slate-400">
+            <Search className="w-5 h-5" />
+            <input 
+              type="text" 
+              placeholder="프로젝트 내 검색..." 
+              className="bg-transparent border-none focus:outline-none text-sm w-64"
+            />
+          </div>
+          
+          <div className="flex items-center gap-6">
+            <button className="relative text-slate-400 hover:text-slate-600 transition-colors">
+              <Bell className="w-5 h-5" />
+              <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            <div className="h-6 w-px bg-slate-200"></div>
+            <UserProfile />
+          </div>
+        </header>
+
+        <div className="flex-1 overflow-auto">
+          <Outlet />
+        </div>
       </main>
     </div>
   );

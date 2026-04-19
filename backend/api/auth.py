@@ -94,6 +94,17 @@ async def process_sso_login(sso_user, provider: str, db: Session):
     frontend_url = f"http://localhost/auth/callback?token={access_token}"
     return RedirectResponse(url=frontend_url)
 
+# 현재 사용자 정보 조회
+@router.get("/me")
+async def get_me(current_user: User = Depends(get_current_user)):
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "name": current_user.name,
+        "avatar_url": current_user.avatar_url,
+        "provider": current_user.provider
+    }
+
 # 라우터 - GitHub
 @router.get("/github/login")
 async def github_login():
