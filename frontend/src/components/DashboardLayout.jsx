@@ -132,7 +132,7 @@ function DashboardLayout() {
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-purple-600/5 blur-[120px] rounded-full pointer-events-none"></div>
 
         {/* Header Bar */}
-        <header className="h-16 bg-slate-950/50 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-20">
+        <header className="h-16 bg-slate-950 border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-[100]">
           <div className="flex items-center gap-4">
             <div className="relative" ref={dropdownRef}>
               <button 
@@ -148,7 +148,7 @@ function DashboardLayout() {
 
               {/* Custom Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-full bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 mt-2 w-full bg-slate-900 border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-[110] animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="p-2 max-h-64 overflow-y-auto custom-scrollbar">
                     {projects.filter(p => p.latest_session_id).map(p => {
                       const isActive = p.latest_session_id === sessionId;
