@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -13,6 +13,42 @@ function DocsTab() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [hasLoadedExisting, setHasLoadedExisting] = useState(false);
+
+  // 컴포넌트 마운트 시 기존에 생성된 README가 있는지 확인
+  useEffect(() => {
+    if (sessionId && !hasLoadedExisting) {
+      fetchExistingReadme();
+    }
+  }, [sessionId]);
+
+  const fetchExistingReadme = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/generate/readme', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ 
+          session_id: sessionId,
+          force_regenerate: false // 기존 거 있으면 가져오기
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.readme_content) {
+          setReadmeContent(data.readme_content);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch existing readme:', err);
+    } finally {
+      setHasLoadedExisting(true);
+    }
+  };
 
   const handleGenerateReadme = async () => {
     if (!sessionId) return;
@@ -31,7 +67,8 @@ function DocsTab() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          session_id: sessionId
+          session_id: sessionId,
+          force_regenerate: true
         })
       });
 
@@ -55,24 +92,25 @@ function DocsTab() {
   };
 
   return (
-    <div className="flex h-full bg-slate-50">
+    <div className="flex h-full bg-slate-950 overflow-hidden">
       {/* Left Panel: Controls */}
-      <div className="w-1/3 min-w-[350px] p-8 bg-white border-r border-slate-200 overflow-y-auto">
+      <div className="w-1/3 min-w-[350px] p-8 bg-slate-900/30 border-r border-white/5 overflow-y-auto">
         <header className="mb-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-600 text-sm font-bold mb-4">
-            <Sparkles className="w-4 h-4" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 text-blue-400 text-xs font-bold mb-4 border border-blue-500/20">
+            <Sparkles className="w-3.5 h-3.5" />
             <span>AI Auto-Docs</span>
           </div>
-          <h2 className="text-3xl font-bold text-slate-900 mb-2">문서 자동화</h2>
-          <p className="text-slate-500 text-sm">프로젝트 아키텍처와 핵심 코드를 분석하여 고품질의 문서를 생성합니다.</p>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">문서 자동화</h2>
+          <p className="text-slate-400 text-sm leading-relaxed">프로젝트 아키텍처와 핵심 코드를 분석하여 고품질의 문서를 생성합니다.</p>
         </header>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-6 shadow-sm">
-          <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-xl flex items-center justify-center mb-4">
+        <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-indigo-600"></div>
+          <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/20">
             <FileText className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">README 생성기</h3>
-          <p className="text-slate-600 text-sm mb-6 leading-relaxed">
+          <h3 className="text-xl font-bold text-white mb-2">README 생성기</h3>
+          <p className="text-slate-400 text-sm mb-6 leading-relaxed">
             전체 파일 개수, 가장 많이 참조된 핵심 파일 Top 5, 그리고 디렉토리 구조를 바탕으로 Github에 올릴 수 있는 README.md를 자동 작성합니다.
           </p>
           
@@ -103,62 +141,70 @@ function DocsTab() {
       </div>
 
       {/* Right Panel: Viewer */}
-      <div className="flex-1 bg-slate-900 overflow-hidden flex flex-col relative">
+      <div className="flex-1 bg-slate-950 overflow-hidden flex flex-col relative">
+        {/* Background Gradients */}
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[100px] rounded-full pointer-events-none"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
+
         {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-500">
-            <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-            <p className="text-slate-400 font-medium text-lg">AI가 아키텍처를 분석하여 README를 작성하고 있습니다...</p>
-            <p className="text-slate-500 text-sm mt-2">이 작업은 약 10~20초 정도 소요됩니다.</p>
+          <div className="flex-1 flex flex-col items-center justify-center p-8 z-10 text-slate-500">
+            <div className="relative mb-6">
+              <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
+              <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-pulse" />
+            </div>
+            <p className="text-white font-bold text-xl mb-2">AI가 아키텍처를 심층 분석 중입니다...</p>
+            <p className="text-slate-400 text-sm">이 작업은 약 10~20초 정도 소요됩니다. 잠시만 기다려 주세요.</p>
           </div>
         ) : readmeContent ? (
           <>
-            <div className="absolute top-4 right-4 z-10">
-              <button
-                onClick={copyToClipboard}
-                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg backdrop-blur-sm border border-white/10 transition-colors shadow-lg"
-              >
-                {copied ? <CheckCircle2 className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                <span className="font-medium text-sm">{copied ? '복사 완료!' : '📋 Markdown 복사'}</span>
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
-              <div className="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden min-h-full">
-                <div className="bg-slate-100 border-b border-slate-200 px-6 py-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700">README.md (Generated)</span>
+            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar z-10">
+              <div className="max-w-4xl mx-auto bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden min-h-full border border-white/10">
+                <div className="bg-white/5 border-b border-white/10 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <FileText className="w-5 h-5 text-blue-400" />
+                    <span className="text-sm font-bold text-white tracking-tight">README.md (Generated)</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <button
+                      onClick={copyToClipboard}
+                      className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl border border-white/10 transition-all text-xs font-bold"
+                    >
+                      {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copied ? '복사됨' : '복사'}
+                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">AI Optimized</span>
+                    </div>
+                  </div>
                 </div>
                 
-                <div className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-slate-800 prose-pre:text-slate-100">
+                <div className="p-10 prose prose-invert max-w-none prose-headings:text-white prose-headings:font-black prose-a:text-blue-400 prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-2xl">
                   <ReactMarkdown>{readmeContent}</ReactMarkdown>
                 </div>
               </div>
             </div>
           </>
         ) : (
-          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar relative">
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 pointer-events-none opacity-5 z-0">
-              <FileText className="w-96 h-96" />
-            </div>
-
-            <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl overflow-hidden min-h-full border border-slate-200 relative z-10 opacity-80 hover:opacity-100 transition-opacity">
-              <div className="bg-slate-100 border-b border-slate-200 px-6 py-3 flex items-center justify-between">
+          <div className="flex-1 overflow-y-auto p-10 custom-scrollbar relative z-10">
+            <div className="max-w-4xl mx-auto bg-slate-900/40 backdrop-blur-md rounded-3xl shadow-2xl overflow-hidden min-h-full border border-white/5 relative opacity-60 hover:opacity-100 transition-all duration-500 group/preview">
+              <div className="bg-white/5 border-b border-white/10 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Eye className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm font-semibold text-slate-700">스타일 미리보기 (Preview)</span>
+                  <Eye className="w-5 h-5 text-slate-400" />
+                  <span className="text-sm font-bold text-slate-300 tracking-tight">스타일 미리보기 (Preview)</span>
                 </div>
-                <span className="text-xs font-mono text-slate-600 bg-slate-200 px-2 py-1 rounded font-bold">
+                <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-1 rounded-lg border border-white/5 uppercase tracking-widest">
                   Standard Professional
                 </span>
               </div>
               
-              <div className="p-8 prose prose-slate max-w-none prose-headings:font-bold prose-a:text-blue-600 prose-pre:bg-slate-800 prose-pre:text-slate-100">
+              <div className="p-10 prose prose-invert prose-slate max-w-none opacity-50 grayscale group-hover/preview:grayscale-0 group-hover/preview:opacity-100 transition-all duration-700">
                 <ReactMarkdown>{DEFAULT_EXAMPLE}</ReactMarkdown>
               </div>
               
               {/* Preview Watermark */}
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden">
-                <span className="transform -rotate-12 text-7xl font-black text-slate-900/5 uppercase tracking-widest border-8 border-slate-900/5 px-12 py-6 rounded-3xl select-none">
+                <span className="transform -rotate-12 text-8xl font-black text-white/[0.03] uppercase tracking-[2em] select-none">
                   Preview
                 </span>
               </div>

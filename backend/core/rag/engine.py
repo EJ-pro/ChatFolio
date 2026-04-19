@@ -194,8 +194,8 @@ class ChatFolioEngine:
         # 1. 의존성 매니페스트 파일 찾기 (기술 스택 파악용)
         manifest_content = ""
         for path, content in self.files_data.items():
-            if any(m in path.lower() for m in ["build.gradle", "package.json", "pom.xml", "requirements.txt"]):
-                manifest_content += f"\n--- {path} ---\n{content[:1500]}\n"
+            if any(m in path.lower() for m in ["build.gradle", "package.json", "pom.xml", "requirements.txt", "settings.gradle", "docker-compose.yml"]):
+                manifest_content += f"\n--- {path} ---\n{content[:2500]}\n"
         
         # 2. 가장 많이 참조된 Top 5 핵심 파일 코드 스니펫 추출
         in_degrees = dict(self.graph.in_degree())
@@ -205,8 +205,8 @@ class ChatFolioEngine:
         core_files_code = ""
         for f, _ in top_files:
             if f in self.files_data:
-                # 각 핵심 파일의 첫 800자 제공 (클래스 정의, 주요 메서드 파악)
-                core_files_code += f"\n--- {f} ---\n{self.files_data[f][:800]}...\n"
+                # 각 핵심 파일의 첫 2000자 제공 (클래스 정의, 주요 메서드 파악)
+                core_files_code += f"\n--- {f} ---\n{self.files_data[f][:2000]}...\n"
         
         # 3. 디렉토리 구조 생성 (트리 형태)
         import os
@@ -231,88 +231,36 @@ class ChatFolioEngine:
         """
         
         system_prompt = SystemMessage(content="""
-        당신은 세계 최고 수준의 시니어 테크니컬 라이터이자 오픈소스 메인테이너입니다.
-        제공된 프로젝트 코드 스니펫, 디렉토리 구조, 매니페스트를 심층적으로 분석하여,
-        누구나 감탄할 만한 [High-Quality GitHub README.md]를 작성하세요.
+        당신은 세계 최고의 오픈소스 메인테이너이자 테크니컬 라이터입니다. 
+        사용자가 제공한 코드베이스의 '영혼'을 읽어내어, GitHub 상단에 노출되었을 때 모든 개발자가 별(Star)을 누르고 싶게 만드는 [압도적 퀄리티의 README.md]를 작성하세요.
 
-        [핵심 작성 지침]
-        1. 단순한 코드 나열이 아닌, 이 프로젝트가 "왜 만들어졌고", "어떤 비즈니스 로직/문제를 해결하는지"를 코드를 통해 날카롭게 추론하여 작성하세요.
-        2. 제공된 템플릿 구조를 완벽하게 유지하되, 내용은 빈약하지 않게 최대한 구체적이고 전문적인 용어로 풍성하게 채우세요.
-        3. 마크다운 문법(볼드체, 인용구, 코드블럭, 표, 이모지)을 적극 활용하여 가독성을 극대화하세요.
-        4. 사용자가 나중에 수정해야 할 부분은 `[TODO: 설명 입력]` 형태로 명확히 남겨두세요.
+        [분석 필수 사항]
+        - **비즈니스 로직**: 이 프로젝트가 정확히 무엇을 하는지, 어떤 문제를 해결하는지 코드로부터 깊이 있게 유추하세요.
+        - **아키텍처**: MVVM, Clean Architecture, Repository Pattern, MVC 등 사용된 디자인 패턴을 파악하여 명시하세요.
+        - **기술 스택**: 매니페스트를 통해 버전까지 정확히 명시하세요.
+        - **시작하기**: 사용자가 복사-붙여넣기만 하면 바로 실행될 수 있도록 '진짜' 명령어를 작성하세요.
 
-        [반드시 지켜야 할 마크다운 템플릿]
-        
-        <div align="center">
-          <h1>🚀 [유추한 프로젝트 공식 명칭]</h1>
-          <p><strong>[코드를 분석하여 도출한 프로젝트의 핵심 가치 및 한 줄 소개]</strong></p>
-          <p>
-            <img src="https://img.shields.io/badge/version-1.0.0-blue.svg" alt="Version" />
-            <img src="https://img.shields.io/badge/license-MIT-green.svg" alt="License" />
-            <!-- 코드를 보고 유추한 핵심 기술 뱃지 2~3개를 추가로 작성하세요 -->
-          </p>
-        </div>
+        [레퍼런스: 아래는 당신이 지향해야 할 ChatFolio의 README 구조입니다. 이와 동일한 수준의 깊이와 디자인을 유지하세요.]
+        # 🚀 [프로젝트명]
+        > "[한 줄 소개]" <br/>
+        > [상세 소개]
+        ![Version](...) ![TechStack](...) ...
+        ## 📝 목차
+        ## 💡 프로젝트 소개
+        ## ✨ 주요 기능 (Key Features)
+        ## 🛠 기술 스택 (Tech Stack)
+        ## 📱 화면 구성 및 사용법 (Usage)
+        ## 🚀 시작하기 (Getting Started)
+        ## 📂 폴더 구조 (Directory Structure)
 
-        <br/>
-
-        ## 📖 Overview
-        [프로젝트의 기획 의도와 해결하고자 하는 문제, 그리고 주요 타겟 유저층을 코드를 바탕으로 논리적으로 추론하여 3~4문장으로 깊이 있게 작성하세요. 프로젝트가 가지는 기술적 챌린지나 특징도 포함하면 좋습니다.]
-
-        ## ✨ Key Features
-        [단순 기능 나열이 아닌, 코드 스니펫에서 발견된 핵심 로직을 바탕으로 동작 방식을 구체적으로 설명하세요.]
-        - ⚡ **[핵심 기능 1]**: [해당 기능이 코드 상에서 어떻게 구현되었는지 기술적 디테일을 포함해 설명]
-        - 🛡️ **[핵심 기능 2]**: [보안, 상태 관리, 데이터 처리 방식 등 코드에서 돋보이는 부분 설명]
-        - 🔄 **[핵심 기능 3]**: [사용자 경험(UX), 외부 API 연동, 아키텍처 패턴 등 설명]
-
-        ## 🏗️ Architecture & Tech Stack
-        
-        ### 🎯 Core Architecture
-        [MVVM, Clean Architecture, MVC 등 코드 구조와 주요 클래스들을 보고 유추한 아키텍처 패턴과 그 도입 이유를 전문적으로 설명하세요.]
-
-        ### 🛠️ Technology Stack
-        | Category | Technology | Purpose (추론된 사용 목적) |
-        | :--- | :--- | :--- |
-        | **Frontend/App** | [기술명 유추] | [UI 렌더링, 상태 관리 등 구체적 역할] |
-        | **Backend/Core** | [기술명 유추] | [API 통신, 비즈니스 로직 처리 등 구체적 역할] |
-        | **Infra/Tools** | [기술명 유추] | [빌드, 배포, 패키지 관리 등 구체적 역할] |
-
-        ## 🚀 Getting Started
-        
-        ### Prerequisites
-        - [유추된 실행 환경 및 요구 버전 1]
-        - [유추된 실행 환경 및 요구 버전 2]
-
-        ### Installation & Run
-        ```bash
-        # 1. 저장소 클론
-        $ git clone [TODO: Repository URL]
-
-        # 2. 의존성 설치 및 빌드
-        $ [매니페스트 기반으로 유추한 패키지 설치 명령어 (예: npm install / ./gradlew build)]
-        
-        # 3. 프로젝트 실행
-        $ [매니페스트 기반으로 유추한 실행 명령어 (예: npm run dev / ./gradlew run)]
-        ```
-
-        ## 📂 Project Structure
-        <details>
-        <summary><b>핵심 디렉토리 구조 펼쳐보기</b></summary>
-
-        ```text
-        📦 [프로젝트명]
-         ┣ 📂 [주요폴더1]   # [해당 폴더의 주요 역할과 포함된 핵심 비즈니스 로직 설명]
-         ┣ 📂 [주요폴더2]   # [해당 폴더의 주요 역할 설명]
-         ┗ 📜 [주요설정파일]
-        (제공된 디렉토리 데이터를 바탕으로 중요도가 높은 상위 10개 내외의 구조만 요약해서 작성)
-        ```
-        </details>
-
-        ## 🤝 Contributing
-        [TODO: 기여 가이드, PR 규칙, 연락처 등 입력]
+        [작성 규칙]
+        1. **Overview**: 프로젝트의 가치를 3~5문장으로 깊이 있게 설명하세요.
+        2. **Features**: 단순 나열이 아닌, "어떤 기술을 써서 어떻게 동작하는지" 기술적 디테일을 포함하세요. (예: `Zustand`를 이용한 상태 최적화, `Retrofit2`를 통한 비동기 통신 등)
+        3. **Directory Structure**: 이모지를 활용해 프로젝트의 뼈대를 아름답게 그리세요.
+        4. **Style**: 볼드체, 인용구(>), 표, 하이라이트 등을 적극적으로 사용하여 읽기 즐거운 문서를 만드세요.
 
         ---
-        코드를 깊이 있게 분석하여 가장 '개발자스러운' 통찰력이 담긴 리드미를 작성해야 합니다.
-        응답은 오직 README.md 마크다운 코드(```markdown ... ``` 제외)만 순수 텍스트로 출력하세요. 다른 말은 절대 금지합니다.
+        응답은 오직 README.md 마크다운 코드만 출력하세요. (백틱 없이 순수 텍스트만)
         """)
         
         user_prompt = HumanMessage(content=context)
