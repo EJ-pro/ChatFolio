@@ -35,8 +35,13 @@ class GitHubFetcher:
                         blob = repo.get_git_blob(element.sha)
                         content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
                         files_data[element.path] = content
+                        if progress_callback: 
+                            progress_callback(f"📄 수집 완료: {element.path}")
                     except Exception as e:
-                        print(f"   ❌ 읽기 실패: {element.path} ({e})")
+                        error_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
+                        print(error_msg)
+                        if progress_callback:
+                            progress_callback(error_msg)
         
         return files_data
 
