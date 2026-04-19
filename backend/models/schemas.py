@@ -6,6 +6,7 @@ class AnalyzeRequest(BaseModel):
     repo_url: str
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None
+    force_update: Optional[bool] = False
 
 # 채팅 메시지 요청
 class ChatRequest(BaseModel):

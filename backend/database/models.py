@@ -33,6 +33,8 @@ class Project(Base):
     graph_data = Column(JSONB, nullable=True) # 직렬화된 NetworkX 그래프 저장
     mermaid_code = Column(Text, nullable=True) # 생성된 Mermaid 다이어그램 캐싱
     status = Column(String, default="COMPLETED") # 분석 상태
+    last_commit_hash = Column(String, nullable=True)
+    last_commit_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="projects")
@@ -115,6 +117,8 @@ def init_db():
             with engine.connect() as conn:
                 try:
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
                     conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))
                     conn.commit()

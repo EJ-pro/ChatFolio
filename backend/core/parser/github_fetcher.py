@@ -46,7 +46,24 @@ class GitHubFetcher:
                 if progress_callback:
                     progress_callback(error_msg)
         
-        return files_data
+        # 최신 커밋 정보 가져오기
+        latest_commit = repo.get_commits()[0]
+        commit_info = {
+            "hash": latest_commit.sha,
+            "message": latest_commit.commit.message
+        }
+        
+        return files_data, commit_info
+
+    def fetch_latest_commit(self, repo_url: str):
+        """최신 커밋 해시와 메시지만 가져옴"""
+        repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+        repo = self.g.get_repo(repo_path)
+        latest_commit = repo.get_commits()[0]
+        return {
+            "hash": latest_commit.sha,
+            "message": latest_commit.commit.message
+        }
 
     def fetch_commit_stats(self, repo_url: str):
         """커밋 시간대 분석을 위한 데이터 수집"""

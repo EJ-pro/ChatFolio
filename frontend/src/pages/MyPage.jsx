@@ -6,7 +6,7 @@ import {
   ExternalLink, MessageSquare, Share2, FileText, 
   Sparkles, ShieldCheck, Trophy, GitBranch, 
   Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight,
-  ArrowLeft
+  ArrowLeft, RefreshCw
 } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
@@ -105,6 +105,37 @@ function MyPage() {
       link.click();
     } catch (err) {
       console.error('Failed to download image:', err);
+    }
+  };
+
+  const [updatingProjectId, setUpdatingProjectId] = useState(null);
+
+  const handleCheckUpdate = async (projectId, repoUrl) => {
+    setUpdatingProjectId(projectId);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/projects/${projectId}/check-update`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.is_updated) {
+          if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
+            navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
+          }
+        } else {
+          alert('이미 최신 상태입니다.');
+        }
+      } else {
+        alert('업데이트 확인 중 오류가 발생했습니다.');
+      }
+    } catch (err) {
+      console.error('Failed to check update:', err);
+      alert('서버와 통신 중 오류가 발생했습니다.');
+    } finally {
+      setUpdatingProjectId(null);
     }
   };
 
@@ -425,11 +456,20 @@ function MyPage() {
                     <h4 className="text-lg font-bold text-white truncate mb-1 group-hover:text-blue-400 transition-colors">
                       {project.repo_url.split('/').slice(-1)}
                     </h4>
-                    <p className="text-slate-500 text-sm mb-6 truncate">{project.repo_url}</p>
+                    <p className="text-slate-500 text-sm mb-4 truncate">{project.repo_url}</p>
+                    
+                    {project.last_commit_message && (
+                      <div className="mb-4 p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1 flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Last Commit
+                        </div>
+                        <p className="text-xs text-slate-300 line-clamp-2 italic">"{project.last_commit_message}"</p>
+                      </div>
+                    )}
                     
                     <div className="flex items-center gap-4 mb-6 text-xs text-slate-400 font-mono">
                       <span className="flex items-center gap-1"><GitBranch className="w-3 h-3" /> {project.file_count} files</span>
-                      <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {new Date(project.created_at).toLocaleDateString()}</span>
+                      <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {new Date(project.created_at).toLocaleDateString()}</span>
                     </div>
 
                     <div className="flex gap-2">
@@ -446,6 +486,14 @@ function MyPage() {
                         title="아키텍처 보기"
                       >
                         <Share2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button 
+                        onClick={() => handleCheckUpdate(project.id, project.repo_url)}
+                        disabled={updatingProjectId === project.id}
+                        className={`px-3 py-2.5 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition-all ${updatingProjectId === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title="업데이트 확인"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${updatingProjectId === project.id ? 'animate-spin' : ''}`} />
                       </button>
                     </div>
                   </div>

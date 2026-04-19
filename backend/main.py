@@ -43,7 +43,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
         Project.user_id == current_user.id
     ).first()
     
-    if existing_project:
+    if existing_project and not request.force_update:
         existing_session = db.query(ChatSession).filter(
             ChatSession.project_id == existing_project.id,
             ChatSession.user_id == current_user.id,
@@ -123,7 +123,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 # 사용자의 개인 토큰 사용 (프라이빗 레포 접근 가능)
                 token = current_user.github_token or os.getenv("GITHUB_TOKEN")
                 fetcher = GitHubFetcher(token=token)
-                all_files = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
+                all_files, commit_info = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
                 
                 # 1. 그래프용 필터
                 kt_files_for_graph = {p: c for p, c in all_files.items() if p.endswith(('.kt', '.kts'))}
@@ -135,15 +135,30 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 graph_data = nx.node_link_data(graph)
                 
                 q.put("💾 데이터베이스 저장 중...")
-                project = Project(
-                    user_id=current_user.id,
-                    repo_url=request.repo_url,
-                    file_count=len(all_files), 
-                    node_count=graph.number_of_nodes(),
-                    edge_count=graph.number_of_edges(),
-                    graph_data=graph_data
-                )
-                db_session.add(project)
+                project = db_session.query(Project).filter(Project.repo_url == request.repo_url, Project.user_id == current_user.id).first()
+                if project:
+                    # 기존 프로젝트 업데이트
+                    project.file_count = len(all_files)
+                    project.node_count = graph.number_of_nodes()
+                    project.edge_count = graph.number_of_edges()
+                    project.graph_data = graph_data
+                    project.last_commit_hash = commit_info["hash"]
+                    project.last_commit_message = commit_info["message"]
+                    # 기존 파일 삭제 후 재삽입 (단순화를 위해)
+                    db_session.query(ProjectFile).filter(ProjectFile.project_id == project.id).delete()
+                else:
+                    project = Project(
+                        user_id=current_user.id,
+                        repo_url=request.repo_url,
+                        file_count=len(all_files), 
+                        node_count=graph.number_of_nodes(),
+                        edge_count=graph.number_of_edges(),
+                        graph_data=graph_data,
+                        last_commit_hash=commit_info["hash"],
+                        last_commit_message=commit_info["message"]
+                    )
+                    db_session.add(project)
+                
                 db_session.flush() # ID 발급을 위해 커밋 전에 flush
                 
                 project_files = [
@@ -378,6 +393,27 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/projects/{project_id}/check-update")
+async def check_project_update(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    
+    token = current_user.github_token or os.getenv("GITHUB_TOKEN")
+    fetcher = GitHubFetcher(token=token)
+    
+    try:
+        latest_commit = fetcher.fetch_latest_commit(project.repo_url)
+        is_updated = latest_commit["hash"] != project.last_commit_hash
+        
+        return {
+            "is_updated": is_updated,
+            "latest_commit": latest_commit,
+            "current_commit_hash": project.last_commit_hash
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/projects")
 async def get_user_projects(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     projects = db.query(Project).filter(Project.user_id == current_user.id).order_by(Project.created_at.desc()).all()
@@ -390,6 +426,8 @@ async def get_user_projects(db: Session = Depends(get_db), current_user: User = 
             "id": p.id,
             "repo_url": p.repo_url,
             "file_count": p.file_count,
+            "last_commit_hash": p.last_commit_hash,
+            "last_commit_message": p.last_commit_message,
             "created_at": p.created_at,
             "latest_session_id": latest_session.id if latest_session else None
         })

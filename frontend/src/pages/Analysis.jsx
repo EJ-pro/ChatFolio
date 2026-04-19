@@ -22,8 +22,13 @@ function Analysis() {
   useEffect(() => {
     fetchProjects();
     const repoUrl = searchParams.get('repo_url');
+    const forceUpdate = searchParams.get('force_update') === 'true';
     if (repoUrl) {
       setUrl(repoUrl);
+      if (forceUpdate) {
+        // use setTimeout to ensure setUrl is processed or just pass it directly
+        handleAnalyze(null, repoUrl, forceUpdate);
+      }
     }
   }, [searchParams]);
 
@@ -42,9 +47,10 @@ function Analysis() {
     }
   };
 
-  const handleAnalyze = async (e) => {
-    e.preventDefault();
-    if (!url) return;
+  const handleAnalyze = async (e, overrideUrl = null, forceUpdate = false) => {
+    if (e) e.preventDefault();
+    const targetUrl = overrideUrl || url;
+    if (!targetUrl) return;
 
     setIsLoading(true);
     setError('');
@@ -63,9 +69,10 @@ function Analysis() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          repo_url: url,
+          repo_url: targetUrl,
           provider: provider,
-          model_name: modelName
+          model_name: modelName,
+          force_update: forceUpdate
         })
       });
 
