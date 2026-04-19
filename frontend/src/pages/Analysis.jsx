@@ -366,7 +366,7 @@ function Analysis() {
 
       </main>
 
-      <footer className="w-full text-center p-12 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-6 border-t border-white/5 bg-slate-950">
+      <footer className="w-full text-center p-4 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-6 border-t border-white/5 bg-slate-950">
         <div className="flex gap-8 font-bold text-slate-400">
           <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
           <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>

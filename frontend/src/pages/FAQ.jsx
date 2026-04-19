@@ -1,10 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, HelpCircle, ChevronDown, ChevronUp, Mail, Phone, User, Github } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
 function FAQ() {
   const navigate = useNavigate();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const [openId, setOpenId] = useState(null);
   const [activeTab, setActiveTab] = useState('faq'); // 'faq' or 'inquiry'
   const [inquiryData, setInquiryData] = useState({ title: '', content: '' });
@@ -194,7 +199,7 @@ function FAQ() {
         </div>
       </main>
 
-      <footer className="w-full text-center p-10 text-slate-600 text-sm border-t border-white/5">
+      <footer className="w-full text-center p-4 text-slate-600 text-sm border-t border-white/5">
         &copy; 2026 ChatFolio. All rights reserved.
       </footer>
     </div>

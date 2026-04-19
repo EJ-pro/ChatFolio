@@ -633,7 +633,7 @@ function MyPage() {
         )}
       </main>
 
-      <footer className="w-full text-center p-16 text-slate-600 text-sm border-t border-white/5 mt-20 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
+      <footer className="w-full text-center p-4 text-slate-600 text-sm border-t border-white/5 mt-10 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
         <div className="flex gap-10 font-black text-slate-500 uppercase tracking-widest text-[10px]">
           <button onClick={() => navigate('/terms')} className="hover:text-white transition-all">이용약관</button>
           <button onClick={() => navigate('/privacy')} className="hover:text-white transition-all">개인정보 처리방침</button>
