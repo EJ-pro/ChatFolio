@@ -180,3 +180,6 @@ Thumbs.db
 backend/__pycache__/
 frontend/node_modules/
 frontend/dist/
+frontend/.eslintcache
+docker-compose.override.yml
+*.log
