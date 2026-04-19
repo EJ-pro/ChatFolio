@@ -6,7 +6,8 @@ function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
   // We manage sessionId in state so we can change it without unmounting the whole component
-  const [sessionId, setSessionId] = useState(location.state?.sessionId);
+  const currentSessionId = location.state?.sessionId || sessionStorage.getItem('last_session_id');
+  const [sessionId, setSessionId] = useState(currentSessionId);
 
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }
@@ -18,14 +19,19 @@ function Chat() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
 
+
   useEffect(() => {
-    if (!sessionId && !location.state?.sessionId) {
+    if (currentSessionId && currentSessionId !== sessionId) {
+      setSessionId(currentSessionId);
+    }
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    if (!sessionId) {
       alert("유효한 세션이 없습니다. 분석을 먼저 진행해주세요.");
       navigate('/');
-    } else if (!sessionId && location.state?.sessionId) {
-      setSessionId(location.state.sessionId);
     }
-  }, [sessionId, location.state, navigate]);
+  }, [sessionId, navigate]);
 
   const loadSessionData = async (sid) => {
     try {

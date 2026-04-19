@@ -16,6 +16,8 @@ function Analysis() {
   const [currentLog, setCurrentLog] = useState('');
   const [projects, setProjects] = useState([]);
   const [searchParams] = useSearchParams();
+  const [progress, setProgress] = useState(0);
+
 
   useEffect(() => {
     fetchProjects();
@@ -49,16 +51,18 @@ function Analysis() {
     setResult(null);
     setLogs([]);
     setCurrentLog('분석 시작 중...');
+    setProgress(0);
+
 
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           repo_url: url,
           provider: provider,
           model_name: modelName
@@ -86,7 +90,7 @@ function Analysis() {
         for (const line of lines) {
           if (line.startsWith('data: ')) {
             const msg = line.replace('data: ', '').trim();
-            
+
             if (msg.startsWith('RESULT:')) {
               const resultData = JSON.parse(msg.replace('RESULT:', ''));
               setResult(resultData);
@@ -94,10 +98,13 @@ function Analysis() {
               return;
             } else if (msg.startsWith('ERROR:')) {
               throw new Error(msg.replace('ERROR:', ''));
+            } else if (msg.startsWith('PROGRESS:')) {
+              setProgress(parseInt(msg.replace('PROGRESS:', '')));
             } else {
               setCurrentLog(msg);
               setLogs(prev => [...prev.slice(-4), msg]); // 최근 5개 로그 유지
             }
+
           }
         }
       }
@@ -115,8 +122,8 @@ function Analysis() {
 
       {/* Top Header */}
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
-        <button 
-          onClick={() => navigate(`/${username}`)} 
+        <button
+          onClick={() => navigate(`/${username}`)}
           className="flex items-center gap-2 text-slate-400 hover:text-white transition-all group"
         >
           <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
@@ -127,18 +134,18 @@ function Analysis() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full max-w-5xl mx-auto mt-10">
-        
+
         {/* Hero Section */}
         <div className="text-center mb-12 animate-fade-in-up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-blue-400 text-sm font-medium mb-6">
             <Sparkles className="w-4 h-4" />
-            <span>ChatFolio AI v2.0</span>
+            <span>ChatFolio AI Beta</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            당신의 코드와<br/>대화를 시작하세요.
+            당신의 코드와<br />대화를 시작하세요.
           </h1>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            복잡한 레포지토리의 의존성을 시각화하고, AI와 대화하며 코드의 숨은 맥락을 파악하세요. 단 하나의 링크면 충분합니다.
+            복잡한 레포지토리의 의존성을 시각화하고, AI와 대화하며 코드에 대해 깊이 알아보세요.
           </p>
         </div>
 
@@ -214,7 +221,7 @@ function Analysis() {
                     </span>
                   </button>
                 ))}
-                <button 
+                <button
                   onClick={() => navigate(`/${username}`)}
                   className="px-3 py-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
                 >
@@ -228,13 +235,24 @@ function Analysis() {
           {isLoading && (
             <div className="mt-8 w-full animate-fade-in">
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
+                {/* Progress Bar */}
+                <div className="h-1 w-full bg-slate-800">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_10px_rgba(37,99,235,0.5)] transition-all duration-500 ease-out"
+                    style={{ width: `${progress}%` }}
+                  ></div>
+                </div>
                 <div className="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between">
+
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
                     <div className="w-3 h-3 rounded-full bg-green-500/50"></div>
                   </div>
-                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest">Analysis Engine Terminal</span>
+                  <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                    Analysis Engine Terminal
+                    <span className="text-blue-400 font-bold">[{progress}%]</span>
+                  </span>
                 </div>
                 <div className="p-6 font-mono text-sm space-y-2">
                   <div className="flex items-center gap-3 text-blue-400">
@@ -276,7 +294,7 @@ function Analysis() {
         {result && (
           <div className="mt-12 w-full max-w-3xl glass-panel rounded-3xl p-8 animate-fade-in-up shadow-2xl border border-white/10 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
-            
+
             <div className="text-center mb-10">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 mb-6 border border-emerald-500/20">
                 <Sparkles className="w-10 h-10" />
@@ -340,7 +358,7 @@ function Analysis() {
         )}
 
       </main>
-      
+
       <footer className="w-full text-center p-6 text-slate-500 text-sm animate-fade-in delay-500 relative z-10">
         &copy; 2026 ChatFolio. Designed for developers.
       </footer>

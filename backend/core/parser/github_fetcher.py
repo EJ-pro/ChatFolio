@@ -22,26 +22,29 @@ class GitHubFetcher:
         branch = repo.default_branch
         tree = repo.get_git_tree(branch, recursive=True)
         
+        all_blobs = [e for e in tree.tree if e.type == "blob" and (e.path.lower().endswith(self.target_extensions) or e.path.lower() == 'dockerfile')]
+        total_files = len(all_blobs)
+        
         files_data = {}
-        msg = f"📂 [{repo.full_name}] ({branch}) 스캔 중..."
+        msg = f"📂 [{repo.full_name}] ({branch}) 스캔 중... (총 {total_files}개 파일)"
         print(msg)
         if progress_callback: progress_callback(msg)
 
-        for element in tree.tree:
-            if element.type == "blob":
-                # 소문자로 변환하여 확장자 체크
-                if element.path.lower().endswith(self.target_extensions) or element.path.lower() == 'dockerfile':
-                    try:
-                        blob = repo.get_git_blob(element.sha)
-                        content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
-                        files_data[element.path] = content
-                        if progress_callback: 
-                            progress_callback(f"📄 수집 완료: {element.path}")
-                    except Exception as e:
-                        error_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
-                        print(error_msg)
-                        if progress_callback:
-                            progress_callback(error_msg)
+        for i, element in enumerate(all_blobs):
+            try:
+                blob = repo.get_git_blob(element.sha)
+                content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
+                files_data[element.path] = content
+                
+                if progress_callback:
+                    progress = int(((i + 1) / total_files) * 100)
+                    progress_callback(f"PROGRESS:{progress}")
+                    progress_callback(f"📄 수집 완료: {element.path}")
+            except Exception as e:
+                error_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
+                print(error_msg)
+                if progress_callback:
+                    progress_callback(error_msg)
         
         return files_data
 
