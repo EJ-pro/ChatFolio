@@ -1,7 +1,9 @@
 import { Outlet, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, LogOut, Share2, Search, Bell } from 'lucide-react';
-import { useEffect } from 'react';
+import { MessageSquare, FileText, Target, Github, LogOut, Share2, Search, Bell, GitBranch, ChevronDown } from 'lucide-react';
+import { useEffect, useState, useRef } from 'react';
 import UserProfile from './UserProfile';
+
+
 
 function DashboardLayout() {
   const { username } = useParams();
@@ -11,7 +13,40 @@ function DashboardLayout() {
   // URL state에서 가져오거나 sessionStorage에서 복구
   const sessionId = location.state?.sessionId || sessionStorage.getItem('last_session_id');
 
-  // 세션 아이디가 있으면 세션스토리지에 저장 (복구용)
+  const [projects, setProjects] = useState([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  
+  // 외부 클릭 시 드롭다운 닫기
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const res = await fetch('http://localhost:8000/projects', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setProjects(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch projects:", err);
+      }
+    };
+    fetchProjects();
+  }, []);
+
   useEffect(() => {
     if (location.state?.sessionId) {
       sessionStorage.setItem('last_session_id', location.state.sessionId);
@@ -99,15 +134,53 @@ function DashboardLayout() {
         {/* Header Bar */}
         <header className="h-16 bg-slate-950/50 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-20">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5 focus-within:border-blue-500/50 transition-all">
-              <Search className="w-4 h-4 text-slate-500" />
-              <input 
-                type="text" 
-                placeholder="프로젝트 내 검색..." 
-                className="bg-transparent border-none focus:outline-none text-sm w-64 text-slate-200 placeholder-slate-600"
-              />
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className="flex items-center gap-3 bg-white/5 px-4 py-2 rounded-xl border border-white/5 hover:border-blue-500/30 hover:bg-white/10 transition-all min-w-[280px] group"
+              >
+                <GitBranch className={`w-4 h-4 ${isDropdownOpen ? 'text-blue-400' : 'text-slate-500'} group-hover:text-blue-400 transition-colors`} />
+                <span className="flex-1 text-left text-sm text-slate-200 font-medium truncate">
+                  {projects.find(p => p.latest_session_id === sessionId)?.repo_url.replace('https://github.com/', '') || '프로젝트 선택...'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-blue-400' : ''}`} />
+              </button>
+
+              {/* Custom Dropdown Menu */}
+              {isDropdownOpen && (
+                <div className="absolute top-full left-0 mt-2 w-full bg-slate-900/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-2 max-h-64 overflow-y-auto custom-scrollbar">
+                    {projects.filter(p => p.latest_session_id).map(p => {
+                      const isActive = p.latest_session_id === sessionId;
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            navigate(location.pathname, { state: { sessionId: p.latest_session_id }, replace: true });
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 rounded-xl flex flex-col gap-0.5 transition-all mb-1 last:mb-0 ${
+                            isActive 
+                              ? 'bg-blue-600 text-white' 
+                              : 'hover:bg-white/5 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          <span className="text-sm font-bold truncate">
+                            {p.repo_url.split('/').pop()}
+                          </span>
+                          <span className={`text-[10px] truncate opacity-60 ${isActive ? 'text-blue-100' : 'text-slate-500'}`}>
+                            {p.repo_url.replace('https://github.com/', '')}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
+
+
           
           <div className="flex items-center gap-6">
             <button className="relative p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">

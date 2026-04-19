@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
-from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse
+from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse, NewSessionRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import os
@@ -243,6 +243,95 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/chat/session/{session_id}/info")
+async def get_chat_session_info(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    return {
+        "session_id": chat_session.id,
+        "project_id": chat_session.project_id,
+        "provider": chat_session.provider,
+        "model_name": chat_session.model_name,
+        "created_at": chat_session.created_at
+    }
+
+@app.get("/chat/sessions/{project_id}")
+async def get_project_chat_sessions(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    sessions = db.query(ChatSession).filter(ChatSession.project_id == project_id).order_by(ChatSession.created_at.desc()).all()
+    return [
+        {
+            "session_id": s.id,
+            "provider": s.provider,
+            "model_name": s.model_name,
+            "created_at": s.created_at
+        } for s in sessions
+    ]
+
+@app.get("/chat/history/{session_id}")
+async def get_chat_history(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc()).all()
+    
+    return [
+        {
+            "id": msg.id,
+            "role": msg.role,
+            "content": msg.content,
+            "sources": msg.sources,
+            "created_at": msg.created_at
+        } for msg in messages
+    ]
+
+@app.post("/chat/session/new")
+async def create_new_chat_session(request: NewSessionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    project = db.query(Project).filter(Project.id == request.project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+    if project.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    new_session = ChatSession(
+        user_id=current_user.id,
+        project_id=project.id,
+        provider=request.provider,
+        model_name=request.model_name
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    
+    all_project_files = {f.file_path: f.content for f in project.files}
+    graph = nx.node_link_graph(project.graph_data)
+    engine = ChatFolioEngine(
+        all_project_files, 
+        graph, 
+        provider=request.provider, 
+        model_name=request.model_name
+    )
+    engine_cache[new_session.id] = engine
+    
+    return {
+        "status": "success",
+        "session_id": new_session.id,
+        "project_id": project.id,
+        "message": "새로운 채팅 세션이 생성되었습니다."
+    }
 
 @app.post("/generate/diagram", response_model=DiagramResponse)
 async def generate_architecture_diagram(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):

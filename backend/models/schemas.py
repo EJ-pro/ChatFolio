@@ -38,3 +38,9 @@ class ReadmeRequest(BaseModel):
 
 class ReadmeResponse(BaseModel):
     readme_content: str
+
+# 새 채팅 세션 생성 요청
+class NewSessionRequest(BaseModel):
+    project_id: int
+    provider: Optional[str] = "groq"
+    model_name: Optional[str] = None

@@ -1,25 +1,72 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function Chat() {
   const location = useLocation();
   const navigate = useNavigate();
-  const sessionId = location.state?.sessionId;
+  // We manage sessionId in state so we can change it without unmounting the whole component
+  const [sessionId, setSessionId] = useState(location.state?.sessionId);
 
   const [messages, setMessages] = useState([
     { role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }
   ]);
+  const [sessions, setSessions] = useState([]);
+  const [currentProjectId, setCurrentProjectId] = useState(null);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    if (!sessionId) {
+    if (!sessionId && !location.state?.sessionId) {
       alert("유효한 세션이 없습니다. 분석을 먼저 진행해주세요.");
       navigate('/');
+    } else if (!sessionId && location.state?.sessionId) {
+      setSessionId(location.state.sessionId);
     }
-  }, [sessionId, navigate]);
+  }, [sessionId, location.state, navigate]);
+
+  const loadSessionData = async (sid) => {
+    try {
+      const token = localStorage.getItem('token');
+      const headers = { 'Authorization': `Bearer ${token}` };
+
+      // 1. Get session info
+      const infoRes = await fetch(`http://localhost:8000/chat/session/${sid}/info`, { headers });
+      if (!infoRes.ok) throw new Error('세션 정보를 불러오지 못했습니다.');
+      const infoData = await infoRes.json();
+      setCurrentProjectId(infoData.project_id);
+
+      // 2. Get history
+      const histRes = await fetch(`http://localhost:8000/chat/history/${sid}`, { headers });
+      if (histRes.ok) {
+        const histData = await histRes.json();
+        if (histData.length > 0) {
+          setMessages(histData);
+        } else {
+          setMessages([{ role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }]);
+        }
+      }
+
+      // 3. Get sibling sessions
+      if (infoData.project_id) {
+        const siblingRes = await fetch(`http://localhost:8000/chat/sessions/${infoData.project_id}`, { headers });
+        if (siblingRes.ok) {
+          const siblingData = await siblingRes.json();
+          setSessions(siblingData);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  useEffect(() => {
+    if (sessionId) {
+      loadSessionData(sessionId);
+    }
+  }, [sessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,6 +75,41 @@ function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleNewSession = async () => {
+    if (!currentProjectId) return;
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      // 현재 세션의 provider, model_name을 가져오기 위해 sessions 배열 참조 (최근 세션 기준)
+      const currentSessionDetails = sessions.find(s => s.session_id === sessionId);
+      const provider = currentSessionDetails?.provider || "groq";
+      const modelName = currentSessionDetails?.model_name || "llama-3.3-70b-versatile";
+
+      const response = await fetch('http://localhost:8000/chat/session/new', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}` 
+        },
+        body: JSON.stringify({
+          project_id: currentProjectId,
+          provider: provider,
+          model_name: modelName
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setSessionId(data.session_id);
+        navigate('.', { state: { ...location.state, sessionId: data.session_id }, replace: true });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -64,12 +146,68 @@ function Chat() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-100 relative overflow-hidden font-sans">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="flex h-full bg-slate-950 text-slate-100 overflow-hidden font-sans">
+      {/* Sidebar for Chat History */}
+      <div className={`${isSidebarOpen ? 'w-64 translate-x-0' : 'w-0 -translate-x-full'} transition-all duration-300 ease-in-out shrink-0 bg-slate-900 border-r border-slate-800 flex flex-col z-20 absolute lg:relative h-full lg:h-auto`}>
+        <div className="p-4 border-b border-slate-800 flex justify-between items-center">
+          <button 
+            onClick={handleNewSession}
+            disabled={isLoading}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-200 rounded-xl transition-all font-medium text-sm disabled:opacity-50"
+          >
+            <Plus className="w-4 h-4" />
+            새 대화 시작
+          </button>
+          <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden ml-2 p-2 text-slate-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
+          <div className="text-xs font-black text-slate-500 uppercase px-3 py-2 tracking-widest">
+            Recent Chats
+          </div>
+          {sessions.map((s) => (
+            <button
+              key={s.session_id}
+              onClick={() => {
+                setSessionId(s.session_id);
+                navigate('.', { state: { ...location.state, sessionId: s.session_id }, replace: true });
+                if (window.innerWidth < 1024) setIsSidebarOpen(false);
+              }}
+              className={`w-full text-left px-3 py-3 rounded-xl flex items-start gap-3 transition-colors ${
+                s.session_id === sessionId 
+                  ? 'bg-blue-600/10 text-blue-400' 
+                  : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
+              <div className="overflow-hidden">
+                <div className="text-sm truncate font-medium">Chat Session</div>
+                <div className="text-[10px] text-slate-500 mt-1">
+                  {new Date(s.created_at).toLocaleDateString()}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
-      {/* 메시지 영역 */}
-      <main className="flex-1 overflow-y-auto p-4 space-y-6 relative z-10 custom-scrollbar">
+      {/* Main Chat Area */}
+      <div className="flex-1 flex flex-col relative w-full h-full min-w-0">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none"></div>
+
+        {/* Mobile Header for Sidebar Toggle */}
+        <div className="lg:hidden p-4 border-b border-slate-800 bg-slate-900/80 backdrop-blur-md flex items-center gap-3 relative z-10">
+          <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-slate-400 hover:text-white">
+            <Menu className="w-5 h-5" />
+          </button>
+          <span className="font-bold text-slate-200">ChatFolio AI</span>
+        </div>
+
+        {/* 메시지 영역 */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative z-10 custom-scrollbar scroll-smooth">
         {messages.map((msg, idx) => (
           <div 
             key={idx} 
@@ -126,8 +264,10 @@ function Chat() {
           </button>
         </form>
       </footer>
+      </div>
     </div>
   );
 }
+
 
 export default Chat;
