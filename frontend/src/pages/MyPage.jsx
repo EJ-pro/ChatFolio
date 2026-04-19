@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import html2canvas from 'html2canvas';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Github, Mail, Calendar, MapPin, Link as LinkIcon, 
@@ -16,6 +17,8 @@ function MyPage() {
   const [githubRepos, setGithubRepos] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('projects');
+  const [errorMessage, setErrorMessage] = useState('');
+  const cardRef = useRef(null);
 
   useEffect(() => {
     fetchProfileData();
@@ -47,7 +50,61 @@ function MyPage() {
         setGithubRepos(data);
       }
     } catch (err) {
-      console.error('Failed to fetch github repos:', err);
+    }
+  };
+
+  const handleViewAllGithub = () => {
+    if (profile?.user?.github_username) {
+      window.open(`https://github.com/${profile.user.github_username}?tab=repositories`, '_blank');
+    }
+  };
+
+  const handleAnalyzeRepo = (repoUrl) => {
+    navigate(`/?repo_url=${encodeURIComponent(repoUrl)}`);
+  };
+  const handleAnalyzePersona = async () => {
+    setIsLoading(true);
+    setErrorMessage('');
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/auth/persona/analyze', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setProfile(prev => ({
+          ...prev,
+          user: { ...prev.user, persona_data: data }
+        }));
+      } else {
+        const errData = await response.json();
+        setErrorMessage(errData.detail || '분석 중 오류가 발생했습니다.');
+      }
+    } catch (err) {
+      console.error('Failed to analyze persona:', err);
+      setErrorMessage('서버와 통신 중 오류가 발생했습니다.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleDownloadImage = async () => {
+    if (!cardRef.current) return;
+    try {
+      const canvas = await html2canvas(cardRef.current, {
+        backgroundColor: '#0f172a', // slate-950
+        scale: 2, // 고해상도
+        logging: false,
+        useCORS: true
+      });
+      const link = document.createElement('a');
+      link.download = `ChatFolio_Persona_${profile.user.github_username}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (err) {
+      console.error('Failed to download image:', err);
     }
   };
 
@@ -224,6 +281,107 @@ function MyPage() {
             </div>
           </div>
         </section>
+        
+        {/* Coder Persona (MBTI) Section */}
+        <section className="glass-panel rounded-3xl p-10 border border-white/10 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 blur-[80px] rounded-full -mr-20 -mt-20 group-hover:bg-blue-500/20 transition-all duration-700"></div>
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[80px] rounded-full -ml-20 -mb-20 group-hover:bg-purple-500/20 transition-all duration-700"></div>
+          
+          <div className="flex flex-col lg:flex-row items-center gap-12 relative z-10">
+            {/* Card UI for sharing */}
+            <div 
+              ref={cardRef}
+              className="w-full max-w-[380px] aspect-[4/5] bg-slate-900 rounded-[2.5rem] border border-white/10 p-8 shadow-2xl relative overflow-hidden flex flex-col justify-between group/card"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-600/20 via-transparent to-purple-600/20 opacity-50"></div>
+              
+              <div className="flex justify-between items-start relative">
+                <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center backdrop-blur-md border border-white/10">
+                   <Github className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-right">
+                  <div className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-1">Developer Identity</div>
+                  <div className="text-xs font-mono text-slate-500">#{profile.user.github_username}</div>
+                </div>
+              </div>
+
+              <div className="text-center py-6 relative">
+                {profile.user.persona_data ? (
+                  <div className="animate-fade-in-up">
+                    <div className="text-blue-500 text-[10px] font-black uppercase tracking-[0.2em] mb-4">The Persona</div>
+                    <h3 className="text-3xl font-black text-white mb-4 leading-tight tracking-tighter">
+                      "{profile.user.persona_data.persona.title}"
+                    </h3>
+                    <p className="text-slate-400 text-sm leading-relaxed px-4">
+                      {profile.user.persona_data.persona.description}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="opacity-50 py-10">
+                    <Sparkles className="w-12 h-12 text-slate-700 mx-auto mb-4 animate-pulse" />
+                    <p className="text-slate-500 text-sm font-medium">아직 분석된 페르소나가 없습니다.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-4 relative">
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {profile.user.persona_data?.persona.traits.map(trait => (
+                    <span key={trait} className="px-3 py-1 rounded-full bg-white/5 border border-white/10 text-[10px] font-bold text-slate-300">
+                      {trait}
+                    </span>
+                  ))}
+                </div>
+                <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                <div className="flex justify-between items-center px-2">
+                  <div className="text-[10px] font-black text-slate-500 uppercase">ChatFolio AI Analysis</div>
+                  <div className="text-[10px] font-black text-white">{profile.user.persona_data?.persona.mbti_type || '????'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Feature Description */}
+            <div className="flex-1 text-center lg:text-left space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-bold border border-purple-500/20">
+                <Trophy className="w-3.5 h-3.5" />
+                Coder Persona (MBTI)
+              </div>
+              <h2 className="text-4xl font-black text-white tracking-tighter">
+                코드 속에 숨겨진<br/><span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">당신의 정체성</span>을 발견하세요
+              </h2>
+              <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
+                커밋 시간대, 언어 비율, 주석 스타일, 모듈화 전략을 AI가 심층 분석하여 당신만의 독특한 개발자 페르소나를 정의해 줍니다. 인스타그램이나 링크드인 공유용 이미지로 최적화되어 있습니다.
+              </p>
+              
+              {errorMessage && (
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm animate-shake">
+                  <AlertCircle className="w-5 h-5 shrink-0" />
+                  <p>{errorMessage}</p>
+                </div>
+              )}
+
+              <div className="flex flex-wrap justify-center lg:justify-start gap-4 pt-4">
+                <button 
+                  onClick={handleAnalyzePersona}
+                  disabled={isLoading}
+                  className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white rounded-2xl font-black text-lg shadow-xl shadow-blue-500/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                  {profile.user.persona_data ? "페르소나 재분석하기" : "나의 페르소나 분석하기"}
+                </button>
+                {profile.user.persona_data && (
+                  <button 
+                    onClick={handleDownloadImage}
+                    className="px-8 py-4 bg-slate-900 border border-white/10 text-slate-300 hover:text-white rounded-2xl font-bold transition-all flex items-center gap-2"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    이미지로 저장
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Navigation Tabs */}
         <div className="flex items-center gap-6 border-b border-white/5 pb-4">
@@ -303,7 +461,10 @@ function MyPage() {
                     <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
                     <h3 className="text-2xl font-bold text-white tracking-tight">내 깃허브 저장소</h3>
                   </div>
-                  <button className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 font-bold transition-colors">
+                  <button 
+                    onClick={handleViewAllGithub}
+                    className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 font-bold transition-colors"
+                  >
                     전체 보기 <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
@@ -321,7 +482,12 @@ function MyPage() {
                           {isAnalyzed ? (
                             <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">완료</span>
                           ) : (
-                            <button className="text-[10px] text-blue-400 font-bold hover:underline">분석하기</button>
+                            <button 
+                              onClick={() => handleAnalyzeRepo(repo.html_url)}
+                              className="text-[10px] text-blue-400 font-bold hover:underline"
+                            >
+                              분석하기
+                            </button>
                           )}
                         </div>
                       </div>

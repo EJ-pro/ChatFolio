@@ -83,7 +83,8 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
             
         def run_analysis():
             try:
-                token = os.getenv("GITHUB_TOKEN")
+                # 사용자의 개인 토큰 사용 (프라이빗 레포 접근 가능)
+                token = current_user.github_token or os.getenv("GITHUB_TOKEN")
                 fetcher = GitHubFetcher(token=token)
                 all_files = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
                 

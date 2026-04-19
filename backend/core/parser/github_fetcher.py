@@ -31,17 +31,27 @@ class GitHubFetcher:
             if element.type == "blob":
                 # 소문자로 변환하여 확장자 체크
                 if element.path.lower().endswith(self.target_extensions) or element.path.lower() == 'dockerfile':
-                    msg = f"   ✅ 수집됨: {element.path}"
-                    print(msg)
-                    if progress_callback: progress_callback(msg)
-                    
                     try:
                         blob = repo.get_git_blob(element.sha)
                         content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
                         files_data[element.path] = content
                     except Exception as e:
-                        err_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
-                        print(err_msg)
-                        if progress_callback: progress_callback(err_msg)
+                        print(f"   ❌ 읽기 실패: {element.path} ({e})")
         
         return files_data
+
+    def fetch_commit_stats(self, repo_url: str):
+        """커밋 시간대 분석을 위한 데이터 수집"""
+        repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+        repo = self.g.get_repo(repo_path)
+        
+        # 최근 100개 커밋의 시간대 추출
+        commits = repo.get_commits()[:100]
+        hours = []
+        for commit in commits:
+            # commit.commit.author.date는 UTC 기준
+            # 한국 시간으로 보정하려면 +9시간
+            # 여기서는 간단히 시간대만 추출
+            hours.append(commit.commit.author.date.hour)
+            
+        return hours

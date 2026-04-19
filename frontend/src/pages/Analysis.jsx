@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
@@ -15,10 +15,15 @@ function Analysis() {
   const [logs, setLogs] = useState([]);
   const [currentLog, setCurrentLog] = useState('');
   const [projects, setProjects] = useState([]);
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+    const repoUrl = searchParams.get('repo_url');
+    if (repoUrl) {
+      setUrl(repoUrl);
+    }
+  }, [searchParams]);
 
   const fetchProjects = async () => {
     try {

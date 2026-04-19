@@ -15,6 +15,7 @@ class User(Base):
     github_username = Column(String, unique=True, index=True, nullable=True)
     github_token = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
+    persona_data = Column(JSONB, nullable=True) # 개발자 MBTI (Persona) 데이터 저장
     created_at = Column(DateTime, default=datetime.utcnow)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete")
@@ -109,6 +110,14 @@ def init_db():
     while retries > 0:
         try:
             Base.metadata.create_all(bind=engine)
+            # [Migration Hack] persona_data 컬럼이 없는 경우 수동 추가
+            from sqlalchemy import text
+            with engine.connect() as conn:
+                try:
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
+                    conn.commit()
+                except Exception as e:
+                    print(f"Migration error: {e}")
             print("Database initialized successfully.")
             break
         except OperationalError:

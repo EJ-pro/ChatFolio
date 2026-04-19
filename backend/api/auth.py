@@ -12,6 +12,9 @@ from sqlalchemy import func
 
 from database.database import get_db
 from database.models import User, Project, GeneratedReadme, ProjectFile, ChatSession
+from core.parser.github_fetcher import GitHubFetcher
+from core.persona.analyzer import PersonaAnalyzer
+from core.rag.engine import ChatFolioEngine
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -29,7 +32,8 @@ github_sso = GithubSSO(
     client_id=GITHUB_CLIENT_ID,
     client_secret=GITHUB_CLIENT_SECRET,
     redirect_uri="http://localhost:8000/auth/github/callback",
-    allow_insecure_http=True # 개발 환경(http) 허용
+    allow_insecure_http=True, # 개발 환경(http) 허용
+    scope=["user:email", "repo"] # 프라이빗 레포지토리 접근 권한 추가
 )
 
 google_sso = GoogleSSO(
@@ -150,7 +154,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
             "name": user.name,
             "avatar_url": user.avatar_url,
             "github_username": user.github_username,
-            "created_at": user.created_at
+            "created_at": user.created_at,
+            "persona_data": user.persona_data
         },
         "skills": skills,
         "projects": [
@@ -243,17 +248,55 @@ async def github_login():
 
 @router.get("/github/callback")
 async def github_callback(request: Request, db: Session = Depends(get_db)):
-    with github_sso:
-        # verify_and_process는 내부적으로 access_token을 사용하여 유저 정보를 가져옴
-        # 하지만 access_token 자체는 반환하지 않으므로, 커스텀 로직이 필요할 수 있음
-        # fastapi-sso 버전에 따라 다르지만, sso_user.extra_data 등에 있을 수 있음
-        sso_user = await github_sso.verify_and_process(request)
+    # 1. 깃허브로부터 access_token 직접 획득
+    code = request.query_params.get("code")
+    if not code:
+        raise HTTPException(status_code=400, detail="Code not found")
+    
+    import httpx
+    async with httpx.AsyncClient() as client:
+        token_response = await client.post(
+            "https://github.com/login/oauth/access_token",
+            data={
+                "client_id": GITHUB_CLIENT_ID,
+                "client_secret": GITHUB_CLIENT_SECRET,
+                "code": code,
+                "redirect_uri": "http://localhost:8000/auth/github/callback"
+            },
+            headers={"Accept": "application/json"}
+        )
+        token_data = token_response.json()
+        github_token = token_data.get("access_token")
         
-        # 깃허브 아이디(username) 추출
-        # SSOUser 객체의 display_name을 기본으로 하되, 없을 경우 이메일 앞부분 사용
-        github_username = sso_user.display_name or sso_user.email.split('@')[0]
+    if not github_token:
+        raise HTTPException(status_code=400, detail="Failed to get access token from GitHub")
+
+    # 2. 유저 정보 획득 (PyGithub 사용)
+    # PyGithub은 동기 라이브러리이므로 필요시 run_in_threadpool 등을 고려할 수 있으나 
+    # 여기서는 간단히 직접 호출
+    auth = Auth.Token(github_token)
+    g = Github(auth=auth)
+    gh_user = g.get_user()
+    
+    # SSOUser 인터페이스와 유사하게 데이터 구조화 (ImportError 방지)
+    class GithubUser:
+        def __init__(self, id, email, display_name, picture):
+            self.id = id
+            self.email = email
+            self.display_name = display_name
+            self.picture = picture
+            self.provider = "github"
+    
+    sso_user = GithubUser(
+        id=str(gh_user.id),
+        email=gh_user.email or f"{gh_user.login}@github.com",
+        display_name=gh_user.name or gh_user.login,
+        picture=gh_user.avatar_url
+    )
+    
+    github_username = gh_user.login
         
-    return await process_sso_login(sso_user, "github", db, github_username=github_username)
+    return await process_sso_login(sso_user, "github", db, github_username=github_username, github_token=github_token)
 
 # 라우터 - Google
 @router.get("/google/login")
@@ -266,3 +309,47 @@ async def google_callback(request: Request, db: Session = Depends(get_db)):
     with google_sso:
         sso_user = await google_sso.verify_and_process(request)
     return await process_sso_login(sso_user, "google", db)
+
+# 코더 페르소나 (MBTI) 분석 엔드포인트
+@router.post("/persona/analyze")
+async def analyze_user_persona(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not current_user.github_token:
+        raise HTTPException(status_code=400, detail="GitHub 연동이 필요합니다.")
+    
+    # 1. 모든 프로젝트의 파일 데이터 수집
+    projects = db.query(Project).filter(Project.user_id == current_user.id).all()
+    if not projects:
+        raise HTTPException(status_code=400, detail="분석된 프로젝트가 없습니다. 먼저 레포지토리를 분석해주세요.")
+    
+    all_files_data = {}
+    last_repo_url = projects[0].repo_url
+    
+    for p in projects:
+        files = db.query(ProjectFile).filter(ProjectFile.project_id == p.id).all()
+        for f in files:
+            all_files_data[f.file_path] = f.content
+            
+    # 2. 커밋 통계 수집 (최신 프로젝트 기준)
+    fetcher = GitHubFetcher(token=current_user.github_token)
+    try:
+        commit_hours = fetcher.fetch_commit_stats(last_repo_url)
+    except Exception:
+        commit_hours = [] # 실패 시 빈 리스트
+        
+    # 3. 페르소나 분석 및 생성
+    # LLM 엔진 임시 생성 (페르소나 생성용)
+    engine = ChatFolioEngine({}, None, provider="groq", model_name="llama-3.3-70b-versatile")
+    analyzer = PersonaAnalyzer(engine)
+    
+    metrics = analyzer.analyze_metrics(all_files_data, commit_hours)
+    persona_result = await analyzer.generate_persona(metrics)
+    
+    # 4. 결과 저장
+    current_user.persona_data = {
+        "metrics": metrics,
+        "persona": persona_result,
+        "updated_at": datetime.utcnow().isoformat()
+    }
+    db.commit()
+    
+    return current_user.persona_data
