@@ -58,7 +58,7 @@
 
 | 아키텍처 시각화 (Architecture) | 자동 문서화 (DocsTab) |
 | :---: | :---: |
-| <img src="https://via.placeholder.com/400x250.png?text=Graph+Visualization" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Auto+Readme+Generator" width="400"/> |
+| <img src="doc/architecure.png" width="400"/> | <img src="doc/docstab.png" width="400"/> |
 | 노드 크기와 엣지 연결을 통해 가장 중요한 핵심 파일(Core Files)을 시각적으로 탐색합니다. | 템플릿을 선택하고 버튼을 누르면 AI가 레포지토리를 분석해 README 마크다운을 렌더링합니다. |
 
 <br/>
