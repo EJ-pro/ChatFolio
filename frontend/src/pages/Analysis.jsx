@@ -22,6 +22,7 @@ function Analysis() {
     const repoUrl = searchParams.get('repo_url');
     if (repoUrl) {
       setUrl(repoUrl);
+      handleAnalyze(repoUrl);
     }
   }, [searchParams]);
 
@@ -40,9 +41,8 @@ function Analysis() {
     }
   };
 
-  const handleAnalyze = async (e) => {
-    e.preventDefault();
-    if (!url) return;
+  const handleAnalyze = async (targetUrl) => {
+    if (!targetUrl) return;
 
     setIsLoading(true);
     setError('');
@@ -59,7 +59,7 @@ function Analysis() {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ 
-          repo_url: url,
+          repo_url: targetUrl,
           provider: provider,
           model_name: modelName
         })
@@ -160,37 +160,7 @@ function Analysis() {
           </div>
         </div>
 
-        {/* Search Section */}
-        <div className="w-full max-w-3xl animate-fade-in-up delay-100">
-          <form onSubmit={handleAnalyze} className="relative group">
-            <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
-            <div className="relative flex items-center glass-panel rounded-2xl p-2 shadow-2xl bg-slate-950/50 border border-slate-700/50">
-              <div className="pl-4 flex items-center pointer-events-none">
-                <Search className="h-6 w-6 text-slate-400 group-focus-within:text-blue-400 transition-colors" />
-              </div>
-              <input
-                type="text"
-                className="w-full pl-4 pr-32 py-4 bg-transparent border-none text-white placeholder-slate-400 focus:outline-none focus:ring-0 text-lg font-medium"
-                placeholder="https://github.com/username/repository"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                disabled={isLoading}
-              />
-              <button
-                type="submit"
-                disabled={isLoading || !url}
-                className="absolute right-3 px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl font-bold shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all transform active:scale-95"
-              >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" /> 분석 중
-                  </span>
-                ) : (
-                  '분석 시작'
-                )}
-              </button>
-            </div>
-          </form>
+          {/* Search Section removed as requested */}
 
           {/* Integrated Recent Projects */}
           {projects.length > 0 && !result && !error && !isLoading && (
@@ -204,7 +174,7 @@ function Analysis() {
                     key={project.id}
                     onClick={() => {
                       setUrl(project.repo_url);
-                      // 즉시 분석 시작 효과를 위해 폼 제출 시뮬레이션
+                      handleAnalyze(project.repo_url);
                     }}
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-white/5 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
                   >
@@ -259,8 +229,8 @@ function Analysis() {
           {!result && !error && !isLoading && (
             <div className="flex items-center justify-center gap-3 mt-6 text-sm text-slate-300 font-medium animate-fade-in delay-300">
               <span>Try with:</span>
-              <button onClick={() => setUrl('https://github.com/square/okhttp')} className="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-600 text-white">square/okhttp</button>
-              <button onClick={() => setUrl('https://github.com/JetBrains/kotlin')} className="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-600 text-white">JetBrains/kotlin</button>
+              <button onClick={() => { setUrl('https://github.com/square/okhttp'); handleAnalyze('https://github.com/square/okhttp'); }} className="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-600 text-white">square/okhttp</button>
+              <button onClick={() => { setUrl('https://github.com/JetBrains/kotlin'); handleAnalyze('https://github.com/JetBrains/kotlin'); }} className="px-3 py-1 rounded-full bg-slate-800 hover:bg-slate-700 transition-colors border border-slate-600 text-white">JetBrains/kotlin</button>
             </div>
           )}
         </div>
