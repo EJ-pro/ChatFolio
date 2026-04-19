@@ -366,12 +366,16 @@ function Analysis() {
 
       </main>
 
-      <footer className="w-full text-center p-8 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-4 border-t border-white/5">
-        <div className="flex gap-6 font-medium">
+      <footer className="w-full text-center p-12 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-6 border-t border-white/5 bg-slate-950">
+        <div className="flex gap-8 font-bold text-slate-400">
           <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
           <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+          <button onClick={() => navigate('/faq')} className="hover:text-white transition-colors">고객센터(FAQ)</button>
         </div>
-        <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
+        <div className="text-xs text-slate-600 space-y-2">
+          <p>대표 : 이재희 | TEL : 010-1234-1234 | Mail : hsshss2522@naver.com</p>
+          <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
+        </div>
       </footer>
     </div>
   );

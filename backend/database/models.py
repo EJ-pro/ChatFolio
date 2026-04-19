@@ -103,6 +103,17 @@ class ChatMessage(Base):
 
     session = relationship("ChatSession", back_populates="messages")
 
+class Inquiry(Base):
+    __tablename__ = "inquiries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String)
+    content = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", backref="inquiries")
+
 import time
 from sqlalchemy.exc import OperationalError
 

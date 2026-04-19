@@ -15,7 +15,7 @@ from core.parser.github_fetcher import GitHubFetcher
 from core.parser.kotlin_parser import parse_kotlin_code
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
-from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User
+from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry
 from database.database import get_db, SessionLocal
 from api.auth import router as auth_router, get_current_user
 
@@ -32,6 +32,28 @@ app.add_middleware(
 )
 
 app.include_router(auth_router)
+
+# 문의하기 등록 엔드포인트
+from fastapi import Request
+@app.post("/inquiries")
+async def create_inquiry(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    data = await request.json()
+    title = data.get("title")
+    content = data.get("content")
+    
+    if not title or not content:
+        raise HTTPException(status_code=400, detail="제목과 내용을 입력해주세요.")
+        
+    inquiry = Inquiry(
+        user_id=current_user.id,
+        title=title,
+        content=content
+    )
+    db.add(inquiry)
+    db.commit()
+    db.refresh(inquiry)
+    
+    return {"status": "success", "message": "문의가 접수되었습니다."}
 
 engine_cache = {}
 

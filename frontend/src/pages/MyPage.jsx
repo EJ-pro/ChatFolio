@@ -633,12 +633,16 @@ function MyPage() {
         )}
       </main>
 
-      <footer className="w-full text-center p-10 text-slate-600 text-sm border-t border-white/5 mt-20 relative z-10 flex flex-col items-center gap-4">
-        <div className="flex gap-6 font-bold">
-          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
-          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+      <footer className="w-full text-center p-16 text-slate-600 text-sm border-t border-white/5 mt-20 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
+        <div className="flex gap-10 font-black text-slate-500 uppercase tracking-widest text-[10px]">
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-all">이용약관</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-all">개인정보 처리방침</button>
+          <button onClick={() => navigate('/faq')} className="hover:text-white transition-all">고객센터(FAQ)</button>
         </div>
-        <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
+        <div className="space-y-2 opacity-60">
+          <p className="font-bold">대표 : 이재희 | TEL : 02-529-4237 | Mail : ChatFolio@chatfolio.com</p>
+          <p className="text-[10px]">&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
+        </div>
       </footer>
     </div>
   );

@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from fastapi_sso.sso.github import GithubSSO
-from fastapi_sso.sso.google import GoogleSSO
 from github import Github, Auth
 from sqlalchemy import func
 
@@ -21,8 +20,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # 환경 변수에서 OAuth 정보 가져오기
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_if_not_set")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
@@ -34,13 +31,6 @@ github_sso = GithubSSO(
     redirect_uri="http://localhost:8000/auth/github/callback",
     allow_insecure_http=True, # 개발 환경(http) 허용
     scope=["user:email", "repo"] # 프라이빗 레포지토리 접근 권한 추가
-)
-
-google_sso = GoogleSSO(
-    client_id=GOOGLE_CLIENT_ID,
-    client_secret=GOOGLE_CLIENT_SECRET,
-    redirect_uri="http://localhost:8000/auth/google/callback",
-    allow_insecure_http=True
 )
 
 # JWT 생성 유틸리티
@@ -298,17 +288,7 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
         
     return await process_sso_login(sso_user, "github", db, github_username=github_username, github_token=github_token)
 
-# 라우터 - Google
-@router.get("/google/login")
-async def google_login():
-    with google_sso:
-        return await google_sso.get_login_redirect()
-
-@router.get("/google/callback")
-async def google_callback(request: Request, db: Session = Depends(get_db)):
-    with google_sso:
-        sso_user = await google_sso.verify_and_process(request)
-    return await process_sso_login(sso_user, "google", db)
+    return await process_sso_login(sso_user, "github", db, github_username=github_username, github_token=github_token)
 
 # 코더 페르소나 (MBTI) 분석 엔드포인트
 @router.post("/persona/analyze")

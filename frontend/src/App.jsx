@@ -13,6 +13,7 @@ import MyPage from './pages/MyPage';
 import DashboardLayout from './components/DashboardLayout';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
+import FAQ from './pages/FAQ';
 
 // 인증 가드 컴포넌트
 function ProtectedRoute({ children }) {
@@ -98,6 +99,7 @@ function App() {
         {/* 법적 고지 페이지 */}
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
+        <Route path="/faq" element={<FAQ />} />
       </Routes>
     </Router>
   );
