@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, LogOut, Github, Mail, ShieldCheck, ChevronDown } from 'lucide-react';
+import { User, LogOut, Github, Mail, ShieldCheck, ChevronDown, LayoutDashboard } from 'lucide-react';
 
 function UserProfile() {
   const [user, setUser] = useState(null);
@@ -97,6 +97,21 @@ function UserProfile() {
           </div>
 
           <div className="p-2">
+            <button
+              onClick={() => {
+                navigate(`/${user.github_username || user.name}`);
+                setIsOpen(false);
+              }}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-slate-300 hover:bg-white/5 hover:text-white transition-all group"
+            >
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
+                <LayoutDashboard className="w-4 h-4 text-blue-400" />
+              </div>
+              <span className="font-bold text-sm">내 마이페이지</span>
+            </button>
+
+            <div className="h-px bg-white/5 my-1 mx-2"></div>
+
             <div className="px-4 py-3 flex items-center gap-3 text-slate-300">
               <div className="w-8 h-8 rounded-lg bg-slate-800/50 flex items-center justify-center shrink-0">
                 <Mail className="w-4 h-4 text-blue-400" />

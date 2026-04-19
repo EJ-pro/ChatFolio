@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
 function Analysis() {
+  const { username } = useParams();
   const navigate = useNavigate();
   const [url, setUrl] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -108,7 +109,14 @@ function Analysis() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
       {/* Top Header */}
-      <header className="w-full px-8 py-4 flex justify-end items-center relative z-50">
+      <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
+        <button 
+          onClick={() => navigate(`/${username}`)} 
+          className="flex items-center gap-2 text-slate-400 hover:text-white transition-all group"
+        >
+          <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+          <span className="font-black tracking-tighter text-xl text-white">ChatFolio</span>
+        </button>
         <UserProfile />
       </header>
 
@@ -122,7 +130,7 @@ function Analysis() {
             <span>ChatFolio AI v2.0</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            당신의 코드를<br/>지도로 그리다
+            당신의 코드와<br/>대화를 시작하세요.
           </h1>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
             복잡한 레포지토리의 의존성을 시각화하고, AI와 대화하며 코드의 숨은 맥락을 파악하세요. 단 하나의 링크면 충분합니다.
@@ -179,6 +187,38 @@ function Analysis() {
             </div>
           </form>
 
+          {/* Integrated Recent Projects */}
+          {projects.length > 0 && !result && !error && !isLoading && (
+            <div className="mt-6 animate-fade-in">
+              <div className="flex items-center gap-2 mb-3 px-1">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">최근 분석 기록</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {projects.slice(0, 5).map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => {
+                      setUrl(project.repo_url);
+                      // 즉시 분석 시작 효과를 위해 폼 제출 시뮬레이션
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-white/5 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
+                  >
+                    <Github className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-400" />
+                    <span className="text-xs font-medium text-slate-400 group-hover:text-white truncate max-w-[150px]">
+                      {project.repo_url.split('/').slice(-1)}
+                    </span>
+                  </button>
+                ))}
+                <button 
+                  onClick={() => navigate(`/${username}`)}
+                  className="px-3 py-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  모두 보기
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Analysis Progress Logs */}
           {isLoading && (
             <div className="mt-8 w-full animate-fade-in">
@@ -209,50 +249,6 @@ function Analysis() {
             </div>
           )}
 
-          {/* Recent Projects Section */}
-          {projects.length > 0 && !result && !error && !isLoading && (
-            <div className="mt-16 w-full animate-fade-in delay-400">
-              <div className="flex items-center gap-2 mb-6 px-2">
-                <div className="w-1 h-6 bg-blue-500 rounded-full"></div>
-                <h3 className="text-xl font-bold text-white tracking-tight">Recent Analysis</h3>
-                <span className="ml-2 px-2 py-0.5 rounded-md bg-slate-800 text-slate-500 text-[10px] font-bold uppercase tracking-widest border border-slate-700">History</span>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {projects.slice(0, 4).map((project) => (
-                  <button
-                    key={project.id}
-                    onClick={() => {
-                      setUrl(project.repo_url);
-                      // 약간의 딜레이 후 실행 (UI 업데이트를 위해)
-                      setTimeout(() => {
-                        const form = document.querySelector('form');
-                        form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                      }, 100);
-                    }}
-                    className="flex items-center gap-4 p-4 bg-slate-800/20 border border-slate-700/50 rounded-2xl hover:bg-slate-800/40 hover:border-blue-500/50 transition-all group text-left relative overflow-hidden"
-                  >
-                    <div className="absolute top-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Share2 className="w-4 h-4 text-slate-500" />
-                    </div>
-                    <div className="w-12 h-12 rounded-xl bg-slate-900 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform shadow-inner">
-                      <Github className="w-6 h-6" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-slate-200 truncate group-hover:text-white transition-colors">
-                        {project.repo_url.split('/').slice(-2).join('/')}
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-[10px] text-slate-500 font-mono">{project.file_count} files</span>
-                        <span className="w-1 h-1 rounded-full bg-slate-700"></span>
-                        <span className="text-[10px] text-slate-500 font-mono">{new Date(project.created_at).toLocaleDateString()}</span>
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Quick Try Buttons */}
           {!result && !error && !isLoading && (
@@ -304,7 +300,7 @@ function Analysis() {
 
             <button
               className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-xl shadow-[0_0_30px_rgba(79,70,229,0.4)] transition-all transform hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(79,70,229,0.5)] active:scale-95"
-              onClick={() => navigate('/dashboard/chat', { state: { sessionId: result.session_id } })}
+              onClick={() => navigate(`/${username}/dashboard/chat`, { state: { sessionId: result.session_id } })}
             >
               대시보드 입장하기 ✨
             </button>

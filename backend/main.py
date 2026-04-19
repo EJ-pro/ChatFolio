@@ -318,6 +318,10 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
     if not project or not project.graph_data:
         raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
         
+    # 1. 캐시 확인
+    if project.readme and not request.force_regenerate:
+        return ReadmeResponse(readme_content=project.readme.content)
+        
     engine = engine_cache.get(session_id)
     if not engine:
         graph = nx.node_link_graph(project.graph_data)
@@ -333,6 +337,16 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         
     try:
         readme_content = engine.generate_readme()
+        
+        from database.models import GeneratedReadme
+        if project.readme:
+            project.readme.content = readme_content
+        else:
+            new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
+            db.add(new_readme)
+        db.commit()
+        
         return ReadmeResponse(readme_content=readme_content)
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

@@ -10,7 +10,19 @@ function AuthCallback() {
     const token = searchParams.get('token');
     if (token) {
       localStorage.setItem('token', token);
-      navigate('/');
+      
+      // 사용자 정보를 가져와서 해당 유저의 메인으로 이동
+      fetch('http://localhost:8000/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      .then(res => res.json())
+      .then(user => {
+        const username = user.github_username || user.name;
+        navigate(`/${username}/analysis`);
+      })
+      .catch(() => {
+        navigate('/');
+      });
     } else {
       alert("인증에 실패했습니다. 다시 시도해주세요.");
       navigate('/login');

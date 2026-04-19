@@ -6,6 +6,10 @@ import DocsTab from './pages/DocsTab';
 import InterviewTab from './pages/InterviewTab';
 import ArchitectureTab from './pages/ArchitectureTab';
 import AuthCallback from './pages/AuthCallback';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import MyPage from './pages/MyPage';
 import DashboardLayout from './components/DashboardLayout';
 
 // 인증 가드 컴포넌트
@@ -19,6 +23,42 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
+// 홈 리다이렉트 컴포넌트 (루트 / 접속 시 처리)
+function Home() {
+  const token = localStorage.getItem('token');
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!token) {
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    // 토큰이 있으면 유저 정보를 가져와서 해당 유저의 경로로 이동
+    fetch('http://localhost:8000/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    .then(res => {
+      if (!res.ok) throw new Error();
+      return res.json();
+    })
+    .then(user => {
+      const username = user.github_username || user.name;
+      navigate(`/${username}/analysis`, { replace: true });
+    })
+    .catch(() => {
+      localStorage.removeItem('token');
+      navigate('/login', { replace: true });
+    });
+  }, [token, navigate]);
+
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <Loader2 className="w-10 h-10 animate-spin text-blue-500" />
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
@@ -26,13 +66,20 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         
-        <Route path="/" element={
+        {/* 모든 주요 경루에 :username 포함 */}
+        <Route path="/:username" element={
+          <ProtectedRoute>
+            <MyPage />
+          </ProtectedRoute>
+        } />
+        
+        <Route path="/:username/analysis" element={
           <ProtectedRoute>
             <Analysis />
           </ProtectedRoute>
         } />
         
-        <Route path="/dashboard" element={
+        <Route path="/:username/dashboard" element={
           <ProtectedRoute>
             <DashboardLayout />
           </ProtectedRoute>
@@ -42,6 +89,9 @@ function App() {
           <Route path="docs" element={<DocsTab />} />
           <Route path="interview" element={<InterviewTab />} />
         </Route>
+
+        {/* 기본 경로는 로그인 상태에 따라 리다이렉트 */}
+        <Route path="/" element={<Home />} />
       </Routes>
     </Router>
   );

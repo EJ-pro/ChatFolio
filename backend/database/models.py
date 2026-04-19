@@ -12,6 +12,8 @@ class User(Base):
     provider = Column(String, index=True) # 'github' or 'google'
     email = Column(String, unique=True, index=True, nullable=True)
     name = Column(String)
+    github_username = Column(String, unique=True, index=True, nullable=True)
+    github_token = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 

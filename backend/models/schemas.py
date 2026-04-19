@@ -34,6 +34,7 @@ class DiagramResponse(BaseModel):
 # README 자동 생성 요청 및 응답
 class ReadmeRequest(BaseModel):
     session_id: str
+    force_regenerate: Optional[bool] = False
 
 class ReadmeResponse(BaseModel):
     readme_content: str
