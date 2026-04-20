@@ -30,16 +30,23 @@ class ChatFolioEngine:
         )
         
         docs = []
-        for path, content in self.files_data.items():
+        # generator나 dict 모두 순회 가능하도록 처리
+        items = self.files_data.items() if isinstance(self.files_data, dict) else self.files_data
+        
+        for path, content in items:
             chunks = text_splitter.split_text(content)
             for chunk in chunks:
                 docs.append({"page_content": chunk, "metadata": {"path": path}})
         
+        if not docs:
+            # 문서가 없는 경우 빈 리스트 대신 더미 문서라도 추가하여 초기화 에러 방지
+            return InMemoryVectorStore.from_texts([" "], self.embeddings, metadatas=[{"path": "none"}])
+
         texts = [d["page_content"] for d in docs]
         metadatas = [d["metadata"] for d in docs]
         
-        # Chroma 대신 InMemoryVectorStore 사용! (설치/충돌 이슈 0%)
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
+
 
     def ask(self, query: str):
         # 2. 관련 파일 검색

@@ -159,49 +159,56 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 # 사용자의 개인 토큰 사용 (프라이빗 레포 접근 가능)
                 token = current_user.github_token or os.getenv("GITHUB_TOKEN")
                 fetcher = GitHubFetcher(token=token)
-                all_files, commit_info = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
                 
-                # 1. 그래프용 필터
-                kt_files_for_graph = {p: c for p, c in all_files.items() if p.endswith(('.kt', '.kts'))}
+                # 1. 메타데이터와 제너레이터 가져오기
+                commit_info, file_generator = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
                 
-                q.put("📊 의존성 그래프 분석 중...")
-                all_meta = {p: parse_kotlin_code(c) for p, c in kt_files_for_graph.items()}
-                builder = DependencyGraphBuilder()
-                graph = builder.build_graph(all_meta)
-                graph_data = nx.node_link_data(graph)
-                
-                q.put("💾 데이터베이스 저장 중...")
+                # 2. 프로젝트 레코드 준비 (ID가 필요함)
                 project = db_session.query(Project).filter(Project.repo_url == request.repo_url, Project.user_id == current_user.id).first()
                 if project:
-                    # 기존 프로젝트 업데이트
-                    project.file_count = len(all_files)
-                    project.node_count = graph.number_of_nodes()
-                    project.edge_count = graph.number_of_edges()
-                    project.graph_data = graph_data
+                    project.file_count = commit_info["total_files"]
                     project.last_commit_hash = commit_info["hash"]
                     project.last_commit_message = commit_info["message"]
-                    # 기존 파일 삭제 후 재삽입 (단순화를 위해)
                     db_session.query(ProjectFile).filter(ProjectFile.project_id == project.id).delete()
                 else:
                     project = Project(
                         user_id=current_user.id,
                         repo_url=request.repo_url,
-                        file_count=len(all_files), 
-                        node_count=graph.number_of_nodes(),
-                        edge_count=graph.number_of_edges(),
-                        graph_data=graph_data,
+                        file_count=commit_info["total_files"], 
                         last_commit_hash=commit_info["hash"],
                         last_commit_message=commit_info["message"]
                     )
                     db_session.add(project)
                 
-                db_session.flush() # ID 발급을 위해 커밋 전에 flush
+                db_session.flush() # ID 발급
+
+                # 3. 제너레이터를 순회하며 파일 저장 및 메타데이터 추출
+                all_files = {}
+                all_meta = {}
                 
-                project_files = [
-                    ProjectFile(project_id=project.id, file_path=p, content=c)
-                    for p, c in all_files.items()
-                ]
-                db_session.add_all(project_files)
+                for path, content in file_generator:
+                    all_files[path] = content
+                    
+                    # DB에 즉시 추가 (메모리 효율적 저장)
+                    new_file = ProjectFile(project_id=project.id, file_path=path, content=content)
+                    db_session.add(new_file)
+                    
+                    # Kotlin 파일인 경우 그래프 분석용 메타데이터 추출
+                    if path.endswith(('.kt', '.kts')):
+                        all_meta[path] = parse_kotlin_code(content)
+                
+                # 4. 의존성 그래프 분석
+                q.put("📊 의존성 그래프 분석 중...")
+                builder = DependencyGraphBuilder()
+                graph = builder.build_graph(all_meta)
+                graph_data = nx.node_link_data(graph)
+                
+                # 프로젝트 그래프 정보 업데이트
+                project.node_count = graph.number_of_nodes()
+                project.edge_count = graph.number_of_edges()
+                project.graph_data = graph_data
+                
+                q.put("💾 데이터베이스 최종 저장 중...")
                 
                 chat_session = ChatSession(
                     user_id=current_user.id,
@@ -215,6 +222,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.commit()
                 db_session.refresh(project)
                 db_session.refresh(chat_session)
+
                 
                 engine = ChatFolioEngine(all_files, graph, provider=request.provider, model_name=request.model_name)
                 engine_cache[chat_session.id] = engine

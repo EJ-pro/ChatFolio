@@ -15,7 +15,7 @@ class GitHubFetcher:
             '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
         )
 
-    def fetch_repo_files(self, repo_url: str, progress_callback=None) -> dict:
+    def fetch_repo_files(self, repo_url: str, progress_callback=None):
         repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
         repo = self.g.get_repo(repo_path)
         
@@ -25,35 +25,38 @@ class GitHubFetcher:
         all_blobs = [e for e in tree.tree if e.type == "blob" and (e.path.lower().endswith(self.target_extensions) or e.path.lower() == 'dockerfile')]
         total_files = len(all_blobs)
         
-        files_data = {}
         msg = f"📂 [{repo.full_name}] ({branch}) 스캔 중... (총 {total_files}개 파일)"
         print(msg)
         if progress_callback: progress_callback(msg)
 
-        for i, element in enumerate(all_blobs):
-            try:
-                blob = repo.get_git_blob(element.sha)
-                content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
-                files_data[element.path] = content
-                
-                if progress_callback:
-                    progress = int(((i + 1) / total_files) * 100)
-                    progress_callback(f"PROGRESS:{progress}")
-                    progress_callback(f"📄 수집 완료: {element.path}")
-            except Exception as e:
-                error_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
-                print(error_msg)
-                if progress_callback:
-                    progress_callback(error_msg)
-        
         # 최신 커밋 정보 가져오기
         latest_commit = repo.get_commits()[0]
         commit_info = {
             "hash": latest_commit.sha,
-            "message": latest_commit.commit.message
+            "message": latest_commit.commit.message,
+            "total_files": total_files
         }
         
-        return files_data, commit_info
+        def file_generator():
+            for i, element in enumerate(all_blobs):
+                try:
+                    blob = repo.get_git_blob(element.sha)
+                    content = base64.b64decode(blob.content).decode('utf-8', errors='ignore')
+                    
+                    if progress_callback:
+                        progress = int(((i + 1) / total_files) * 100)
+                        progress_callback(f"PROGRESS:{progress}")
+                        progress_callback(f"📄 수집 완료: {element.path}")
+                    
+                    yield element.path, content
+                except Exception as e:
+                    error_msg = f"   ❌ 읽기 실패: {element.path} ({e})"
+                    print(error_msg)
+                    if progress_callback:
+                        progress_callback(error_msg)
+        
+        return commit_info, file_generator()
+
 
     def fetch_latest_commit(self, repo_url: str):
         """최신 커밋 해시와 메시지만 가져옴"""
