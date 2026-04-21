@@ -12,7 +12,7 @@ from queue import Queue
 from threading import Thread
 
 from core.parser.github_fetcher import GitHubFetcher
-from core.parser.kotlin_parser import parse_kotlin_code
+from core.parser.factory import get_parser_result
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
 from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry
@@ -189,13 +189,28 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 for path, content in file_generator:
                     all_files[path] = content
                     
-                    # DB에 즉시 추가 (메모리 효율적 저장)
-                    new_file = ProjectFile(project_id=project.id, file_path=path, content=content)
-                    db_session.add(new_file)
+                    # 통합 파서 팩토리를 통해 메타데이터 추출
+                    meta = get_parser_result(path, content)
                     
-                    # Kotlin 파일인 경우 그래프 분석용 메타데이터 추출
-                    if path.endswith(('.kt', '.kts')):
-                        all_meta[path] = parse_kotlin_code(content)
+                    # 그래프 분석용 데이터 수집 (확장자 기반)
+                    if path.endswith(('.kt', '.kts', '.java', '.py', '.js', '.ts', '.jsx', '.tsx', '.cpp', '.c', '.h', '.cc')):
+                        all_meta[path] = meta
+                    
+                    line_count = meta.get("line_count", 0)
+                    keywords = meta.get("keywords", [])
+                    metadata_json = meta.get("metadata_json", {})
+
+                    # DB에 즉시 추가 (메모리 효율적 저장)
+                    new_file = ProjectFile(
+                        project_id=project.id, 
+                        file_path=path, 
+                        content=content,
+                        line_count=line_count,
+                        file_size=len(content.encode('utf-8')),
+                        keywords=keywords,
+                        metadata_json=metadata_json
+                    )
+                    db_session.add(new_file)
                 
                 # 4. 의존성 그래프 분석
                 q.put("📊 의존성 그래프 분석 중...")

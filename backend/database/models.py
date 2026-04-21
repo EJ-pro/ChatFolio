@@ -52,6 +52,10 @@ class ProjectFile(Base):
     content = Column(Text)
     content_summary = Column(Text, nullable=True) # 요약본
     importance_score = Column(Integer, default=0) # 참조 횟수 기반
+    keywords = Column(JSONB, nullable=True)
+    line_count = Column(Integer, default=0)
+    file_size = Column(Integer, default=0)
+    metadata_json = Column(JSONB, nullable=True)
 
     project = relationship("Project", back_populates="files")
 
@@ -130,6 +134,11 @@ def init_db():
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
+                    # ProjectFile 컬럼 추가
+                    conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS keywords JSONB"))
+                    conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS line_count INTEGER DEFAULT 0"))
+                    conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0"))
+                    conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS metadata_json JSONB"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
                     conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))
                     conn.commit()
