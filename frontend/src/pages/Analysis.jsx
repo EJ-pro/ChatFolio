@@ -129,13 +129,10 @@ function Analysis() {
 
       {/* Top Header */}
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
-        <button
-          onClick={() => navigate(`/${username}`)}
-          className="flex items-center gap-2 text-slate-400 hover:text-white transition-all group"
-        >
+        <div className="flex items-center gap-2 text-slate-400 select-none group">
           <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
           <span className="font-black tracking-tighter text-xl text-white">ChatFolio</span>
-        </button>
+        </div>
         <UserProfile />
       </header>
 
