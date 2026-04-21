@@ -12,7 +12,7 @@ from sqlalchemy import func
 from database.database import get_db
 from database.models import User, Project, GeneratedReadme, ProjectFile, ChatSession
 from core.parser.github_fetcher import GitHubFetcher
-from core.persona.analyzer import PersonaAnalyzer
+
 from core.rag.engine import ChatFolioEngine
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -123,18 +123,36 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
     # 프로젝트 데이터 가져오기
     projects = db.query(Project).filter(Project.user_id == user.id).all()
     
-    # 스킬 통계 (Python에서 처리하여 범용성 확보)
-    # 간단하게 분석된 프로젝트의 파일 확장자 분포 계산
-    all_files = db.query(ProjectFile.file_path).join(Project).filter(Project.user_id == user.id).all()
+    # 스킬 통계 (Github API Languages 활용)
+    lang_stats = {}
+    token = user.github_token or os.getenv("GITHUB_TOKEN")
     
-    ext_stats = {}
-    for f in all_files:
-        ext = f.file_path.split('.')[-1].lower() if '.' in f.file_path else 'others'
-        ext_stats[ext] = ext_stats.get(ext, 0) + 1
-    
-    # 상위 5개 언어만 추출
-    sorted_skills = sorted(ext_stats.items(), key=lambda x: x[1], reverse=True)[:6]
-    skills = {k: v for k, v in sorted_skills if v > 5}
+    if token and projects:
+        try:
+            auth = Auth.Token(token)
+            g = Github(auth=auth)
+            for p in projects:
+                repo_path = p.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+                try:
+                    repo = g.get_repo(repo_path)
+                    langs = repo.get_languages()
+                    for lang, byte_count in langs.items():
+                        lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
+                except Exception as repo_err:
+                    print(f"Failed to fetch languages for {repo_path}: {repo_err}")
+        except Exception as e:
+            print(f"Failed to fetch languages from GitHub API: {e}")
+            
+    # GitHub API에서 언어 정보를 가져오지 못했다면 기존 파일 확장자 방식으로 폴백
+    if not lang_stats:
+        all_files = db.query(ProjectFile.file_path).join(Project).filter(Project.user_id == user.id).all()
+        for f in all_files:
+            ext = f.file_path.split('.')[-1].lower() if '.' in f.file_path else 'others'
+            lang_stats[ext] = lang_stats.get(ext, 0) + 1
+
+    # 상위 6개 언어만 추출
+    sorted_skills = sorted(lang_stats.items(), key=lambda x: x[1], reverse=True)[:6]
+    skills = {k: v for k, v in sorted_skills if v > 0}
 
     # 생성된 자산
     readmes = db.query(GeneratedReadme).join(Project).filter(Project.user_id == user.id).order_by(GeneratedReadme.created_at.desc()).limit(10).all()
@@ -144,8 +162,7 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
             "name": user.name,
             "avatar_url": user.avatar_url,
             "github_username": user.github_username,
-            "created_at": user.created_at,
-            "persona_data": user.persona_data
+            "created_at": user.created_at
         },
         "skills": skills,
         "projects": [
@@ -290,46 +307,4 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
 
     return await process_sso_login(sso_user, "github", db, github_username=github_username, github_token=github_token)
 
-# 코더 페르소나 (MBTI) 분석 엔드포인트
-@router.post("/persona/analyze")
-async def analyze_user_persona(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    if not current_user.github_token:
-        raise HTTPException(status_code=400, detail="GitHub 연동이 필요합니다.")
-    
-    # 1. 모든 프로젝트의 파일 데이터 수집
-    projects = db.query(Project).filter(Project.user_id == current_user.id).all()
-    if not projects:
-        raise HTTPException(status_code=400, detail="분석된 프로젝트가 없습니다. 먼저 레포지토리를 분석해주세요.")
-    
-    all_files_data = {}
-    last_repo_url = projects[0].repo_url
-    
-    for p in projects:
-        files = db.query(ProjectFile).filter(ProjectFile.project_id == p.id).all()
-        for f in files:
-            all_files_data[f.file_path] = f.content
-            
-    # 2. 커밋 통계 수집 (최신 프로젝트 기준)
-    fetcher = GitHubFetcher(token=current_user.github_token)
-    try:
-        commit_hours = fetcher.fetch_commit_stats(last_repo_url)
-    except Exception:
-        commit_hours = [] # 실패 시 빈 리스트
-        
-    # 3. 페르소나 분석 및 생성
-    # LLM 엔진 임시 생성 (페르소나 생성용)
-    engine = ChatFolioEngine({}, None, provider="groq", model_name="llama-3.3-70b-versatile")
-    analyzer = PersonaAnalyzer(engine)
-    
-    metrics = analyzer.analyze_metrics(all_files_data, commit_hours)
-    persona_result = await analyzer.generate_persona(metrics)
-    
-    # 4. 결과 저장
-    current_user.persona_data = {
-        "metrics": metrics,
-        "persona": persona_result,
-        "updated_at": datetime.utcnow().isoformat()
-    }
-    db.commit()
-    
-    return current_user.persona_data
+
