@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, LogOut, Share2, GitBranch, ChevronDown } from 'lucide-react';
+import { MessageSquare, FileText, Target, Github, Share2, GitBranch, ChevronDown } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import UserProfile from './UserProfile';
 
@@ -72,8 +72,11 @@ function DashboardLayout() {
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
       {/* Sidebar */}
       <aside className="w-64 bg-slate-900/50 backdrop-blur-xl text-slate-300 flex flex-col border-r border-white/5 z-30">
-        <div className="p-6 flex items-center gap-3 border-b border-white/5">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <div 
+          onClick={() => navigate(`/${username}/analysis`)}
+          className="p-6 flex items-center gap-3 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group"
+        >
+          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
             <Github className="w-6 h-6 text-white" />
           </div>
           <h1 className="text-xl font-black text-white tracking-tighter">ChatFolio</h1>
@@ -99,30 +102,7 @@ function DashboardLayout() {
           ))}
         </nav>
 
-        <div className="p-4 border-t border-white/5 space-y-2">
-          <button
-            onClick={() => navigate(`/${username}/analysis`)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-slate-400 hover:text-white hover:bg-white/5 rounded-2xl transition-all group"
-          >
-            <div className="p-2 rounded-lg bg-slate-800 group-hover:bg-blue-500/20 transition-colors">
-              <Target className="w-4 h-4" />
-            </div>
-            <span className="font-bold text-sm">분석 홈으로</span>
-          </button>
-          
-          <button
-            onClick={() => {
-              localStorage.removeItem('token');
-              navigate('/login');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-2xl transition-all group"
-          >
-             <div className="p-2 rounded-lg bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
-              <LogOut className="w-4 h-4" />
-            </div>
-            <span className="font-bold text-sm">로그아웃</span>
-          </button>
-        </div>
+
       </aside>
 
       {/* Main Content Area */}
