@@ -131,10 +131,12 @@ function MyPage() {
 
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col relative overflow-x-hidden font-sans">
-      {/* Background Orbs */}
-      <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col relative font-sans overflow-x-hidden">
+      {/* Background Orbs - Changed to fixed to stay in viewport and not affect scroll height */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full"></div>
+      </div>
 
       {/* Header */}
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-950/50">
@@ -145,7 +147,7 @@ function MyPage() {
         <UserProfile />
       </header>
 
-      <main className="flex-1 w-full max-w-7xl mx-auto p-6 md:p-10 space-y-10 relative z-10">
+      <main className="flex-grow w-full max-w-7xl mx-auto p-6 md:p-10 pb-20 md:pb-32 space-y-10 relative z-10">
 
         {/* Profile Section */}
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -473,7 +475,7 @@ function MyPage() {
         )}
       </main>
 
-      <footer className="w-full text-center p-4 text-slate-600 text-sm border-t border-white/5 mt-10 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
+      <footer className="w-full text-center p-4 text-slate-600 text-sm border-t border-white/5 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
         <div className="flex gap-10 font-black text-slate-500 uppercase tracking-widest text-[10px]">
           <button onClick={() => navigate('/terms')} className="hover:text-white transition-all">이용약관</button>
           <button onClick={() => navigate('/privacy')} className="hover:text-white transition-all">개인정보 처리방침</button>
