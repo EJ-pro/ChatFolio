@@ -183,11 +183,6 @@ function DashboardLayout() {
 
           
           <div className="flex items-center gap-6">
-            <button className="relative p-2 rounded-xl hover:bg-white/5 text-slate-400 hover:text-white transition-all">
-              <Bell className="w-5 h-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 bg-blue-500 rounded-full border-2 border-slate-950"></span>
-            </button>
-            <div className="h-6 w-px bg-white/10"></div>
             <UserProfile />
           </div>
         </header>

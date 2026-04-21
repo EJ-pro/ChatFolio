@@ -74,9 +74,12 @@ function FAQ() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col relative overflow-x-hidden font-sans">
-      <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col relative font-sans overflow-x-hidden">
+      {/* Background Orbs - Fixed to prevent scrolling issues */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
+        <div className="absolute top-[-10%] right-[-5%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-5%] w-[50%] h-[50%] bg-purple-600/10 blur-[120px] rounded-full"></div>
+      </div>
 
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-950/50">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white transition-colors group">
@@ -90,7 +93,7 @@ function FAQ() {
         <UserProfile />
       </header>
 
-      <main className="flex-1 w-full max-w-4xl mx-auto p-6 md:p-10 relative z-10">
+      <main className="flex-grow w-full max-w-4xl mx-auto p-6 md:p-10 relative z-10">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-black text-white mb-4 tracking-tighter italic">Customer Center</h1>
           <p className="text-slate-400 text-lg">무엇을 도와드릴까요?</p>
