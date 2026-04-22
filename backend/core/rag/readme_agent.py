@@ -89,36 +89,24 @@ class ReadmeAgent:
                     
             raise e
 
+    def _get_cheap_llm(self):
+        """단순 분석 작업을 위한 저비용 모델 반환"""
+        if self.provider == "groq":
+            return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
+        elif self.provider == "openai":
+            return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        return self.llm
 
     def analyzer_node(self, state: ReadmeState) -> Dict[str, Any]:
-        """프로젝트 구조를 스캔하고 아키타입 정의"""
+        """프로젝트 구조를 스캔하고 아키타입 정의 (경량 모델 사용)"""
         print("🔍 [Analyzer] 분석 시작...")
+        cheap_llm = self._get_cheap_llm()
         try:
-            system_prompt = "당신은 프로젝트 분석 전문가입니다. 주어진 프로젝트 컨텍스트(소스코드, 설정파일 등)를 깊이 있게 분석하여 핵심 아키타입과 상세 분석 리포트를 JSON 형식으로 작성하세요."
+            system_prompt = "당신은 프로젝트 분석 전문가입니다. 주어진 프로젝트 컨텍스트를 분석하여 핵심 아키타입을 분류하고 리포트를 JSON으로 작성하세요."
             user_prompt = f"""
             [Context]
             {state['project_context']}
             
-            [분석 가이드]
-            1. **핵심 기능**: 코드를 통해 파악된 실제 주요 기능들을 요약하세요.
-            2. **기술적 특징**: 사용된 프레임워크와 라이브러리의 조합을 통해 이 프로젝트의 기술적 도전을 파악하세요.
-            3. **목표 사용자**: 이 프로젝트가 누구를 위한 것인지 추론하세요.
-
-            [출력 형식 - 반드시 JSON만 출력하세요]
-            {{
-              "archetype": "Backend / Frontend / ML / Library 중 하나",
-              "summary": "프로젝트의 목적, 핵심 비즈니스 로직, 사용된 주요 기술들의 연결 관계를 포함한 상세 요약"
-            }}
-            """
-            response = self._safe_invoke([
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ])
-            
-            content = self._extract_json(response.content)
-            res = json.loads(content)
-            return {
-                "archetype": res.get("archetype", "General"),
                 "analysis_report": res.get("summary", "분석 완료"),
                 "iteration_count": 0
             }

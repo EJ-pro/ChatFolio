@@ -53,45 +53,92 @@ class ChatFolioEngine:
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
 
     def ask(self, query: str):
-        related_docs = self.vector_db.similarity_search(query, k=8)
+        # 1. k값을 늘려 더 풍부한 후보군을 확보 (8 -> 12)
+        related_docs = self.vector_db.similarity_search(query, k=12)
         
         sources = []
         visited_nodes = []
-        context_paths = set()
+        
+        # 2. 토큰 예산 관리 (최대 8,000자)
+        CONTEXT_BUDGET = 8000
+        current_usage = 0
+        
+        # 2-1. 문서(README)와 코드(Implementation) 분리 및 제한
+        readme_chunks = []
+        code_chunks = []
+        seen_paths = set()
+        
+        # 실제 파일 데이터(neighbor 등)를 위한 추가 경로 저장
+        neighbor_paths = []
 
         for doc in related_docs:
-            path = doc.metadata['path']
-            context_paths.add(path)
+            path = doc.metadata.get('path', 'unknown')
+            filename = os.path.basename(path).lower()
             
-            if not any(s['path'] == path for s in sources):
+            if filename == 'readme.md':
+                if len(readme_chunks) < 2:
+                    readme_chunks.append(doc)
+            else:
+                code_chunks.append(doc)
+            
+            if path not in seen_paths:
+                seen_paths.add(path)
                 sources.append({"path": path, "reason": "Vector Similarity"})
-            
-            if path in self.graph:
-                neighbors = list(self.graph.neighbors(path))
-                for n in neighbors[:2]: 
-                    context_paths.add(n)
-                    if not any(s['path'] == n for s in sources):
-                        file_name = path.split('/')[-1]
-                        sources.append({"path": n, "reason": f"Dependency (from {file_name})"})
-                    visited_nodes.append({"from": path, "to": n})
+                if path in self.graph:
+                    neighbors = list(self.graph.neighbors(path))
+                    for n in neighbors[:2]: 
+                        if n not in seen_paths:
+                            neighbor_paths.append(n)
+                            file_name_short = path.split('/')[-1]
+                            sources.append({"path": n, "reason": f"Dependency (from {file_name_short})"})
+                        visited_nodes.append({"from": path, "to": n})
 
+        # 3. 계층형 컨텍스트 구성 (예산 내에서)
         context_text = ""
-        for path in context_paths:
-            if path in self.files_data:
-                context_text += f"\n--- File: {path} ---\n{self.files_data[path][:2500]}\n"
+        
+        # 3-1. 핵심 코드 청크 먼저 배치 (가장 중요)
+        if code_chunks:
+            context_text += "\n### [SECTION: TECHNICAL IMPLEMENTATION (Source Code)]\n"
+            for doc in code_chunks:
+                if current_usage >= CONTEXT_BUDGET: break
+                snippet = f"--- File Chunk: {doc.metadata['path']} ---\n{doc.page_content}\n"
+                context_text += snippet
+                current_usage += len(snippet)
+
+        # 3-2. README 내용 배치 (예산 남을 때만)
+        if readme_chunks and current_usage < CONTEXT_BUDGET:
+            context_text += "\n### [SECTION: PROJECT OVERVIEW (Documentation)]\n"
+            for doc in readme_chunks:
+                if current_usage >= CONTEXT_BUDGET: break
+                snippet = f"- Source: {doc.metadata['path']}\n{doc.page_content}\n\n"
+                context_text += snippet
+                current_usage += len(snippet)
+
+        # 3-3. 연관 파일(Neighbor) 배치 - 최소 정보만 (예산 남을 때만)
+        if neighbor_paths and current_usage < CONTEXT_BUDGET:
+            context_text += "\n### [SECTION: RELATED CONTEXT (Dependencies)]\n"
+            for path in neighbor_paths:
+                if current_usage >= CONTEXT_BUDGET: break
+                if path in self.files_data:
+                    # 주변 파일은 아주 짧게 (500자)
+                    content = self.files_data[path][:500]
+                    snippet = f"\n--- File (Partial): {path} ---\n{content}\n"
+                    context_text += snippet
+                    current_usage += len(snippet)
 
         tech_context = ""
         if self.tech_stack:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
 
+        # 4. 소스 코드 중심의 강력한 시스템 프롬프트
         system_prompt = SystemMessage(content=f"""
         당신은 숙련된 풀스택 소프트웨어 엔지니어이자 코드 아키텍처 전문가입니다. 
         사용자의 질문에 답변할 때 다음 지침을 엄격히 준수하십시오:
         
-        1. **실제 구현 중심**: README.md나 문서의 요약본을 단순히 반복하지 마십시오. 반드시 제공된 소스 코드 파일({context_text[:50]}...)의 실제 로직을 분석하여 답변하십시오.
+        1. **코드 최우선 분석 (Code-First Analysis)**: 'DOCUMENTATION' 섹션은 참고용일 뿐입니다. 모든 기술적 질문은 반드시 'SOURCE CODE' 섹션의 실제 코드를 분석하여 답변하십시오. 
         2. **구체적 근거 제시**: 답변 시 핵심 로직이 담긴 함수명, 클래스명, 혹은 특정 코드 패턴을 직접 언급하십시오.
-        3. **비판적 분석**: 문서와 실제 코드가 다르거나, 코드상에서 발견되는 아키텍처적 특징이 있다면 이를 바탕으로 깊이 있는 통찰을 제공하십시오.
-        4. **가독성**: 복잡한 로직은 단계별로 설명하거나 요약하여 제공하되, 기술적인 정확성을 유지하십시오.
+        3. **비판적 분석**: 문서상 설명과 실제 코드가 다르다면, 코드의 구현 상태를 진실로 간주하고 그 차이점을 지적하십시오.
+        4. **가독성**: 복잡한 로직은 단계별로 설명하되 기술적 정확성을 유지하십시오.
         
         {tech_context}
         """)
@@ -105,13 +152,22 @@ class ChatFolioEngine:
             "graph_trace": visited_nodes
         }
 
+    def _get_cheap_llm(self):
+        """가벼운 작업을 위한 보조 모델 (Llama 8B / GPT-4o-mini)을 반환합니다."""
+        if self.provider == "groq":
+            return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
+        elif self.provider == "openai":
+            return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+        return self.llm
+
     def summarize_title(self, query: str) -> str:
-        """첫 번째 질문을 기반으로 짧은 채팅방 제목을 생성합니다."""
+        """첫 번째 질문을 기반으로 짧은 채팅방 제목을 생성합니다. (경량 모델 사용)"""
+        cheap_llm = self._get_cheap_llm()
         system_prompt = SystemMessage(content="사용자의 질문을 기반으로 3~5단어 내외의 아주 짧은 제목을 작성해줘. 제목만 출력하고 따옴표나 마침표는 생략해.")
         user_prompt = HumanMessage(content=f"Question: {query}")
         
         try:
-            response = self.llm.invoke([system_prompt, user_prompt])
+            response = cheap_llm.invoke([system_prompt, user_prompt])
             return response.content.strip().replace('"', '').replace("'", "")
         except Exception:
             return query[:20] + "..."
@@ -120,6 +176,7 @@ class ChatFolioEngine:
         if not self.llm:
             return "graph TD\n    A[LLM Not Configured]"
             
+        cheap_llm = self._get_cheap_llm()
         nodes = list(self.graph.nodes())
         nodes_str = "\n".join(nodes)
         
@@ -143,7 +200,7 @@ class ChatFolioEngine:
         user_prompt = HumanMessage(content=f"Files:\n{nodes_str}")
         
         try:
-            response = self.llm.invoke([system_prompt, user_prompt])
+            response = cheap_llm.invoke([system_prompt, user_prompt])
             content = response.content.strip()
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
@@ -197,19 +254,38 @@ class ChatFolioEngine:
         nodes = list(self.graph.nodes())
         file_count = len(nodes)
         
+        # 3-1. 설정 파일(Manifest) 추출 및 최적화
         manifest_content = ""
-        for path, content in self.files_data.items():
-            if any(m in path.lower() for m in ["build.gradle", "package.json", "pom.xml", "requirements.txt", "settings.gradle", "docker-compose.yml"]):
-                manifest_content += f"\n--- {path} ---\n{content[:2500]}\n"
+        README_CONTEXT_BUDGET = 10000
+        current_usage = 0
         
+        # 중복 방지를 위해 자물쇠 파일보다는 설정 파일 원본을 우선함
+        manifest_priority = ["package.json", "build.gradle", "pom.xml", "requirements.txt", "settings.gradle", "docker-compose.yml"]
+        skip_files = ["package-lock.json", "yarn.lock", "gradle-wrapper.properties"]
+        
+        for path, content in self.files_data.items():
+            if current_usage >= README_CONTEXT_BUDGET: break
+            fname = os.path.basename(path).lower()
+            if any(m in fname for m in manifest_priority) and not any(s in fname for s in skip_files):
+                # 설정 파일은 800자만 있어도 의존성 파악 가능
+                snippet = f"\n--- {path} ---\n{content[:800]}\n"
+                manifest_content += snippet
+                current_usage += len(snippet)
+        
+        # 3-2. 핵심 파일 선정 (In-degree 기준)
         in_degrees = dict(self.graph.in_degree())
         top_files = sorted(in_degrees.items(), key=lambda x: x[1], reverse=True)[:5]
         top_files_str = "\n".join([f"- {f} (참조됨: {count}회)" for f, count in top_files])
         
+        # 3-3. 핵심 코드 본문 추출 (1,000자 캡핑)
         core_files_code = ""
         for f, _ in top_files:
+            if current_usage >= README_CONTEXT_BUDGET: break
             if f in self.files_data:
-                core_files_code += f"\n--- {f} ---\n{self.files_data[f][:2000]}...\n"
+                # 코드 본문은 1,000자면 핵심 로직 파악 가능
+                snippet = f"\n--- {f} ---\n{self.files_data[f][:1000]}...\n"
+                core_files_code += snippet
+                current_usage += len(snippet)
         
         dirs = set()
         for node in nodes:
