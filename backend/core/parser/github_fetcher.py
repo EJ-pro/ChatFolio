@@ -15,6 +15,51 @@ class GitHubFetcher:
             '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
         )
 
+    def _is_valid_file(self, file_path: str) -> bool:
+        """
+        주어진 파일 경로가 코드 분석에 유효한 파일인지 검사합니다.
+        True면 수집, False면 스킵합니다.
+        """
+        path_lower = file_path.lower()
+        
+        # 1. 절대 들어가면 안 되는 폴더명 (경로 중간에 포함되어 있는지 검사)
+        blacklisted_dirs = {
+            "/node_modules/", "/venv/", "/.venv/", "/env/", "/__pycache__/",
+            "/vendor/", "/.gradle/", "/.m2/", 
+            "/build/", "/dist/", "/out/", "/target/", "/bin/", "/obj/",
+            "/.idea/", "/.vscode/", "/.history/", "/.next/", "/.nuxt/",
+            "/coverage/", "/.pytest_cache/", "/ios/Pods/", "/.expo/",
+            "/.svelte-kit/", "/.tox/"
+        }
+        
+        # 깃허브 API에서 최상위 경로도 걸러내기 위해 맨 앞에 '/'를 붙여서 검사
+        check_path = f"/{path_lower}"
+        if any(b_dir in check_path for b_dir in blacklisted_dirs):
+            return False
+            
+        # 2. 토큰을 잡아먹는 특정 파일명 차단
+        blacklisted_files = {
+            "package-lock.json", "yarn.lock", "pnpm-lock.yaml", 
+            "poetry.lock", "gemfile.lock", ".ds_store", "thumbs.db",
+            "id_rsa", "id_dsa", ".eslintcache", ".stylelintcache"
+        }
+        file_name = path_lower.split("/")[-1]
+        if file_name in blacklisted_files:
+            return False
+            
+        # 3. 분석에서 제외할 확장자 (바이너리, 미디어, 컴파일, 난독화)
+        blacklisted_exts = (
+            ".png", ".jpg", ".jpeg", ".gif", ".ico", ".svg",
+            ".mp4", ".mp3", ".pdf", ".zip", ".tar.gz",
+            ".class", ".jar", ".pyc", ".exe", ".dll", ".so", ".o",
+            ".min.js", ".min.css", ".sqlite", ".db",
+            ".pem", ".key", ".crt", ".keystore", ".log", ".bak", ".swp", ".tmp"
+        )
+        if path_lower.endswith(blacklisted_exts):
+            return False
+
+        return True
+
     def fetch_repo_files(self, repo_url: str, progress_callback=None):
         repo_path = repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
         repo = self.g.get_repo(repo_path)
@@ -22,7 +67,13 @@ class GitHubFetcher:
         branch = repo.default_branch
         tree = repo.get_git_tree(branch, recursive=True)
         
-        all_blobs = [e for e in tree.tree if e.type == "blob" and (e.path.lower().endswith(self.target_extensions) or e.path.lower() == 'dockerfile')]
+        # 1. 확장자 화이트리스트 필터링 + 2. 디렉토리/파일명 블랙리스트 필터링
+        all_blobs = [
+            e for e in tree.tree 
+            if e.type == "blob" and 
+            (e.path.lower().endswith(self.target_extensions) or e.path.lower() == 'dockerfile') and
+            self._is_valid_file(e.path)
+        ]
         total_files = len(all_blobs)
         
         msg = f"📂 [{repo.full_name}] ({branch}) 스캔 중... (총 {total_files}개 파일)"
