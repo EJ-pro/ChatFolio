@@ -117,21 +117,24 @@ GitHub Repository
 GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지의 전 과정이 고도로 최적화된 자율 파이프라인으로 실행됩니다.
 
 ```mermaid
-flowchart LR
-    subgraph Inbound ["🌐 Inbound & Scan"]
+flowchart TD
+    subgraph Inbound ["🌐 Phase 01: Inbound & Scan"]
+        direction LR
         S1["🔐 01 Auth"] --> S2["🔍 02 Cache"] --> S3["📡 03 Scan"] --> S4["📥 04 Fetch"]
     end
 
-    subgraph Backend ["🧠 Polyglot Analysis"]
+    subgraph Backend ["🧠 Phase 02: Polyglot Analysis"]
+        direction LR
         S5["🏭 05 Factory"] --> S6["🌳 06 AST"] --> S7["💾 07 Persist"]
     end
 
-    subgraph Intelligence ["🤖 Intel Ready"]
+    subgraph Intelligence ["🤖 Phase 03: Intelligence Ready"]
+        direction LR
         S8["🕸 08 Graph"] --> S9["📊 09 Metrics"] --> S10["🚀 10 RAG"]
     end
 
-    S4 --> S5
-    S7 --> S8
+    Inbound --> Backend
+    Backend --> Intelligence
 
     %% Styling
     classDef default font-family:Pretendard,font-size:11px;
