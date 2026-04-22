@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye, Code, Clock, ChevronRight, Settings, ChevronDown } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -18,7 +18,10 @@ function DocsTab() {
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('code'); // 'code' or 'md'
   const [readmes, setReadmes] = useState([]);
+  const [activeReadmeId, setActiveReadmeId] = useState(null);
   const [currentProjectId, setCurrentProjectId] = useState(null);
+  const viewerRef = useRef(null);
+  const [agentStep, setAgentStep] = useState(0); // 0: Idle, 1: Analyzer, 2: Router, 3: Writer, 4: Reviewer
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userInputs, setUserInputs] = useState({
     "프로젝트 이름": "",
@@ -30,6 +33,24 @@ function DocsTab() {
     "향후 계획 / 로드맵": "",
     "프로젝트 로고/대표 이미지 URL": ""
   });
+
+  const [provider, setProvider] = useState('groq');
+  const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+
+  const models = {
+    groq: [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', desc: 'Fast & Versatile' },
+      { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', desc: 'Large Context' },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', desc: 'Ultra Fast' }
+    ],
+    openai: [
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise' },
+      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality Docs' }
+    ]
+  };
+
+  const currentModel = models[provider].find(m => m.id === modelName) || models[provider][0];
 
   const handleInputChange = (field, value) => {
     setUserInputs(prev => ({ ...prev, [field]: value }));
@@ -55,7 +76,7 @@ function DocsTab() {
   }, [sessionId]);
 
   const fetchInitialData = async (sid) => {
-
+    setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
       const headers = { 'Authorization': `Bearer ${token}` };
@@ -87,10 +108,13 @@ function DocsTab() {
         const data = await response.json();
         if (data.readme_content) {
           setReadmeContent(data.readme_content);
+          // Set latest as active if available
         }
       }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -101,6 +125,9 @@ function DocsTab() {
       if (res.ok) {
         const data = await res.json();
         setReadmes(data);
+        if (data.length > 0 && !activeReadmeId) {
+          setActiveReadmeId(data[0].id);
+        }
       }
     } catch (err) {
       console.error('Failed to fetch readmes history:', err);
@@ -111,10 +138,16 @@ function DocsTab() {
     if (!sessionId) return;
     
     setIsLoading(true);
+    setAgentStep(1); // Start with Analyzer
     setError('');
     setReadmeContent('');
     setCopied(false);
     
+    // Simulate agent steps during generation
+    const timer = setInterval(() => {
+      setAgentStep(prev => (prev < 4 ? prev + 1 : prev));
+    }, 4000); // Progress every 4 seconds
+
     try {
       const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/generate/readme', {
@@ -126,7 +159,9 @@ function DocsTab() {
         body: JSON.stringify({ 
           session_id: sessionId,
           force_regenerate: true,
-          user_inputs: userInputs
+          user_inputs: userInputs,
+          provider: provider,
+          model_name: modelName
         })
       });
 
@@ -136,6 +171,7 @@ function DocsTab() {
 
       const data = await response.json();
       setReadmeContent(data.readme_content);
+      setActiveReadmeId(data.id || 'latest');
       
       // 새로 생성되었으므로 히스토리 갱신
       if (currentProjectId) {
@@ -144,7 +180,17 @@ function DocsTab() {
     } catch (err) {
       setError(err.message);
     } finally {
+      clearInterval(timer);
       setIsLoading(false);
+      setAgentStep(0);
+    }
+  };
+
+  const handleVersionSelect = (readme) => {
+    setReadmeContent(readme.content);
+    setActiveReadmeId(readme.id);
+    if (viewerRef.current) {
+      viewerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -219,6 +265,76 @@ function DocsTab() {
             )}
           </div>
           
+          {/* Model Selector */}
+          <div className="mb-4 relative">
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">AI Model Engine</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setProvider('groq');
+                  setModelName('llama-3.3-70b-versatile');
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  provider === 'groq' 
+                  ? 'bg-blue-600/10 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.1)]' 
+                  : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
+                }`}
+              >
+                Groq (Free)
+              </button>
+              <button
+                onClick={() => {
+                  setProvider('openai');
+                  setModelName('gpt-4o-mini');
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  provider === 'openai' 
+                  ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
+                  : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
+                }`}
+              >
+                OpenAI (Pro)
+              </button>
+            </div>
+            
+            <div className="mt-2 group">
+              <button 
+                onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                className="w-full flex items-center justify-between px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl hover:bg-slate-900 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full ${provider === 'groq' ? 'bg-blue-500' : 'bg-indigo-500'} animate-pulse`}></div>
+                  <div className="text-left">
+                    <div className="text-[11px] font-black text-white leading-none mb-0.5">{currentModel.name}</div>
+                    <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{currentModel.desc}</div>
+                  </div>
+                </div>
+                <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isModelMenuOpen && (
+                <div className="absolute top-full left-0 w-full mt-2 bg-slate-900 border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                  {models[provider].map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => {
+                        setModelName(m.id);
+                        setIsModelMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-all group/item"
+                    >
+                      <div className="text-left">
+                        <div className={`text-xs font-bold ${modelName === m.id ? 'text-blue-400' : 'text-slate-300'}`}>{m.name}</div>
+                        <div className="text-[9px] text-slate-500">{m.desc}</div>
+                      </div>
+                      {modelName === m.id && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+          
           <button
             onClick={handleGenerateReadme}
             disabled={isLoading || !sessionId}
@@ -255,12 +371,16 @@ function DocsTab() {
               {readmes.map((readme, idx) => (
                 <button
                   key={readme.id}
-                  onClick={() => setReadmeContent(readme.content)}
-                  className="w-full text-left bg-slate-900/40 hover:bg-slate-800/60 border border-white/5 hover:border-white/10 p-4 rounded-2xl flex items-center justify-between group transition-all"
+                  onClick={() => handleVersionSelect(readme)}
+                  className={`w-full text-left p-4 rounded-2xl flex items-center justify-between group transition-all border ${
+                    activeReadmeId === readme.id 
+                    ? 'bg-blue-500/10 border-blue-500/30' 
+                    : 'bg-slate-900/40 hover:bg-slate-800/60 border-white/5 hover:border-white/10'
+                  }`}
                 >
                   <div>
                     <div className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-blue-400" />
+                      <FileText className={`w-4 h-4 ${activeReadmeId === readme.id ? 'text-blue-400' : 'text-slate-500'}`} />
                       버전 {readmes.length - idx}
                       {idx === 0 && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full uppercase">Latest</span>}
                     </div>
@@ -268,7 +388,7 @@ function DocsTab() {
                       {new Date(readme.created_at).toLocaleString()}
                     </div>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-blue-400 transition-colors" />
+                  <ChevronRight className={`w-4 h-4 transition-colors ${activeReadmeId === readme.id ? 'text-blue-400' : 'text-slate-600 group-hover:text-blue-400'}`} />
                 </button>
               ))}
             </div>
@@ -284,17 +404,53 @@ function DocsTab() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
 
         {isLoading ? (
-          <div className="flex-1 flex flex-col items-center justify-center p-8 z-10 text-slate-500">
-            <div className="relative mb-6">
-              <Loader2 className="w-16 h-16 text-blue-500 animate-spin" />
-              <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-400 animate-pulse" />
+          <div className="flex-1 flex flex-col items-center justify-center p-8 z-10">
+            <div className="max-w-md w-full">
+              <div className="flex flex-col items-center mb-12">
+                <div className="relative mb-6">
+                  <div className="w-20 h-20 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                  <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-blue-400 animate-pulse" />
+                </div>
+                <h2 className="text-2xl font-black text-white mb-2 tracking-tight">AI 에이전트 가동 중...</h2>
+                <p className="text-slate-400 text-sm">프로젝트 아키텍처를 심층 분석하여 최적의 README를 생성합니다.</p>
+              </div>
+
+              {/* Agent Workflow Steps */}
+              <div className="space-y-4">
+                {[
+                  { id: 1, name: "Analyzer", desc: "프로젝트 구조 및 기술 스택 스캔", icon: "🔍" },
+                  { id: 2, name: "Router", desc: "아키타입 기반 최적 전략 수립", icon: "🔀" },
+                  { id: 3, name: "Writer", desc: "마크다운 기반 기술 초안 작성", icon: "✍️" },
+                  { id: 4, name: "Reviewer", desc: "품질 검토 및 루프 피드백", icon: "🕵️" }
+                ].map((s, idx) => (
+                  <div key={s.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-500 ${
+                    agentStep === s.id 
+                    ? 'bg-blue-500/10 border-blue-500/30 shadow-lg shadow-blue-500/5' 
+                    : agentStep > s.id 
+                    ? 'bg-emerald-500/5 border-emerald-500/20 opacity-60' 
+                    : 'bg-slate-900/50 border-white/5 opacity-40'
+                  }`}>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${
+                      agentStep === s.id ? 'bg-blue-500 text-white animate-pulse' : 
+                      agentStep > s.id ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-slate-400'
+                    }`}>
+                      {agentStep > s.id ? <CheckCircle2 size={20} /> : s.icon}
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className={`text-sm font-bold ${agentStep >= s.id ? 'text-white' : 'text-slate-500'}`}>{s.name}</span>
+                        {agentStep === s.id && <span className="text-[10px] bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded-full font-black animate-pulse uppercase">Working</span>}
+                      </div>
+                      <p className="text-[11px] text-slate-500">{s.desc}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-white font-bold text-xl mb-2">AI가 아키텍처를 심층 분석 중입니다...</p>
-            <p className="text-slate-400 text-sm">이 작업은 약 10~20초 정도 소요됩니다. 잠시만 기다려 주세요.</p>
           </div>
         ) : readmeContent ? (
           <>
-            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar z-10">
+            <div ref={viewerRef} className="flex-1 overflow-y-auto p-10 custom-scrollbar z-10">
               <div className="max-w-4xl mx-auto bg-slate-900/80 backdrop-blur-xl rounded-3xl shadow-2xl overflow-hidden min-h-full border border-white/10">
                 <div className="bg-white/5 border-b border-white/10 px-6 py-4 flex items-center justify-between">
                   <div className="flex items-center gap-2">

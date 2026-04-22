@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers } from 'lucide-react';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
 function Analysis() {
@@ -17,6 +17,7 @@ function Analysis() {
   const [projects, setProjects] = useState([]);
   const [searchParams] = useSearchParams();
   const [progress, setProgress] = useState(0);
+  const [bufferedPhase, setBufferedPhase] = useState(1);
 
 
   useEffect(() => {
@@ -111,7 +112,6 @@ function Analysis() {
               setCurrentLog(msg);
               setLogs(prev => [...prev.slice(-4), msg]); // 최근 5개 로그 유지
             }
-
           }
         }
       }
@@ -120,6 +120,37 @@ function Analysis() {
       setIsLoading(false);
     }
   };
+
+  const getActivePhase = () => {
+    const log = currentLog.toLowerCase();
+    if (log.includes('인덱싱') || log.includes('최종') || log.includes('성공') || log.includes('완료')) return 5;
+    if (log.includes('그래프') || log.includes('의존성') || log.includes('맵핑')) return 4;
+    if (log.includes('파싱') || log.includes('분석 진행') || log.includes('ast') || log.includes('분석 중')) return 3;
+    if (log.includes('클론') || log.includes('레포지토리') || log.includes('수집') || log.includes('가져오는')) return 2;
+    return 1;
+  };
+
+  useEffect(() => {
+    if (isLoading) {
+      const targetPhase = getActivePhase();
+      if (targetPhase > bufferedPhase) {
+        const timer = setTimeout(() => {
+          setBufferedPhase(prev => prev + 1);
+        }, 800); // 0.8초마다 한 단계씩 상승 (속도감 조절)
+        return () => clearTimeout(timer);
+      }
+    } else {
+      setBufferedPhase(1);
+    }
+  }, [isLoading, currentLog, bufferedPhase]);
+
+  const phases = [
+    { id: 1, name: "Fetching", icon: <Github size={16} /> },
+    { id: 2, name: "Cloning", icon: <Share2 size={16} /> },
+    { id: 3, name: "Parsing", icon: <FileCode2 size={16} /> },
+    { id: 4, name: "Mapping", icon: <GitBranch size={16} /> },
+    { id: 5, name: "Indexing", icon: <Layers size={16} /> }
+  ];
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col relative overflow-hidden font-sans">
@@ -297,7 +328,45 @@ function Analysis() {
 
           {/* Analysis Progress Logs */}
           {isLoading && (
-            <div className="mt-8 w-full animate-fade-in">
+            <div className="mt-8 w-full animate-fade-in-up space-y-6">
+              {/* Horizontal Phase Animation */}
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="relative flex items-center justify-between">
+                  {phases.map((phase, idx) => {
+                    const isCompleted = bufferedPhase > phase.id;
+                    const isActive = bufferedPhase === phase.id;
+
+                    return (
+                      <div key={phase.id} className="flex-1 flex flex-col items-center relative">
+                        {/* Connecting Line */}
+                        {idx < phases.length - 1 && (
+                          <div className="absolute top-5 left-1/2 w-full h-[2px] bg-slate-800">
+                            <div 
+                              className={`h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${isCompleted ? 'w-full' : 'w-0'}`}
+                            ></div>
+                          </div>
+                        )}
+
+                        {/* Step Circle */}
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-500 border-2 ${
+                          isCompleted ? 'bg-emerald-500 border-emerald-400 text-white' : 
+                          isActive ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] animate-pulse' : 
+                          'bg-slate-900 border-slate-700 text-slate-500'
+                        }`}>
+                          {isCompleted ? <CheckCircle2 size={18} /> : phase.icon}
+                        </div>
+                        <span className={`mt-3 text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${
+                          isActive ? 'text-blue-400' : isCompleted ? 'text-emerald-400' : 'text-slate-500'
+                        }`}>
+                          {phase.name}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
                 {/* Progress Bar */}
                 <div className="h-1 w-full bg-slate-800">

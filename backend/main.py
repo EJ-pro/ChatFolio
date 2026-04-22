@@ -627,7 +627,22 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         engine_cache[session_id] = engine
         
     try:
-        readme_content = engine.generate_readme(request.user_inputs)
+        # Override LLM if provided in request
+        temp_llm = None
+        if request.provider and request.model_name:
+            if request.provider == "openai":
+                from langchain_openai import ChatOpenAI
+                temp_llm = ChatOpenAI(model=request.model_name, temperature=0)
+            elif request.provider == "groq":
+                from langchain_groq import ChatGroq
+                temp_llm = ChatGroq(model=request.model_name, temperature=0)
+        
+        readme_content = engine.generate_readme(
+            request.user_inputs, 
+            llm=temp_llm, 
+            provider=request.provider, 
+            model_name=request.model_name
+        )
         
         # 항상 새로운 버전을 생성
         new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
@@ -636,6 +651,8 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         
         return ReadmeResponse(readme_content=readme_content)
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 

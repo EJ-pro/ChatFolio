@@ -37,6 +37,8 @@ class ReadmeRequest(BaseModel):
     session_id: str
     force_regenerate: Optional[bool] = False
     user_inputs: Optional[Dict[str, str]] = None
+    provider: Optional[str] = "groq"
+    model_name: Optional[str] = None
 
 class ReadmeResponse(BaseModel):
     readme_content: str

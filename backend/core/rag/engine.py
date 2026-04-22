@@ -5,12 +5,17 @@ from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
 from .readme_agent import ReadmeAgent
+import json
+import networkx as nx
+import os
 
 class ChatFolioEngine:
     def __init__(self, files_data, graph, tech_stack=None, provider="groq", model_name=None):
         self.files_data = files_data
         self.graph = graph
         self.tech_stack = tech_stack # {main_language, frameworks, used_parsers, language_distribution}
+        self.provider = provider
+        self.model_name = model_name
         
         # LLM 초기화
         if provider == "openai":
@@ -28,12 +33,10 @@ class ChatFolioEngine:
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, 
             chunk_overlap=100,
-            # 다양한 언어의 정의부(fun, def, fn, class, func 등)를 고려한 구분자
             separators=["\nclass ", "\ndef ", "\nfn ", "\nfun ", "\nfunc ", "\ninterface ", "\nmodule ", "\n\n", "\n"]
         )
         
         docs = []
-        # generator나 dict 모두 순회 가능하도록 처리
         items = self.files_data.items() if isinstance(self.files_data, dict) else self.files_data
         
         for path, content in items:
@@ -42,7 +45,6 @@ class ChatFolioEngine:
                 docs.append({"page_content": chunk, "metadata": {"path": path}})
         
         if not docs:
-            # 문서가 없는 경우 빈 리스트 대신 더미 문서라도 추가하여 초기화 에러 방지
             return InMemoryVectorStore.from_texts([" "], self.embeddings, metadatas=[{"path": "none"}])
 
         texts = [d["page_content"] for d in docs]
@@ -50,10 +52,7 @@ class ChatFolioEngine:
         
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
 
-
     def ask(self, query: str):
-        # 2. 관련 파일 검색
-        # 복잡한 아키텍처 질문에 답변하기 위해 검색 범위를 기존 3에서 8으로 확장
         related_docs = self.vector_db.similarity_search(query, k=8)
         
         sources = []
@@ -67,7 +66,6 @@ class ChatFolioEngine:
             if not any(s['path'] == path for s in sources):
                 sources.append({"path": path, "reason": "Vector Similarity"})
             
-            # 3. 그래프 탐색 (이웃 노드 추적)
             if path in self.graph:
                 neighbors = list(self.graph.neighbors(path))
                 for n in neighbors[:2]: 
@@ -77,13 +75,11 @@ class ChatFolioEngine:
                         sources.append({"path": n, "reason": f"Dependency (from {file_name})"})
                     visited_nodes.append({"from": path, "to": n})
 
-        # 4. 컨텍스트 구성
         context_text = ""
         for path in context_paths:
             if path in self.files_data:
                 context_text += f"\n--- File: {path} ---\n{self.files_data[path][:2500]}\n"
 
-        # 5. LLM 프롬프트
         tech_context = ""
         if self.tech_stack:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
@@ -92,25 +88,9 @@ class ChatFolioEngine:
         당신은 숙련된 풀스택 소프트웨어 엔지니어이자 최고 수준의 코드 분석가입니다. 
         다양한 프로그래밍 언어와 프레임워크에 정통하며, 주어진 코드베이스 컨텍스트를 바탕으로 사용자의 질문에 전문적이고 정확하게 답변합니다.
         {tech_context}
-        
-        [답변 전 추론 과정 (Chain-of-Thought)]
-        질문에 답변하기 전에 반드시 내부적으로 다음 사항을 스스로 점검하세요:
-        1. 이 프로젝트의 주요 기술 스택과 아키텍처 패턴은 무엇인가?
-        2. 사용자의 질문과 연관된 핵심 파일들은 무엇이며, 파일 간의 제어 흐름(Control Flow)이나 데이터 흐름(Data Flow)은 어떻게 연결되는가?
-        3. 주어진 컨텍스트에서 도출할 수 있는 가장 합리적이고 구조적인 결론은 무엇인가?
-        (위 추론 과정을 거친 후, 사용자에게는 최종 결론과 설명만 명확하게 서술하세요.)
-
-        [답변 규칙]
-        1. 핵심 로직이나 함수, 클래스를 설명할 때는 반드시 [파일명] 또는 [파일명:라인번호] 형식으로 출처를 명시하세요.
-        2. 파일 간의 의존성 및 연결 관계를 단순 코드 나열이 아닌 아키텍처 관점에서 설명해주세요.
-        3. 전체적인 시스템 역량이나 구조를 파악할 때는 메인 엔트리포인트, 설정 파일(예: package.json, build.gradle, pom.xml, .env 등), 또는 핵심 비즈니스 로직이 담긴 디렉터리를 우선적으로 참조하세요.
-        4. 중요: 시스템 기능이나 사양에 대해 답변할 때, 문서 파일(docs, README 등)의 내용과 실제 소스코드의 구현이 충돌한다면 반드시 '실제 소스코드'를 기준으로 답변하고, 문서가 업데이트되지 않았을 가능성을 언급하세요.
-        5. 컨텍스트에 없는 내용을 추측하여 답변하지 말고, 모르는 정보는 모른다고 솔직하게 답변하세요.
         """)
         
         user_prompt = HumanMessage(content=f"Context:\n{context_text}\n\nQuestion: {query}")
-        
-        # 6. 답변 생성
         response = self.llm.invoke([system_prompt, user_prompt])
         
         return {
@@ -128,19 +108,15 @@ class ChatFolioEngine:
         
         system_prompt = SystemMessage(content="""
         당신은 소프트웨어 아키텍트입니다. 다음은 분석 중인 프로젝트의 파일 경로 목록입니다.
-        이 파일들을 프로젝트의 도메인, 역할, 또는 기술적 계층(예: UI, Logic, Data, Config, Backend, Frontend 등)에 따라 논리적으로 그룹화하세요.
+        이 파일들을 프로젝트의 도메인, 역할, 또는 기술적 계층에 따라 논리적으로 그룹화하세요.
         
         [출력 형식 - 반드시 JSON만 출력하세요]
         ```json
         {
           "subgraphs": [
             {
-              "name": "Adapter",
-              "nodes": ["app/src/main/.../Adapter.kt", "app/.../AnotherAdapter.kt"]
-            },
-            {
-              "name": "Fragment",
-              "nodes": ["app/src/main/.../Fragment.kt"]
+              "name": "Component",
+              "nodes": ["path/to/file.ext"]
             }
           ]
         }
@@ -152,23 +128,14 @@ class ChatFolioEngine:
         try:
             response = self.llm.invoke([system_prompt, user_prompt])
             content = response.content.strip()
-            
             if "```json" in content:
                 content = content.split("```json")[1].split("```")[0].strip()
             elif "```" in content:
                 content = content.split("```")[1].split("```")[0].strip()
-                
             grouping = json.loads(content)
             
-            # 1. 안전한 노드 ID 매핑 생성
-            node_id_map = {}
-            for i, node in enumerate(nodes):
-                node_id_map[node] = f"Node_{i}"
-                
-            # 2. Mermaid 코드 조합
+            node_id_map = {node: f"Node_{i}" for i, node in enumerate(nodes)}
             mermaid_lines = ["graph TD"]
-            
-            # 서브그래프 작성
             used_nodes = set()
             for sg in grouping.get("subgraphs", []):
                 name = sg.get("name", "Unknown").replace(" ", "_").replace('"', '')
@@ -181,24 +148,17 @@ class ChatFolioEngine:
                         used_nodes.add(node)
                 mermaid_lines.append("    end")
                 
-            # 그룹화되지 않은 노드들
             for node in nodes:
                 if node not in used_nodes:
                     node_id = node_id_map[node]
                     display_name = node.split('/')[-1]
                     mermaid_lines.append(f'    {node_id}["{display_name}"]')
-                    
-            mermaid_lines.append("")
             
-            # 엣지(의존성) 작성
             for u, v in self.graph.edges():
                 if u in node_id_map and v in node_id_map:
                     mermaid_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
-                    
             return "\n".join(mermaid_lines)
-            
         except Exception as e:
-            # 실패 시 단순 폴백 반환
             print(f"Mermaid generation failed: {e}")
             fallback_lines = ["graph TD"]
             node_id_map = {node: f"N_{i}" for i, node in enumerate(nodes)}
@@ -209,20 +169,22 @@ class ChatFolioEngine:
                     fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
             return "\n".join(fallback_lines)
 
-    def generate_readme(self, user_inputs: dict = None) -> str:
-        if not self.llm:
+    def generate_readme(self, user_inputs: dict = None, llm=None, provider=None, model_name=None) -> str:
+        target_llm = llm if llm else self.llm
+        target_provider = provider if provider else self.provider
+        target_model = model_name if model_name else self.model_name
+
+        if not target_llm:
             return "# README\n\nLLM이 구성되지 않았습니다."
             
         nodes = list(self.graph.nodes())
         file_count = len(nodes)
         
-        # 1. 의존성 매니페스트 파일 찾기 (기술 스택 파악용)
         manifest_content = ""
         for path, content in self.files_data.items():
             if any(m in path.lower() for m in ["build.gradle", "package.json", "pom.xml", "requirements.txt", "settings.gradle", "docker-compose.yml"]):
                 manifest_content += f"\n--- {path} ---\n{content[:2500]}\n"
         
-        # 2. 가장 많이 참조된 Top 5 핵심 파일 코드 스니펫 추출
         in_degrees = dict(self.graph.in_degree())
         top_files = sorted(in_degrees.items(), key=lambda x: x[1], reverse=True)[:5]
         top_files_str = "\n".join([f"- {f} (참조됨: {count}회)" for f, count in top_files])
@@ -230,46 +192,34 @@ class ChatFolioEngine:
         core_files_code = ""
         for f, _ in top_files:
             if f in self.files_data:
-                # 각 핵심 파일의 첫 2000자 제공 (클래스 정의, 주요 메서드 파악)
                 core_files_code += f"\n--- {f} ---\n{self.files_data[f][:2000]}...\n"
         
-        # 3. 디렉토리 구조 생성 (트리 형태)
-        import os
         dirs = set()
         for node in nodes:
             dirs.add(os.path.dirname(node))
         dir_tree = "\n".join([f"- {d}/" for d in sorted(list(dirs))[:15]])
         
-        # 4. [NEW] 프로젝트 정체성(언어/프레임워크) 자동 추론 로직
         extensions = {}
         framework_hints = set()
-        
         for path in self.files_data.keys():
-            # 확장자 빈도수 체크
             ext = path.split('.')[-1].lower() if '.' in path else ''
             if ext:
                 extensions[ext] = extensions.get(ext, 0) + 1
-                
-            # 설정 파일로 프레임워크 힌트 획득
             path_lower = path.lower()
             if "package.json" in path_lower: framework_hints.add("Node.js / NPM")
             if "build.gradle" in path_lower or "settings.gradle" in path_lower: framework_hints.add("Gradle (Android/Spring)")
             if "pom.xml" in path_lower: framework_hints.add("Maven (Java/Spring)")
-            if "requirements.txt" in path_lower or "pipfile" in path_lower or "pyproject.toml" in path_lower: framework_hints.add("Python Ecosystem")
-            if "dockerfile" in path_lower or "docker-compose" in path_lower: framework_hints.add("Docker Containerization")
-            if "cmakelists.txt" in path_lower: framework_hints.add("C/C++ Build System")
+            if "requirements.txt" in path_lower: framework_hints.add("Python Ecosystem")
+            if "dockerfile" in path_lower or "docker-compose" in path_lower: framework_hints.add("Docker")
             if "tsconfig.json" in path_lower: framework_hints.add("TypeScript")
-            if "next.config" in path_lower: framework_hints.add("Next.js")
-            if "tailwind.config" in path_lower: framework_hints.add("TailwindCSS")
 
-        # 가장 많이 쓰인 확장자 Top 3
         top_exts = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:3]
         top_exts_str = ", ".join([f".{ext}({cnt}개)" for ext, cnt in top_exts])
         framework_str = ", ".join(list(framework_hints)) if framework_hints else "특정 프레임워크 추론 불가"
 
         user_input_context = ""
         if user_inputs and any(user_inputs.values()):
-            user_input_context = "\n[👤 사용자 추가 정보 (우선 반영)]\n"
+            user_input_context = "\n[👤 사용자 추가 정보]\n"
             for k, v in user_inputs.items():
                 if v and str(v).strip():
                     user_input_context += f"- {k}: {v}\n"
@@ -282,17 +232,12 @@ class ChatFolioEngine:
         
         [📂 프로젝트 구조 및 핵심 데이터]
         1. 전체 파일 수: {file_count}개
-        2. 디렉토리 구조 (최상위 일부):
-        {dir_tree}
-        
-        3. 핵심 파일 (많이 참조된 파일):
-        {top_files_str}
-        
+        2. 디렉토리 구조 (최상위 일부): {dir_tree}
+        3. 핵심 파일 (많이 참조된 파일): {top_files_str}
         4. 주요 파일들의 실제 내용 (일부):
         {manifest_content}
         {core_files_code}
         """
         
-        # 5. [NEW] Multi-Agent Workflow 실행
-        agent = ReadmeAgent(self.llm)
+        agent = ReadmeAgent(target_llm, provider=target_provider, model_name=target_model)
         return agent.run(context, user_inputs or {})
