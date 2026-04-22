@@ -4,6 +4,7 @@ from langchain_groq import ChatGroq
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
+from .readme_agent import ReadmeAgent
 
 class ChatFolioEngine:
     def __init__(self, files_data, graph, tech_stack=None, provider="groq", model_name=None):
@@ -292,45 +293,6 @@ class ChatFolioEngine:
         {core_files_code}
         """
         
-        system_prompt = SystemMessage(content="""
-        당신은 세계 최고의 오픈소스 메인테이너이자 테크니컬 라이터입니다. 
-        제공된 코드베이스 분석 결과와 사용자 정보를 바탕으로, GitHub 메인 페이지에 노출될 수 있는 수준의 압도적인 퀄리티의 README.md를 작성하세요.
-
-        [분석 필수 사항]
-        - **프로젝트 아키타이프 분류**: 파일 구조와 감지된 기술 스택을 분석하여 이 프로젝트가 다음 중 어디에 속하는지 먼저 판단하세요.
-          1. API/Backend Service (서버 로직, DB 중심)
-          2. Web/Mobile Frontend (UI, 컴포넌트, 상태관리 중심)
-          3. ML/Data Science (데이터셋, 모델 파라미터 중심)
-          4. Library/SDK/CLI (설치, API Reference 중심)
-        - **비즈니스 로직**: 이 프로젝트가 정확히 무엇을 하는지, 어떤 문제를 해결하는지 깊이 있게 파악하세요.
-        - **사용자 입력 최우선**: [👤 사용자 추가 정보]가 있다면 철저히 반영하세요.
-
-        [동적 README 구조 (Adaptive Template)]
-        판단한 아키타이프에 맞춰 아래 구조 중 하나를 선택하거나 혼합하여 작성하세요.
-        - **공통 필수 항목**: 대제목, 한 줄/상세 소개, 뱃지(Version/TechStack 등), 목차, 프로젝트 소개, 사용 기술 스택, 폴더 구조.
-        - **Backend Focus 특화**: API 엔드포인트 명세 요약, DB 스키마 구조 힌트, 도커/환경변수 세팅 방법.
-        - **Frontend Focus 특화**: 라우팅 구조, 핵심 상태 관리 패러다임, (마크다운) UI 스크린샷 위치 홀더.
-        - **ML/Data Focus 특화**: 데이터셋 파이프라인, 평가 지표(Metric) 요약, 주피터/Python 실행 필수 환경.
-        - **Library Focus 특화**: 패키지 설치 명령어(npm/pip 등), Quick Start 코드 스니펫 상세.
-
-        [작성 규칙]
-        1. **Overview**: 프로젝트의 가치를 3~5문장으로 깊이 있게 설명하세요.
-        2. **Features**: "어떤 기술을 써서 어떻게 동작하는지" 기술적 디테일을 포함하세요. (코드 파일명 언급 권장)
-        3. **Directory Structure**: 이모지를 활용해 프로젝트의 핵심 뼈대를 알아보기 쉽게 묘사하세요.
-        4. **Style**: 볼드체, 인용구(>), 표, 하이라이트 등을 적극적으로 사용하여 스크롤하기 즐거운 문서를 만드세요.
-
-        ---
-        응답은 오직 README.md 마크다운 코드만 출력하세요. (백틱 없이 순수 텍스트만)
-        """)
-        
-        user_prompt = HumanMessage(content=context)
-        
-        response = self.llm.invoke([system_prompt, user_prompt])
-        content = response.content.strip()
-        
-        if "```markdown" in content:
-            content = content.split("```markdown")[1].split("```")[0].strip()
-        elif "```" in content:
-            content = content.split("```")[1].split("```")[0].strip()
-            
-        return content
+        # 5. [NEW] Multi-Agent Workflow 실행
+        agent = ReadmeAgent(self.llm)
+        return agent.run(context, user_inputs or {})
