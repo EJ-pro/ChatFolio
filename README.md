@@ -117,32 +117,24 @@ GitHub Repository
 GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지의 전 과정이 고도로 최적화된 자율 파이프라인으로 실행됩니다.
 
 ```mermaid
-flowchart TD
+flowchart LR
     subgraph Inbound ["🌐 Inbound & Scan"]
-        S1["🔐 01 Auth<br/><small>PAT & Rate Limit Check</small>"]
-        S2["🔍 02 Cache Check<br/><small>SHA Hash Comparison</small>"]
-        S3["📡 03 Scan<br/><small>Recursive File Filter</small>"]
-        S4["📥 04 Fetch<br/><small>Python Generator Streaming</small>"]
+        S1["🔐 01 Auth"] --> S2["🔍 02 Cache"] --> S3["📡 03 Scan"] --> S4["📥 04 Fetch"]
     end
 
     subgraph Backend ["🧠 Polyglot Analysis"]
-        S5["🏭 05 Parser Factory<br/><small>Dynamic Lang Dispatch</small>"]
-        S6["🌳 06 AST Parse<br/><small>Logic & Symbol Extraction</small>"]
-        S7["💾 07 Persist<br/><small>PostgreSQL Transaction</small>"]
+        S5["🏭 05 Factory"] --> S6["🌳 06 AST"] --> S7["💾 07 Persist"]
     end
 
-    subgraph Intelligence ["🤖 Intelligence Ready"]
-        S8["🕸 08 Graph Build<br/><small>Dependency Mapping</small>"]
-        S9["📊 09 Metrics<br/><small>In-degree Centrality</small>"]
-        S10["🚀 10 RAG Engine<br/><small>Vector Store Loaded</small>"]
+    subgraph Intelligence ["🤖 Intel Ready"]
+        S8["🕸 08 Graph"] --> S9["📊 09 Metrics"] --> S10["🚀 10 RAG"]
     end
 
-    S1 --> S2 --> S3 --> S4 --> S5
-    S5 --> S6 --> S7 --> S8
-    S8 --> S9 --> S10
+    S4 --> S5
+    S7 --> S8
 
     %% Styling
-    classDef default font-family:Pretendard,font-size:12px;
+    classDef default font-family:Pretendard,font-size:11px;
     classDef phase fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#64748b,font-weight:bold;
     classDef start fill:#4f46e5,stroke:#4338ca,color:#fff,font-weight:bold;
     classDef endNode fill:#10b981,stroke:#059669,color:#fff,font-weight:bold;
