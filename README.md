@@ -112,6 +112,69 @@ GitHub Repository
 
 ---
 
+### 3. Data Collection Pipeline (10 Steps)
+
+GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지, 총 10단계의 파이프라인이 실행됩니다.
+
+```
+ Step 01  🔐 Auth            사용자 PAT 유효성 검증, Rate Limit 체크
+    ↓
+ Step 02  🔍 Cache Check     GitHub API로 최신 커밋 SHA 확인 → 캐시 재사용 or 재분석 결정
+    ↓
+ Step 03  📡 Scan            재귀 디렉토리 순회, .gitignore 및 바이너리 파일 필터링
+    ↓
+ Step 04  📥 Fetch           Python Generator 스트리밍으로 대용량 파일 OOM 없이 로드
+    ↓
+ Step 05  🏭 Parser Factory  확장자 기반으로 최적 언어 파서 동적 매칭 (Polyglot 지원)
+    ↓
+ Step 06  🌳 AST Parse       언어별 파서로 클래스·함수·Import 구문 추출 및 정규화
+    ↓
+ Step 07  💾 Persist         파싱 결과 + 원본 코드 PostgreSQL 트랜잭션 저장
+    ↓
+ Step 08  🕸 Graph Build     Resolver Factory로 Import 경로를 실제 파일로 매핑, NetworkX DiGraph 구성
+    ↓
+ Step 09  📊 Metrics         노드 Degree 계산으로 핵심 파일 식별, 프론트엔드용 JSON 변환
+    ↓
+ Step 10  🤖 RAG Engine      분석 데이터를 ChatFolioEngine에 로드, 벡터 임베딩 완료 → 채팅 준비
+```
+
+<br/>
+
+### 4. Multi-Language Parser Support
+
+`Factory Pattern` 기반의 파서 라우터가 파일 확장자를 감지하여 최적의 분석기를 자동으로 배정합니다.
+
+#### 🔤 Language Parsers (`core/parser/lang/`)
+
+| 언어 | 파서 | 주요 추출 항목 |
+|:---:|:---:|---|
+| **Python** | `ts_python.py` | `class`, `def`, `import`, `from` |
+| **JavaScript / TypeScript** | `ts_javascript.py` | `function`, `const`, `import`, `export` |
+| **Java** | `ts_java.py` | `class`, `interface`, `method`, `package` |
+| **Kotlin** | `ts_kotlin.py` | `class`, `fun`, `object`, `import` |
+| **Go** | `ts_go.py` | `func`, `struct`, `package`, `import` |
+| **C++** | `ts_cpp.py` | `class`, `function`, `#include` |
+| **C#** | `ts_csharp.py` | `class`, `namespace`, `using` |
+| **Rust** | `ts_rust.py` | `fn`, `struct`, `mod`, `use` |
+| **Swift** | `ts_swift.py` | `class`, `struct`, `func`, `import` |
+| **Dart** | `ts_dart.py` | `class`, `void`, `import` |
+| **PHP** | `ts_php.py` | `class`, `function`, `namespace`, `use` |
+| **Ruby** | `ts_ruby.py` | `class`, `def`, `module`, `require` |
+
+#### ⚙️ Config Parsers (`core/parser/config/`)
+
+| 형식 | 파서 | 용도 |
+|:---:|:---:|---|
+| **Gradle** | `gradle_parser.py` | Android / Spring 의존성, 빌드 설정 추출 |
+| **JSON** | `json_parser.py` | `package.json` 등 패키지 메타데이터 파싱 |
+| **YAML** | `yaml_parser.py` | Docker Compose, CI/CD 설정 추출 |
+| **XML** | `xml_parser.py` | `pom.xml`, `AndroidManifest.xml` 파싱 |
+| **SQL** | `sql_parser.py` | DB 스키마 및 테이블 구조 추출 |
+
+> 지원되지 않는 확장자는 기본 메타데이터 추출기(Fallback)로 처리되어 분석이 중단되지 않습니다.
+
+---
+
 ## 🛠 기술 스택
 
 <table>
