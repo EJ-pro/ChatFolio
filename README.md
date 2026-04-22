@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="doc/logo.png" alt="ChatFolio Logo" width="120" />
+<img src="doc/logo.webp" alt="ChatFolio Logo" width="120" />
 
 # ChatFolio
 
@@ -84,12 +84,12 @@ graph LR
     F(📄 Final README)
 ```
 
-| 에이전트 | 역할 |
-|:---:|---|
+|   에이전트   | 역할                                                                                 |
+| :----------: | ------------------------------------------------------------------------------------ |
 | **Analyzer** | 설정 파일 및 언어 분포를 스캔하여 프로젝트 아키타입(Backend / Mobile / ML 등)을 식별 |
-| **Router** | 식별된 아키타입에 따라 강조할 기술 스택과 섹션 구성을 결정 |
-| **Writer** | 의존성 그래프의 핵심 파일 스니펫을 바탕으로 마크다운 초안 작성 |
-| **Reviewer** | Getting Started 유효성, 기술적 정확도를 검토하고 Writer에 피드백 루프 실행 |
+|  **Router**  | 식별된 아키타입에 따라 강조할 기술 스택과 섹션 구성을 결정                           |
+|  **Writer**  | 의존성 그래프의 핵심 파일 스니펫을 바탕으로 마크다운 초안 작성                       |
+| **Reviewer** | Getting Started 유효성, 기술적 정확도를 검토하고 Writer에 피드백 루프 실행           |
 
 <br/>
 
@@ -146,30 +146,30 @@ GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지, 총 1
 
 #### 🔤 Language Parsers (`core/parser/lang/`)
 
-| 언어 | 파서 | 주요 추출 항목 |
-|:---:|:---:|---|
-| **Python** | `ts_python.py` | `class`, `def`, `import`, `from` |
-| **JavaScript / TypeScript** | `ts_javascript.py` | `function`, `const`, `import`, `export` |
-| **Java** | `ts_java.py` | `class`, `interface`, `method`, `package` |
-| **Kotlin** | `ts_kotlin.py` | `class`, `fun`, `object`, `import` |
-| **Go** | `ts_go.py` | `func`, `struct`, `package`, `import` |
-| **C++** | `ts_cpp.py` | `class`, `function`, `#include` |
-| **C#** | `ts_csharp.py` | `class`, `namespace`, `using` |
-| **Rust** | `ts_rust.py` | `fn`, `struct`, `mod`, `use` |
-| **Swift** | `ts_swift.py` | `class`, `struct`, `func`, `import` |
-| **Dart** | `ts_dart.py` | `class`, `void`, `import` |
-| **PHP** | `ts_php.py` | `class`, `function`, `namespace`, `use` |
-| **Ruby** | `ts_ruby.py` | `class`, `def`, `module`, `require` |
+|            언어             |        파서        | 주요 추출 항목                            |
+| :-------------------------: | :----------------: | ----------------------------------------- |
+|         **Python**          |   `ts_python.py`   | `class`, `def`, `import`, `from`          |
+| **JavaScript / TypeScript** | `ts_javascript.py` | `function`, `const`, `import`, `export`   |
+|          **Java**           |    `ts_java.py`    | `class`, `interface`, `method`, `package` |
+|         **Kotlin**          |   `ts_kotlin.py`   | `class`, `fun`, `object`, `import`        |
+|           **Go**            |     `ts_go.py`     | `func`, `struct`, `package`, `import`     |
+|           **C++**           |    `ts_cpp.py`     | `class`, `function`, `#include`           |
+|           **C#**            |   `ts_csharp.py`   | `class`, `namespace`, `using`             |
+|          **Rust**           |    `ts_rust.py`    | `fn`, `struct`, `mod`, `use`              |
+|          **Swift**          |   `ts_swift.py`    | `class`, `struct`, `func`, `import`       |
+|          **Dart**           |    `ts_dart.py`    | `class`, `void`, `import`                 |
+|           **PHP**           |    `ts_php.py`     | `class`, `function`, `namespace`, `use`   |
+|          **Ruby**           |    `ts_ruby.py`    | `class`, `def`, `module`, `require`       |
 
 #### ⚙️ Config Parsers (`core/parser/config/`)
 
-| 형식 | 파서 | 용도 |
-|:---:|:---:|---|
-| **Gradle** | `gradle_parser.py` | Android / Spring 의존성, 빌드 설정 추출 |
-| **JSON** | `json_parser.py` | `package.json` 등 패키지 메타데이터 파싱 |
-| **YAML** | `yaml_parser.py` | Docker Compose, CI/CD 설정 추출 |
-| **XML** | `xml_parser.py` | `pom.xml`, `AndroidManifest.xml` 파싱 |
-| **SQL** | `sql_parser.py` | DB 스키마 및 테이블 구조 추출 |
+|    형식    |        파서        | 용도                                     |
+| :--------: | :----------------: | ---------------------------------------- |
+| **Gradle** | `gradle_parser.py` | Android / Spring 의존성, 빌드 설정 추출  |
+|  **JSON**  |  `json_parser.py`  | `package.json` 등 패키지 메타데이터 파싱 |
+|  **YAML**  |  `yaml_parser.py`  | Docker Compose, CI/CD 설정 추출          |
+|  **XML**   |  `xml_parser.py`   | `pom.xml`, `AndroidManifest.xml` 파싱    |
+|  **SQL**   |  `sql_parser.py`   | DB 스키마 및 테이블 구조 추출            |
 
 > 지원되지 않는 확장자는 기본 메타데이터 추출기(Fallback)로 처리되어 분석이 중단되지 않습니다.
 
@@ -214,7 +214,7 @@ GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지, 총 1
 
 - Docker & Docker Compose
 - OpenAI API Key
-- Groq API Key *(선택, 무료 티어 제공)*
+- Groq API Key _(선택, 무료 티어 제공)_
 
 ### Installation
 
@@ -262,6 +262,6 @@ ChatFolio/
 
 **EJ-pro** · [GitHub](https://github.com/EJ-pro/ChatFolio)
 
-*ChatFolio — 코드를 읽는 시간을, 만드는 시간으로.*
+_ChatFolio — 코드를 읽는 시간을, 만드는 시간으로._
 
 </div>
