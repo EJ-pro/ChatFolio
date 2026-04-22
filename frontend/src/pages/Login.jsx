@@ -30,7 +30,64 @@ function Login() {
         </div>
 
         <h1 className="text-3xl font-extrabold text-white mb-2">ChatFolio</h1>
-        <p className="text-slate-400 mb-10">당신의 레포지토리를 가장 완벽하게 분석하는 방법</p>
+        <p className="text-slate-400 mb-6">당신의 레포지토리를 가장 완벽하게 분석하는 방법</p>
+
+        <div className="mb-10 w-full space-y-6">
+          {/* Languages */}
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="h-px flex-1 bg-slate-700/50"></div>
+              <span className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Supported Languages</span>
+              <div className="h-px flex-1 bg-slate-700/50"></div>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { name: "Python", icon: "python/python-original.svg" },
+                { name: "JavaScript", icon: "javascript/javascript-original.svg" },
+                { name: "TypeScript", icon: "typescript/typescript-original.svg" },
+                { name: "Java", icon: "java/java-original.svg" },
+                { name: "Kotlin", icon: "kotlin/kotlin-original.svg" },
+                { name: "C", icon: "c/c-original.svg" },
+                { name: "C++", icon: "cplusplus/cplusplus-original.svg" },
+                { name: "C#", icon: "csharp/csharp-original.svg" },
+                { name: "Go", icon: "go/go-original.svg" },
+                { name: "Rust", icon: "rust/rust-original.svg" },
+                { name: "Swift", icon: "swift/swift-original.svg" },
+                { name: "PHP", icon: "php/php-original.svg" },
+                { name: "Ruby", icon: "ruby/ruby-original.svg" },
+                { name: "Dart", icon: "dart/dart-original.svg" },
+              ].map((lang) => (
+                <div key={lang.name} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/60 rounded-lg border border-white/5 hover:border-blue-500/50 hover:text-blue-400 transition-colors cursor-default">
+                  <img src={`https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/${lang.icon}`} alt={lang.name} className="w-4 h-4" onError={(e) => { e.target.style.display = 'none' }} />
+                  <span className="text-[10px] font-bold text-slate-300 tracking-wider uppercase">{lang.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Config Formats */}
+          <div>
+            <div className="flex items-center gap-4 mb-4">
+              <div className="h-px flex-1 bg-slate-700/50"></div>
+              <span className="text-[10px] text-purple-400 font-bold uppercase tracking-widest">Config Formats</span>
+              <div className="h-px flex-1 bg-slate-700/50"></div>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2">
+              {[
+                { name: "JSON", icon: "json/json-original.svg" },
+                { name: "YAML", icon: "yaml/yaml-original.svg" },
+                { name: "XML", icon: "xml/xml-original.svg" },
+                { name: "Gradle", icon: "gradle/gradle-original.svg" },
+                { name: "SQL", icon: "mysql/mysql-original.svg" },
+              ].map((lang) => (
+                <div key={lang.name} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-900/60 rounded-lg border border-white/5 hover:border-purple-500/50 hover:text-purple-400 transition-colors cursor-default">
+                  <img src={`https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/${lang.icon}`} alt={lang.name} className="w-4 h-4" onError={(e) => { e.target.style.display = 'none' }} />
+                  <span className="text-[10px] font-bold text-slate-300 tracking-wider uppercase">{lang.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
         <button
           onClick={handleGithubLogin}
