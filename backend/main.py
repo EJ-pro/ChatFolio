@@ -15,7 +15,7 @@ from core.parser.github_fetcher import GitHubFetcher
 from core.parser.factory import get_parser_result
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
-from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry
+from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry, ProjectInsight
 from database.database import get_db, SessionLocal
 from api.auth import router as auth_router, get_current_user
 
@@ -186,14 +186,35 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 all_files = {}
                 all_meta = {}
                 
+                # 인사이트 집계용 데이터
+                lang_counts = {}
+                detected_frameworks = set()
+                used_parsers = set()
+                
                 for path, content in file_generator:
                     all_files[path] = content
                     
                     # 통합 파서 팩토리를 통해 메타데이터 추출
                     meta = get_parser_result(path, content)
                     
-                    # 그래프 분석용 데이터 수집 (확장자 기반)
-                    if path.endswith(('.kt', '.kts', '.java', '.py', '.js', '.ts', '.jsx', '.tsx', '.cpp', '.c', '.h', '.cc')):
+                    # 인사이트 집계 로직
+                    parsed_data = meta.get("metadata_json", {}).get("parsed", {})
+                    if "language" in parsed_data:
+                        lang = parsed_data["language"]
+                        lang_counts[lang] = lang_counts.get(lang, 0) + 1
+                        used_parsers.add(f"{lang.title()} Parser")
+                    elif "type" in parsed_data:
+                        config_type = parsed_data["type"]
+                        used_parsers.add(f"{config_type.title()} Config Parser")
+                        
+                    # 프레임워크/자격 요건 감지 (is_ 계열 boolean 플래그 추출)
+                    for key, val in parsed_data.items():
+                        if key.startswith("is_") and val is True:
+                            framework_name = key.replace("is_", "").replace("_", " ").title()
+                            detected_frameworks.add(framework_name)
+                    
+                    # 그래프 분석용 데이터 수집 (주요 언어 대상)
+                    if path.endswith(('.kt', '.kts', '.java', '.py', '.js', '.ts', '.jsx', '.tsx', '.cpp', '.c', '.h', '.cc', '.go', '.rs', '.swift', '.rb', '.php', '.cs', '.dart')):
                         all_meta[path] = meta
                     
                     line_count = meta.get("line_count", 0)
@@ -211,6 +232,31 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                         metadata_json=metadata_json
                     )
                     db_session.add(new_file)
+                
+                # --- [Project Insight DB 저장] ---
+                q.put("💡 프로젝트 인사이트 도출 중...")
+                main_language = max(lang_counts, key=lang_counts.get) if lang_counts else "Unknown"
+                
+                insight_summary = f"주 언어: {main_language.title()}"
+                if detected_frameworks:
+                    insight_summary += f" | 감지된 기술/환경: {', '.join(detected_frameworks)}"
+                
+                tech_stack_json = {
+                    "main_language": main_language,
+                    "language_distribution": lang_counts,
+                    "frameworks": list(detected_frameworks),
+                    "used_parsers": list(used_parsers)
+                }
+
+                # 기존 인사이트 덮어쓰기
+                db_session.query(ProjectInsight).filter(ProjectInsight.project_id == project.id).delete()
+                
+                insight = ProjectInsight(
+                    project_id=project.id,
+                    tech_stack=tech_stack_json,
+                    summary=insight_summary
+                )
+                db_session.add(insight)
                 
                 # 4. 의존성 그래프 분석
                 q.put("📊 의존성 그래프 분석 중...")
@@ -479,8 +525,11 @@ async def get_user_projects(db: Session = Depends(get_db), current_user: User = 
     
     result = []
     for p in projects:
-        # 각 프로젝트의 최신 세션 가져오기
+        # 각 프로젝트의 최신 세션 및 인사이트 가져오기
         latest_session = db.query(ChatSession).filter(ChatSession.project_id == p.id).order_by(ChatSession.created_at.desc()).first()
+        insight = p.insight
+        tech_stack = insight.tech_stack if insight else None
+
         result.append({
             "id": p.id,
             "repo_url": p.repo_url,
@@ -488,7 +537,8 @@ async def get_user_projects(db: Session = Depends(get_db), current_user: User = 
             "last_commit_hash": p.last_commit_hash,
             "last_commit_message": p.last_commit_message,
             "created_at": p.created_at,
-            "latest_session_id": latest_session.id if latest_session else None
+            "latest_session_id": latest_session.id if latest_session else None,
+            "tech_stack": tech_stack
         })
         
     return result
