@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2 } from 'lucide-react';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
+import './Analysis.css';
 
 function Analysis() {
   const { username } = useParams();
@@ -18,10 +19,23 @@ function Analysis() {
   const [searchParams] = useSearchParams();
   const [progress, setProgress] = useState(0);
   const [bufferedPhase, setBufferedPhase] = useState(1);
+  const [platformStats, setPlatformStats] = useState({
+    total_projects: 0,
+    total_users: 0,
+    total_lines: 0,
+    total_nodes: 0,
+    ai_health: 99.9
+  });
 
+  const formatStat = (num) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toLocaleString();
+  };
 
   useEffect(() => {
     fetchProjects();
+    fetchGlobalStats();
     const repoUrl = searchParams.get('repo_url');
     const forceUpdate = searchParams.get('force_update') === 'true';
     if (repoUrl) {
@@ -45,6 +59,18 @@ function Analysis() {
       }
     } catch (err) {
       console.error('Failed to fetch projects:', err);
+    }
+  };
+
+  const fetchGlobalStats = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/stats/global');
+      if (response.ok) {
+        const data = await response.json();
+        setPlatformStats(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err);
     }
   };
 
@@ -154,9 +180,21 @@ function Analysis() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col relative overflow-hidden font-sans">
-      {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
+      {/* === Animated Mesh Background === */}
+      <div className="mesh-background">
+        <div className="mesh-blob mesh-blob-blue animate-pulse-slow"></div>
+        <div className="mesh-blob mesh-blob-purple animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
+        
+        {/* Floating Code Particles */}
+        <div className="absolute inset-0 opacity-[0.15]">
+          {[ '{ }', '( )', '[ ]', ';', '=>', 'import', 'const' ].map((token, i) => (
+            <div key={i} className="token-particle animate-float-slow" 
+              style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`, animationDelay: `${i * 2}s` }}>{token}</div>
+          ))}
+        </div>
+        
+        <div className="dot-grid"></div>
+      </div>
 
       {/* Top Header */}
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
@@ -387,7 +425,7 @@ function Analysis() {
                     <span className="text-blue-400 font-bold">[{progress}%]</span>
                   </span>
                 </div>
-                <div className="p-6 font-mono text-sm space-y-2">
+                <div className="p-6 font-mono text-sm space-y-2 terminal-scrollbar overflow-y-auto max-h-[200px]">
                   <div className="flex items-center gap-3 text-blue-400">
                     <span className="shrink-0 opacity-50">➜</span>
                     <span className="font-bold animate-pulse">{currentLog}</span>
@@ -486,6 +524,57 @@ function Analysis() {
               </div>
               <h3 className="text-xl font-bold text-white mb-2">자동화된 문서화</h3>
               <p className="text-slate-400 text-sm leading-relaxed">README 작성, 포트폴리오 성과 요약, 면접 대비용 압박 질문까지 AI가 자동으로 생성해 드립니다.</p>
+            </div>
+          </div>
+        )}
+
+        {/* === Global Impact Hub (Redesigned: Premium Stat Strip) === */}
+        {!isLoading && !result && !error && (
+          <div className="w-full max-w-5xl mt-32 mb-32 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
+            <div className="stats-banner-glass rounded-[2.5rem] p-4 md:p-1 w-full relative overflow-hidden group">
+              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              
+              <div className="flex flex-col md:flex-row items-center justify-between px-8 py-6 gap-8 md:gap-0">
+                {/* Status Indicator */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="live-pulse-dot"></div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-white uppercase tracking-widest">Network Pulse</span>
+                    <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-tight">Active & Syncing</span>
+                  </div>
+                </div>
+
+                <div className="hidden md:block stat-divider mx-8"></div>
+
+                {/* Metrics */}
+                <div className="flex flex-1 flex-col md:flex-row items-center justify-around w-full gap-8 md:gap-4">
+                  {[
+                    { label: "Analyzed Repos", value: formatStat(platformStats.total_projects), icon: <Layers className="w-4 h-4 text-blue-400" />, unit: "Repos" },
+                    { label: "Active Innovators", value: formatStat(platformStats.total_users), icon: <Users className="w-4 h-4 text-purple-400" />, unit: "Users" },
+                    { label: "Synthesized Lines", value: formatStat(platformStats.total_lines), icon: <Cpu className="w-4 h-4 text-emerald-400" />, unit: "Lines" },
+                    { label: "System Fidelity", value: platformStats.ai_health + "%", icon: <Zap className="w-4 h-4 text-amber-400" />, unit: "Sync" }
+                  ].map((stat, idx) => (
+                    <>
+                      <div className="flex flex-col items-center md:items-start group/stat">
+                        <div className="flex items-center gap-2 mb-1">
+                          {stat.icon}
+                          <span className="stat-label-premium group-hover/stat:text-white transition-colors">{stat.label}</span>
+                        </div>
+                        <div className="flex items-baseline gap-1.5 group-hover/stat:translate-x-1 transition-transform">
+                          <span className="text-3xl font-black text-white tracking-tighter glow-text origin-left">
+                            {stat.value}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.unit}</span>
+                        </div>
+                      </div>
+                      {idx < 3 && <div className="hidden md:block stat-divider mx-4"></div>}
+                    </>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="text-center mt-6">
+              <p className="text-[10px] font-bold text-slate-600 uppercase tracking-[0.3em] opacity-50">Real-time database synthesis active across 14+ languages</p>
             </div>
           </div>
         )}

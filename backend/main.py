@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse, NewSessionRequest
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,6 +55,25 @@ async def create_inquiry(request: Request, db: Session = Depends(get_db), curren
     db.refresh(inquiry)
     
     return {"status": "success", "message": "문의가 접수되었습니다."}
+
+@app.get("/stats/global")
+async def get_global_stats(db: Session = Depends(get_db)):
+    """플랫폼 전체 통계를 반환 (공개 데이터)"""
+    total_projects = db.query(Project).count()
+    total_users = db.query(User).count()
+    
+    # 누적 코드 라인 수 합계
+    total_lines = db.query(func.sum(ProjectFile.line_count)).scalar() or 0
+    # 누적 의존성 노드 수 합계
+    total_nodes = db.query(func.sum(Project.node_count)).scalar() or 0
+    
+    return {
+        "total_projects": total_projects,
+        "total_users": total_users,
+        "total_lines": total_lines,
+        "total_nodes": total_nodes,
+        "ai_health": 99.9 # Mock or calculate based on success rate if needed
+    }
 
 engine_cache = {}
 

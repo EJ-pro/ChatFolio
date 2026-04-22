@@ -102,11 +102,28 @@ class ReadmeAgent:
         print("🔍 [Analyzer] 분석 시작...")
         cheap_llm = self._get_cheap_llm()
         try:
-            system_prompt = "당신은 프로젝트 분석 전문가입니다. 주어진 프로젝트 컨텍스트를 분석하여 핵심 아키타입을 분류하고 리포트를 JSON으로 작성하세요."
+            system_prompt = "당신은 프로젝트 분석 전문가입니다. 주어진 프로젝트 컨텍스트를 분석하여 핵심 아키타입을 분류하고 요약 리포트를 JSON으로 작성하세요."
             user_prompt = f"""
             [Context]
             {state['project_context']}
+
+            위 프로젝트를 분석하여 다음 형식을 지켜 응답하세요:
+            {{
+              "archetype": "Backend, Frontend, Fullstack, Library, Script 등 택 1",
+              "summary": "프로젝트의 목적과 핵심 기능 요약"
+            }}
+            """
             
+            response = cheap_llm.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ])
+            
+            content = self._extract_json(response.content)
+            res = json.loads(content)
+            
+            return {
+                "archetype": res.get("archetype", "General"),
                 "analysis_report": res.get("summary", "분석 완료"),
                 "iteration_count": 0
             }
