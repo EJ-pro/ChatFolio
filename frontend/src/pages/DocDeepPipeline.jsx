@@ -28,11 +28,11 @@ export default function DocDeepPipeline() {
     },
     {
       id: "cache",
-      title: "증분 업데이트 검사",
+      title: "코드 업데이트 검사",
       icon: <Search size={22} />,
       color: "#0ea5e9",
       file: "main.py",
-      desc: "분석 이력 대조 및 캐싱 전략 결정",
+      desc: "코드 업데이트 이력 대조 및 캐싱 전략 결정",
       tech: ["PostgreSQL", "SHA-256"],
       details: {
         payload: { last_commit: "a1b2c3d...", is_updated: true },
@@ -82,7 +82,7 @@ export default function DocDeepPipeline() {
       title: "파서 팩토리 라우팅",
       icon: <Terminal size={22} />,
       color: "#10b981",
-      file: "factory.py",
+      file: "core/parser/factory.py",
       desc: "언어별 최적화 분석기 할당",
       tech: ["Factory Pattern"],
       details: {
@@ -99,15 +99,15 @@ export default function DocDeepPipeline() {
       title: "AST 심층 구문 분석",
       icon: <FileCode2 size={22} />,
       color: "#84cc16",
-      file: "parsers/*_parser.py",
-      desc: "구문 트리를 통한 논리 구조 추출",
-      tech: ["Abstract Syntax Tree", "Parser"],
+      file: "core/parser/lang/*.py",
+      desc: "Native AST 및 Regex 엔진 기반 구조 추출",
+      tech: ["Native AST (Python)", "Regex Engine (JS/JAVA/KT)"],
       details: {
         payload: { classes: ["Auth"], functions: ["login"] },
         actions: [
-          "코드 내 클래스, 함수, 네임스페이스 선언부 식별",
-          "데코레이터, 반환 타입, 인자 등 세부 메타데이터 수집",
-          "코드 가독성 향상을 위한 핵심 주석 및 문서화 주석 분석"
+          "Python 내장 ast 모듈 및 언어별 정규표현식 엔진을 활용한 고속 메타데이터 추출",
+          "클래스, 함수, 네임스페이스 및 Import 구문의 정확한 식별 및 정규화",
+          "도커 컨테이너 환경에서의 OS 종속성 제거 및 런타임 안정성 확보"
         ]
       }
     },
@@ -133,15 +133,15 @@ export default function DocDeepPipeline() {
       title: "의존성 네트워크 구축",
       icon: <Share2 size={22} />,
       color: "#f97316",
-      file: "graph_builder.py",
-      desc: "파일 간 상호 참조 관계 정립",
-      tech: ["NetworkX", "Directed Graph"],
+      file: "core/graph/graph_builder.py",
+      desc: "Resolver Factory 기반 상호 참조 관계 정립",
+      tech: ["Resolver Factory", "Language Resolvers", "NetworkX"],
       details: {
         payload: "nx.DiGraph(nodes=89, edges=234)",
         actions: [
-          "추출된 'Imports' 정보를 프로젝트 파일 경로로 맵핑",
-          "방향성 엣지(Edge) 연결을 통한 전역 의존성 트리 형성",
-          "수평적/수직적 모듈 의존 복잡도 계산"
+          "ResolverFactory를 통한 언어별 맞춤형 리졸버(PythonResolver, JSResolver 등) 배정",
+          "Import 구문의 점 표기법, 상대 경로 등을 실제 파일 시스템 경로로 정규화 매핑",
+          "NetworkX DiGraph 기반의 전역 모듈 의존성 네트워크 및 토폴로지 구성"
         ]
       }
     },

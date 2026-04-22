@@ -14,7 +14,6 @@ import DashboardLayout from './components/DashboardLayout';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import FAQ from './pages/FAQ';
-import DocPipeline from './pages/DocPipeline';
 import DocDeepPipeline from './pages/DocDeepPipeline';
 
 // 인증 가드 컴포넌트
@@ -104,8 +103,7 @@ function App() {
         <Route path="/faq" element={<FAQ />} />
         
         {/* 문서 페이지 */}
-        <Route path="/doc" element={<DocPipeline />} />
-        <Route path="/doc/DeepPipeline" element={<DocDeepPipeline />} />
+        <Route path="/doc" element={<DocDeepPipeline />} />
       </Routes>
     </Router>
   );
