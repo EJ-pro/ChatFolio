@@ -1,54 +1,76 @@
 import networkx as nx
+import os
+from .resolvers.factory import ResolverFactory
 
 class DependencyGraphBuilder:
     def __init__(self):
-        self.graph = nx.DiGraph() # 방향성이 있는 그래프
+        self.graph = nx.DiGraph()
 
     def build_graph(self, files_meta: dict):
         """
-        files_meta: { "path/to/File.kt": {"metadata_json": {"parsed": {"imports": [], "classes": []}}} }
+        언어별 전용 리졸버(Resolver)를 사용하여 엣지 탐지 정확도를 극대화한 그래프를 구축합니다.
         """
-        package_map = {}
+        # 1. 전역 인덱스 생성
+        full_path_map = {}
         basename_map = {}
+        entity_map = {}
         
         for path, meta in files_meta.items():
             parsed = meta.get("metadata_json", {}).get("parsed", {})
-            file_name = path.split("/")[-1]
-            base_name = file_name.split(".")[0] # 확장자 제외
+            full_path_map[path] = path
             
-            basename_map[base_name] = path
-            self.graph.add_node(path, label=file_name, type="file")
+            filename = os.path.basename(path)
+            base = os.path.splitext(filename)[0]
+            basename_map[base] = path
             
+            self.graph.add_node(path, label=filename, type="file")
+            
+            # Java/Kotlin 패키지 & 클래스
             pkg = parsed.get("package", "")
             for cls in parsed.get("classes", []):
                 cls_name = cls.get("name", "") if isinstance(cls, dict) else cls
-                if pkg:
-                    package_map[f"{pkg}.{cls_name}"] = path
-                package_map[cls_name] = path # 패키지 없이 쌩 클래스명만 있는 경우
+                if cls_name:
+                    if pkg:
+                        entity_map[f"{pkg}.{cls_name}"] = path
+                    entity_map[cls_name] = path
+            
+            # Python 모듈 경로 유추 (폴더 구조 기반 다양한 깊이의 접미사 인덱싱)
+            py_module = path.replace("/", ".").replace("\\", ".")
+            if py_module.endswith(".py"):
+                py_module = py_module[:-3]
+                entity_map[py_module] = path
+                
+                parts = py_module.split(".")
+                for i in range(1, len(parts)):
+                    suffix_module = ".".join(parts[i:])
+                    if suffix_module not in entity_map:
+                        entity_map[suffix_module] = path
+            
+            # JS/TS 엔티티 (간단하게 파일명 등록)
+            if parsed.get("language") in ["javascript", "typescript"]:
+                entity_map[base] = path
 
-        # 2. Import 문을 분석하여 엣지(Edge, 화살표) 연결
+        # 2. 언어별 리졸버를 활용한 엣지(Edge) 연결
         for path, meta in files_meta.items():
             parsed = meta.get("metadata_json", {}).get("parsed", {})
-            
-            # 파이썬, JS/TS 등 대부분의 언어가 imports 리스트를 가지고 있음
+            language = parsed.get("language", "generic")
             imports = parsed.get("imports", [])
+            
+            # 해당 언어 전용 리졸버 획득
+            resolver = ResolverFactory.get_resolver(
+                language, 
+                full_path_map, 
+                basename_map, 
+                entity_map
+            )
+            
             for imp in imports:
-                target_path = None
+                result = resolver.resolve(path, imp)
+                target_paths = result if isinstance(result, list) else [result]
                 
-                # 1) 패키지 매핑 (자바/코틀린 등)
-                if imp in package_map:
-                    target_path = package_map[imp]
-                else:
-                    # 2) 파일명 기반 매핑 (JS/TS의 상대경로, Python의 모듈 임포트 등)
-                    imp_basename = imp.split("/")[-1].split(".")[0]
-                    # Python의 경우 from backend.database import models 처럼 마지막이 대상
-                    imp_basename = imp_basename.split(".")[-1]
-                    
-                    if imp_basename in basename_map:
-                        target_path = basename_map[imp_basename]
-                
-                if target_path and target_path != path:
-                    self.graph.add_edge(path, target_path, relationship="DEPENDS_ON")
+                for target_path in target_paths:
+                    if target_path and target_path != path:
+                        self.graph.add_edge(path, target_path, relationship="DEPENDS_ON")
 
         return self.graph
 
