@@ -1,110 +1,204 @@
-# 🚀 ChatFolio
-> "AI 기반 지능형 레포지토리 분석 및 자동 문서화 플랫폼" <br/>
-> 복잡한 코드베이스의 의존성을 한눈에 파악하고, AI와 대화하며, 클릭 한 번으로 고품질 README를 생성하세요.
+<div align="center">
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
-![React](https://img.shields.io/badge/React-18.x-61DAFB.svg?logo=react)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.95-009688.svg?logo=fastapi)
-![LangChain](https://img.shields.io/badge/LangChain-Python-green.svg)
-![License](https://img.shields.io/badge/license-MIT-green.svg)
+<img src="doc/logo.png" alt="ChatFolio Logo" width="120" />
+
+# ChatFolio
+
+**AI 기반 지능형 레포지토리 분석 · 자동 문서화 플랫폼**
+
+GitHub URL 하나로 코드 의존성을 시각화하고, AI와 대화하며, 고품질 README를 자동 생성합니다.
+
+<br/>
+
+[![Version](https://img.shields.io/badge/version-1.0.0-6366f1?style=for-the-badge)](https://github.com/EJ-pro/ChatFolio)
+[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=white)](https://react.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.95-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![LangGraph](https://img.shields.io/badge/LangGraph-Multi--Agent-FF6B6B?style=for-the-badge)](https://langchain-ai.github.io/langgraph)
+[![License](https://img.shields.io/badge/License-MIT-22c55e?style=for-the-badge)](LICENSE)
 
 <br/>
 
-## 📝 목차
-1. [프로젝트 소개](#-프로젝트-소개)
-2. [주요 기능](#-주요-기능-key-features)
-3. [기술 스택](#-기술-스택-tech-stack)
-4. [화면 구성 및 사용법](#-화면-구성-및-사용법-usage)
-5. [시작하기](#-시작하기-getting-started)
-6. [폴더 구조](#-폴더-구조-directory-structure)
+[**🚀 시작하기**](#-시작하기-getting-started) · [**✨ 주요 기능**](#-주요-기능) · [**⚙️ 핵심 아키텍처**](#%EF%B8%8F-핵심-아키텍처) · [**📂 폴더 구조**](#-폴더-구조)
 
-<br/>
+</div>
+
+---
 
 ## 💡 프로젝트 소개
-새로운 오픈소스 프로젝트에 참여하거나 거대한 레거시 코드를 인수인계받을 때, 코드를 파악하는 것은 엄청난 시간이 소모되는 작업입니다. 
-**ChatFolio**는 GitHub 레포지토리를 연동하기만 하면 코드 간의 의존성 그래프(Dependency Graph)를 추출하고, 이를 기반으로 AI와 문답(RAG)하거나 고품질의 문서를 자동으로 작성해 주는 혁신적인 개발자 생산성 도구입니다.
+
+새로운 오픈소스에 합류하거나 방대한 레거시 코드를 인계받을 때, 코드 파악에 드는 비용은 상상 이상입니다.
+
+**ChatFolio**는 이 문제를 해결합니다. GitHub URL 하나만 입력하면:
+
+- 📊 수천 개의 파일 간 **의존성 그래프**를 자동 추출
+- 🤖 추출된 그래프를 기반으로 **AI 코드 챗봇**과 즉시 대화
+- 📝 프로젝트 정체성을 분석해 **고품질 README**를 멀티 에이전트가 자동 작성
+
+---
+
+## ✨ 주요 기능
+
+<table>
+  <tr>
+    <td width="50%">
+      <h3>🕸 아키텍처 시각화</h3>
+      <p><code>NetworkX</code>로 분석된 파일 간 의존성을 물리 시뮬레이션 기반 <code>react-force-graph</code>로 인터랙티브하게 렌더링합니다. 노드 크기로 핵심 파일을 즉시 파악할 수 있습니다.</p>
+    </td>
+    <td width="50%">
+      <h3>💬 AI 코드 챗봇 (RAG)</h3>
+      <p>의존성 그래프와 벡터 검색을 결합한 <strong>Hybrid RAG</strong>로 "이 클래스는 어디서 호출돼?"처럼 코드베이스에 대해 자연어로 질문하고 즉시 답변을 받습니다.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%">
+      <h3>📄 AI Auto-Docs</h3>
+      <p>단순 GPT 호출이 아닙니다. <strong>Analyzer → Router → Writer → Reviewer</strong>의 4단계 멀티 에이전트가 프로젝트를 스스로 이해하고 인간 수준의 README를 작성합니다.</p>
+    </td>
+    <td width="50%">
+      <h3>🔀 Hybrid LLM 엔진</h3>
+      <p>속도 중심의 <strong>Groq (Llama 3.3)</strong>와 품질 중심의 <strong>OpenAI (GPT-4o)</strong>를 탭 내에서 자유롭게 전환합니다. API 오류 시 폴백 모델로 자동 전환됩니다.</p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## ⚙️ 핵심 아키텍처
+
+### 1. AI Auto-Docs Multi-Agent Pipeline
+
+ChatFolio의 문서화 엔진은 LangGraph로 구성된 4단계 자율 에이전트 시스템입니다.
+
+```mermaid
+graph LR
+    A(📥 GitHub URL) --> B
+
+    subgraph Pipeline ["🤖 Multi-Agent Workflow"]
+        B[🔍 Analyzer\n프로젝트 정체성 식별] -->|아키타입 분류| C[🔀 Router\n최적 전략 수립]
+        C --> D[✍️ Writer\n마크다운 초안 작성]
+        D --> E{🕵️ Reviewer\n품질 검토}
+        E -->|수정 필요| D
+        E -->|승인| F
+    end
+
+    F(📄 Final README)
+```
+
+| 에이전트 | 역할 |
+|:---:|---|
+| **Analyzer** | 설정 파일 및 언어 분포를 스캔하여 프로젝트 아키타입(Backend / Mobile / ML 등)을 식별 |
+| **Router** | 식별된 아키타입에 따라 강조할 기술 스택과 섹션 구성을 결정 |
+| **Writer** | 의존성 그래프의 핵심 파일 스니펫을 바탕으로 마크다운 초안 작성 |
+| **Reviewer** | Getting Started 유효성, 기술적 정확도를 검토하고 Writer에 피드백 루프 실행 |
 
 <br/>
 
-## ✨ 주요 기능 (Key Features)
-- 🕸 **의존성 시각화 (Architecture Graph):** `NetworkX`로 분석된 코드 의존성을 물리 엔진 기반의 `react-force-graph`로 동적 렌더링하여 아키텍처를 한눈에 파악.
-- 💬 **AI 코드 챗봇 (RAG):** `LangChain`과 `OpenAI`를 활용하여 레포지토리의 구조와 비즈니스 로직에 대해 실시간으로 질문하고 답변 획득.
-- 📄 **원클릭 자동 문서화 (Auto-Docs):** 단순히 파일명만 읽는 것이 아니라, 가장 많이 참조된 핵심 파일(Degree Centrality 활용)의 코드를 읽어 비즈니스 로직을 추론한 고품질 `README.md` 자동 생성. 5가지 커스텀 템플릿 지원.
-- 🐳 **도커 기반 풀스택 컨테이너화:** FastAPI, React, PostgreSQL 환경을 `docker-compose` 하나로 완벽하게 구축.
+### 2. Dynamic Identity Inference (지능형 프로젝트 식별)
 
-<br/>
+URL 수집 단계부터 프로젝트의 정체성을 동적으로 파악합니다.
 
-## 🛠 기술 스택 (Tech Stack)
+```
+GitHub Repository
+      │
+      ├─ 📋 Manifest Discovery   ← package.json / build.gradle / requirements.txt 우선 탐색
+      │                              → "이건 Android 프로젝트구나"
+      │
+      ├─ 📊 Graph Centrality     ← NetworkX In-degree 분석
+      │                              → 가장 많이 참조된 파일 = 프로젝트 심장부
+      │
+      └─ 🔤 Language Weighting   ← 전체 파일 확장자 분포 계산
+                                     → .kt 90% → Kotlin 특화 분석 가이드 전달
+```
 
-### Frontend
-- **Framework:** React 18 (Vite)
-- **Styling:** TailwindCSS, Lucide-React
-- **State Management:** Zustand
-- **Visualization:** `react-force-graph-2d`, `react-markdown`
+---
 
-### Backend
-- **Framework:** FastAPI (Python 3.10+)
-- **AI/LLM:** LangChain, OpenAI GPT-4, NetworkX (Graph Analysis)
-- **Database:** PostgreSQL, SQLAlchemy (ORM)
+## 🛠 기술 스택
 
-### Infra & Tools
-- **Deployment:** Docker, Docker Compose
-- **Version Control:** Git
+<table>
+  <tr>
+    <th>영역</th>
+    <th>기술</th>
+  </tr>
+  <tr>
+    <td><strong>Frontend</strong></td>
+    <td>
+      React 18 (Vite) · Vanilla CSS · Zustand<br/>
+      react-force-graph-2d · react-markdown · Lucide React
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Backend</strong></td>
+    <td>
+      FastAPI (Python 3.10+) · LangGraph · LangChain<br/>
+      OpenAI GPT-4o · Groq Llama 3.3 · NetworkX
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Database</strong></td>
+    <td>PostgreSQL · SQLAlchemy ORM</td>
+  </tr>
+  <tr>
+    <td><strong>Infra</strong></td>
+    <td>Docker · Docker Compose</td>
+  </tr>
+</table>
 
-<br/>
-
-## 📱 화면 구성 및 사용법 (Usage)
-> 💡 ChatFolio의 주요 탭 기능 소개입니다.
-
-| 아키텍처 시각화 (Architecture) | 자동 문서화 (DocsTab) |
-| :---: | :---: |
-| <img src="doc/architecure.png" width="400"/> | <img src="doc/docstab.png" width="400"/> |
-| 노드 크기와 엣지 연결을 통해 가장 중요한 핵심 파일(Core Files)을 시각적으로 탐색합니다. | 템플릿을 선택하고 버튼을 누르면 AI가 레포지토리를 분석해 README 마크다운을 렌더링합니다. |
-
-<br/>
+---
 
 ## 🚀 시작하기 (Getting Started)
 
-### 1. 요구 사항 (Prerequisites)
-- Docker & Docker Compose
-- OpenAI API Key (LLM 분석용)
+### Prerequisites
 
-### 2. 설치 및 실행 (Installation)
+- Docker & Docker Compose
+- OpenAI API Key
+- Groq API Key *(선택, 무료 티어 제공)*
+
+### Installation
+
 ```bash
 # 1. 저장소 클론
-$ git clone https://github.com/EJ-pro/ChatFolio.git
-$ cd ChatFolio
+git clone https://github.com/EJ-pro/ChatFolio.git
+cd ChatFolio
 
 # 2. 환경 변수 설정
-# .env.sample 파일을 참고하여 .env 파일을 생성하고 OpenAI API Key를 입력하세요.
-$ cp .env.sample .env
+cp .env.sample .env
+# .env 파일을 열어 API Key를 입력합니다
 
-# 3. 도커 컴포즈 실행
-$ docker-compose up --build
+# 3. 실행
+docker-compose up --build
 ```
-> 서버가 실행되면 브라우저에서 `http://localhost` 로 접속하여 서비스를 이용할 수 있습니다!
 
-<br/>
+> ✅ 실행 후 브라우저에서 `http://localhost` 로 접속하세요.
 
-## 📂 폴더 구조 (Directory Structure)
-```text
+---
+
+## 📂 폴더 구조
+
+```
 ChatFolio/
- ├── backend/
- ┃    ├── core/           # RAG 엔진, Github 파서, 그래프 분석기
- ┃    ├── database/       # PostgreSQL 연결 세션 및 세팅
- ┃    ├── models/         # Pydantic 스키마 및 DB 엔티티
- ┃    └── main.py         # FastAPI 엔드포인트
- ├── frontend/
- ┃    ├── src/
- ┃    ┃    ├── pages/       # 분석 대시보드, RAG 채팅, 문서화 탭
- ┃    ┃    ├── components/  # 레이아웃, 공통 UI 컴포넌트
- ┃    ┃    └── store/       # Zustand 상태 관리 (Zustand)
- ┃    └── package.json
- ├── .env.sample          # 환경 변수 예시
- └── docker-compose.yml   # 컨테이너 오케스트레이션
+├── backend/
+│   ├── core/
+│   │   ├── rag/            # ChatFolioEngine, ReadmeAgent (Multi-Agent)
+│   │   ├── parser/         # GitHub Fetcher, AST 파서 (다국어 지원)
+│   │   └── graph/          # NetworkX 기반 의존성 그래프 빌더
+│   ├── database/           # PostgreSQL 세션 및 ORM 모델
+│   ├── models/             # Pydantic 스키마
+│   └── main.py             # FastAPI 엔드포인트
+├── frontend/
+│   └── src/
+│       ├── pages/          # Analysis, Chat, DocsTab, DocPipeline
+│       ├── components/     # 레이아웃, 공통 UI
+│       └── store/          # Zustand 전역 상태
+├── .env.sample
+└── docker-compose.yml
 ```
 
-<br/>
+---
 
-## 👨‍💻 기여 (Contact)
-- **EJ-pro** - [GitHub Repository](https://github.com/EJ-pro/ChatFolio)
+<div align="center">
+
+**EJ-pro** · [GitHub](https://github.com/EJ-pro/ChatFolio)
+
+*ChatFolio — 코드를 읽는 시간을, 만드는 시간으로.*
+
+</div>
