@@ -85,8 +85,14 @@ class ChatFolioEngine:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
 
         system_prompt = SystemMessage(content=f"""
-        당신은 숙련된 풀스택 소프트웨어 엔지니어이자 최고 수준의 코드 분석가입니다. 
-        다양한 프로그래밍 언어와 프레임워크에 정통하며, 주어진 코드베이스 컨텍스트를 바탕으로 사용자의 질문에 전문적이고 정확하게 답변합니다.
+        당신은 숙련된 풀스택 소프트웨어 엔지니어이자 코드 아키텍처 전문가입니다. 
+        사용자의 질문에 답변할 때 다음 지침을 엄격히 준수하십시오:
+        
+        1. **실제 구현 중심**: README.md나 문서의 요약본을 단순히 반복하지 마십시오. 반드시 제공된 소스 코드 파일({context_text[:50]}...)의 실제 로직을 분석하여 답변하십시오.
+        2. **구체적 근거 제시**: 답변 시 핵심 로직이 담긴 함수명, 클래스명, 혹은 특정 코드 패턴을 직접 언급하십시오.
+        3. **비판적 분석**: 문서와 실제 코드가 다르거나, 코드상에서 발견되는 아키텍처적 특징이 있다면 이를 바탕으로 깊이 있는 통찰을 제공하십시오.
+        4. **가독성**: 복잡한 로직은 단계별로 설명하거나 요약하여 제공하되, 기술적인 정확성을 유지하십시오.
+        
         {tech_context}
         """)
         

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X } from 'lucide-react';
+import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 function Chat() {
@@ -17,7 +17,22 @@ function Chat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [provider, setProvider] = useState('groq');
+  const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const messagesEndRef = useRef(null);
+
+  const models = {
+    groq: [
+      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', desc: 'Fast & Versatile' },
+      { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', desc: 'Large Context' },
+      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', desc: 'Ultra Fast' }
+    ],
+    openai: [
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise' },
+      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality AI' }
+    ]
+  };
 
 
   useEffect(() => {
@@ -87,10 +102,6 @@ function Chat() {
     setIsLoading(true);
     try {
       const token = localStorage.getItem('token');
-      // 현재 세션의 provider, model_name을 가져오기 위해 sessions 배열 참조 (최근 세션 기준)
-      const currentSessionDetails = sessions.find(s => s.session_id === sessionId);
-      const provider = currentSessionDetails?.provider || "groq";
-      const modelName = currentSessionDetails?.model_name || "llama-3.3-70b-versatile";
 
       const response = await fetch('http://localhost:8000/chat/session/new', {
         method: 'POST',
@@ -135,15 +146,26 @@ function Chat() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ session_id: sessionId, query: input })
+        body: JSON.stringify({ 
+          session_id: sessionId, 
+          query: input,
+          provider: provider,
+          model_name: modelName
+        })
       });
 
       if (!response.ok) {
         throw new Error('대화 중 오류가 발생했습니다.');
       }
 
+
       const data = await response.json();
-      setMessages(prev => [...prev, { role: 'assistant', content: data.answer }]);
+      setMessages(prev => [...prev, { 
+        role: 'assistant', 
+        content: data.answer,
+        sources: data.sources,
+        graph_trace: data.graph_trace
+      }]);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다: ' + err.message }]);
     } finally {
@@ -167,6 +189,59 @@ function Chat() {
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden ml-2 p-2 text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
+        </div>
+        
+        {/* Model Selector in Sidebar */}
+        <div className="p-4 border-b border-slate-800">
+          <div className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 px-1">AI Engine</div>
+          <div className="relative">
+            <button 
+              onClick={() => setIsModelMenuOpen(!isModelMenuOpen)}
+              className="w-full flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`p-1.5 rounded-lg ${provider === 'openai' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
+                  {provider === 'openai' ? <Sparkles size={14} /> : <Zap size={14} />}
+                </div>
+                <div className="text-left">
+                  <div className="text-xs font-bold text-slate-200">{models[provider].find(m => m.id === modelName)?.name}</div>
+                  <div className="text-[10px] text-slate-500">{provider === 'openai' ? 'OpenAI Pro' : 'Groq Free'}</div>
+                </div>
+              </div>
+              <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isModelMenuOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-2 border-b border-slate-800 flex gap-1">
+                  {['groq', 'openai'].map(p => (
+                    <button
+                      key={p}
+                      onClick={(e) => { e.stopPropagation(); setProvider(p); setModelName(models[p][0].id); }}
+                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${provider === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="max-h-48 overflow-y-auto custom-scrollbar p-1">
+                  {models[provider].map(m => (
+                    <button
+                      key={m.id}
+                      onClick={(e) => { e.stopPropagation(); setModelName(m.id); setIsModelMenuOpen(false); }}
+                      className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between group ${modelName === m.id ? 'bg-blue-600/10' : 'hover:bg-slate-800'}`}
+                    >
+                      <div>
+                        <div className={`text-xs font-bold ${modelName === m.id ? 'text-blue-400' : 'text-slate-300'}`}>{m.name}</div>
+                        <div className="text-[10px] text-slate-500">{m.desc}</div>
+                      </div>
+                      {modelName === m.id && <Check size={12} className="text-blue-400" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
         
         <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
@@ -231,6 +306,26 @@ function Chat() {
                   : 'bg-slate-800/80 backdrop-blur-sm text-slate-200 border border-slate-700/50 rounded-tl-none'
               }`}>
                 {msg.content}
+                
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-700/50">
+                    <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
+                      <Link className="w-3 h-3" /> References
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.sources.map((src, sidx) => (
+                        <div 
+                          key={sidx}
+                          className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-[11px] text-slate-400 hover:text-blue-400 hover:border-blue-500/30 transition-all cursor-default group"
+                        >
+                          <FileText className="w-3 h-3 text-slate-500 group-hover:text-blue-400" />
+                          <span className="max-w-[120px] truncate">{src.path.split('/').pop()}</span>
+                          <span className="text-[9px] px-1 bg-slate-800 rounded text-slate-600 group-hover:text-blue-500/50">{src.reason === 'Vector Similarity' ? 'RAG' : 'Graph'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>

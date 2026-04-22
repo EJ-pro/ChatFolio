@@ -458,6 +458,81 @@ async def create_new_chat_session(request: NewSessionRequest, db: Session = Depe
         "message": "새로운 채팅 세션이 생성되었습니다."
     }
 
+@app.post("/chat")
+async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
+    query = request.query
+    
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        
+    project = chat_session.project
+    if not project:
+        raise HTTPException(status_code=404, detail="관련 프로젝트를 찾을 수 없습니다.")
+
+    # 1. 엔진 가져오기 또는 로드
+    engine = engine_cache.get(session_id)
+    
+    # 모델 변경 요청이 있거나 캐시된 엔진이 없는 경우 새로 생성
+    need_new_engine = False
+    if engine:
+        if request.provider and engine.provider != request.provider:
+            need_new_engine = True
+        if request.model_name and engine.model_name != request.model_name:
+            need_new_engine = True
+            
+    if not engine or need_new_engine:
+        graph = nx.node_link_graph(project.graph_data)
+        all_project_files = {f.file_path: f.content for f in project.files}
+        tech_stack = project.insight.tech_stack if project.insight else None
+        
+        engine = ChatFolioEngine(
+            all_project_files, 
+            graph, 
+            tech_stack=tech_stack,
+            provider=request.provider or chat_session.provider, 
+            model_name=request.model_name or chat_session.model_name
+        )
+        engine_cache[session_id] = engine
+    
+    try:
+        # 2. 질문 저장
+        user_message = ChatMessage(
+            session_id=session_id,
+            role="user",
+            content=query
+        )
+        db.add(user_message)
+        
+        # 3. RAG 엔진 실행
+        result = engine.ask(query)
+        answer = result.get("answer", "죄송합니다. 답변을 생성하지 못했습니다.")
+        sources = result.get("sources", [])
+        
+        # 4. 답변 저장
+        assistant_message = ChatMessage(
+            session_id=session_id,
+            role="assistant",
+            content=answer,
+            sources=sources
+        )
+        db.add(assistant_message)
+        db.commit()
+        
+        return {
+            "answer": answer,
+            "sources": sources,
+            "graph_trace": result.get("graph_trace", [])
+        }
+    except Exception as e:
+        db.rollback()
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.post("/generate/diagram", response_model=DiagramResponse)
 async def generate_architecture_diagram(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     session_id = request.session_id
