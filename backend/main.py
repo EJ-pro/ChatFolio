@@ -390,15 +390,34 @@ async def get_project_chat_sessions(project_id: int, db: Session = Depends(get_d
     if project.user_id != current_user.id:
         raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
         
-    sessions = db.query(ChatSession).filter(ChatSession.project_id == project_id).order_by(ChatSession.created_at.desc()).all()
+    sessions = db.query(ChatSession).filter(
+        ChatSession.project_id == project_id,
+        ChatSession.is_deleted == 0
+    ).order_by(ChatSession.created_at.desc()).all()
+    
     return [
         {
             "session_id": s.id,
+            "title": s.title,
             "provider": s.provider,
             "model_name": s.model_name,
             "created_at": s.created_at
         } for s in sessions
     ]
+
+@app.delete("/chat/session/{session_id}")
+async def delete_chat_session(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+    if chat_session.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+    
+    # Soft delete
+    chat_session.is_deleted = 1
+    db.commit()
+    
+    return {"status": "success", "message": "채팅 세션이 성공적으로 삭제되었습니다."}
 
 @app.get("/chat/history/{session_id}")
 async def get_chat_history(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -520,6 +539,16 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
             sources=sources
         )
         db.add(assistant_message)
+
+        # 5. 첫 질문인 경우 제목 요약
+        is_first_msg = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).count() == 1 # 방금 add한 user_message만 있어야함
+        if is_first_msg:
+            try:
+                new_title = engine.summarize_title(query)
+                chat_session.title = new_title
+            except Exception as e:
+                print(f"Title summarization failed: {e}")
+
         db.commit()
         
         return {

@@ -127,6 +127,41 @@ function Chat() {
       setIsLoading(false);
     }
   };
+  const handleDeleteSession = async (e, sid) => {
+    e.stopPropagation(); // 세션 선택 클릭 방지
+    if (!window.confirm("이 채팅을 목록에서 삭제하시겠습니까?")) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:8000/chat/session/${sid}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (response.ok) {
+        // 현재 열려있는 세션이면 다른 세션으로 이동하거나 초기화
+        if (sid === sessionId) {
+          setMessages([{ role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }]);
+          setSessionId(null);
+          sessionStorage.removeItem('last_session_id');
+          navigate('.', { state: { ...location.state, sessionId: null }, replace: true });
+        }
+        // 리스트 새로고침
+        if (currentProjectId) {
+          const siblingRes = await fetch(`http://localhost:8000/chat/sessions/${currentProjectId}`, { 
+            headers: { 'Authorization': `Bearer ${token}` } 
+          });
+          if (siblingRes.ok) {
+            const siblingData = await siblingRes.json();
+            setSessions(siblingData);
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("삭제 중 오류가 발생했습니다.");
+    }
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -249,27 +284,36 @@ function Chat() {
             Recent Chats
           </div>
           {sessions.map((s) => (
-            <button
-              key={s.session_id}
-              onClick={() => {
-                setSessionId(s.session_id);
-                navigate('.', { state: { ...location.state, sessionId: s.session_id }, replace: true });
-                if (window.innerWidth < 1024) setIsSidebarOpen(false);
-              }}
-              className={`w-full text-left px-3 py-3 rounded-xl flex items-start gap-3 transition-colors ${
-                s.session_id === sessionId 
-                  ? 'bg-blue-600/10 text-blue-400' 
-                  : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
-              <div className="overflow-hidden">
-                <div className="text-sm truncate font-medium">Chat Session</div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  {new Date(s.created_at).toLocaleDateString()}
+            <div key={s.session_id} className="group relative">
+              <button
+                onClick={() => {
+                  setSessionId(s.session_id);
+                  navigate('.', { state: { ...location.state, sessionId: s.session_id }, replace: true });
+                  if (window.innerWidth < 1024) setIsSidebarOpen(false);
+                }}
+                className={`w-full text-left px-3 py-3 rounded-xl flex items-start gap-3 transition-colors ${
+                  s.session_id === sessionId 
+                    ? 'bg-blue-600/10 text-blue-400' 
+                    : 'hover:bg-slate-800/50 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
+                <div className="overflow-hidden pr-6">
+                  <div className="text-sm truncate font-medium">{s.title || "새 대화"}</div>
+                  <div className="text-[10px] text-slate-500 mt-1">
+                    {new Date(s.created_at).toLocaleDateString()}
+                  </div>
                 </div>
-              </div>
-            </button>
+              </button>
+              
+              <button 
+                onClick={(e) => handleDeleteSession(e, s.session_id)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-400/10"
+                title="삭제"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           ))}
         </div>
       </div>

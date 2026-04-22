@@ -105,6 +105,17 @@ class ChatFolioEngine:
             "graph_trace": visited_nodes
         }
 
+    def summarize_title(self, query: str) -> str:
+        """첫 번째 질문을 기반으로 짧은 채팅방 제목을 생성합니다."""
+        system_prompt = SystemMessage(content="사용자의 질문을 기반으로 3~5단어 내외의 아주 짧은 제목을 작성해줘. 제목만 출력하고 따옴표나 마침표는 생략해.")
+        user_prompt = HumanMessage(content=f"Question: {query}")
+        
+        try:
+            response = self.llm.invoke([system_prompt, user_prompt])
+            return response.content.strip().replace('"', '').replace("'", "")
+        except Exception:
+            return query[:20] + "..."
+
     def generate_mermaid(self) -> str:
         if not self.llm:
             return "graph TD\n    A[LLM Not Configured]"

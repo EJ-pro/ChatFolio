@@ -89,6 +89,8 @@ class ChatSession(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     provider = Column(String, default="groq")
     model_name = Column(String, nullable=True)
+    title = Column(String, default="새 대화")
+    is_deleted = Column(Integer, default=0) # 0: Active, 1: Deleted
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="sessions")
@@ -139,6 +141,9 @@ def init_db():
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS line_count INTEGER DEFAULT 0"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS metadata_json JSONB"))
+                    # ChatSession 컬럼 추가
+                    conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title VARCHAR DEFAULT '새 대화'"))
+                    conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
                     conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))
                     conn.commit()
