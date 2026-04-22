@@ -285,7 +285,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.refresh(chat_session)
 
                 
-                engine = ChatFolioEngine(all_files, graph, provider=request.provider, model_name=request.model_name)
+                engine = ChatFolioEngine(all_files, graph, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name)
                 engine_cache[chat_session.id] = engine
                 
                 result = {
@@ -335,10 +335,12 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
             
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
+        tech_stack = project.insight.tech_stack if project.insight else None
         
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
         )
@@ -438,9 +440,12 @@ async def create_new_chat_session(request: NewSessionRequest, db: Session = Depe
     
     all_project_files = {f.file_path: f.content for f in project.files}
     graph = nx.node_link_graph(project.graph_data)
+    tech_stack = project.insight.tech_stack if project.insight else None
+    
     engine = ChatFolioEngine(
         all_project_files, 
         graph, 
+        tech_stack=tech_stack,
         provider=request.provider, 
         model_name=request.model_name
     )
@@ -477,10 +482,12 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
     if not engine:
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
+        tech_stack = project.insight.tech_stack if project.insight else None
         
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
         )
@@ -608,10 +615,12 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
     if not engine:
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
+        tech_stack = project.insight.tech_stack if project.insight else None
         
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
         )

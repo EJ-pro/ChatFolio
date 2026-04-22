@@ -6,9 +6,10 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
 
 class ChatFolioEngine:
-    def __init__(self, files_data, graph, provider="groq", model_name=None):
+    def __init__(self, files_data, graph, tech_stack=None, provider="groq", model_name=None):
         self.files_data = files_data
         self.graph = graph
+        self.tech_stack = tech_stack # {main_language, frameworks, used_parsers, language_distribution}
         
         # LLM 초기화
         if provider == "openai":
@@ -26,7 +27,8 @@ class ChatFolioEngine:
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, 
             chunk_overlap=100,
-            separators=["\nfun ", "\nclass ", "\ninterface ", "\n\n", "\n"]
+            # 다양한 언어의 정의부(fun, def, fn, class, func 등)를 고려한 구분자
+            separators=["\nclass ", "\ndef ", "\nfn ", "\nfun ", "\nfunc ", "\ninterface ", "\nmodule ", "\n\n", "\n"]
         )
         
         docs = []
@@ -80,14 +82,19 @@ class ChatFolioEngine:
                 context_text += f"\n--- File: {path} ---\n{self.files_data[path][:2500]}\n"
 
         # 5. LLM 프롬프트
-        system_prompt = SystemMessage(content="""
-        당신은 숙련된 안드로이드(Kotlin) 개발자이자 코드 분석가입니다. 
-        주어진 코드베이스 컨텍스트를 바탕으로 사용자의 질문에 답변하세요.
+        tech_context = ""
+        if self.tech_stack:
+            tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
+
+        system_prompt = SystemMessage(content=f"""
+        당신은 숙련된 풀스택 소프트웨어 엔지니어이자 코드 분석가입니다. 
+        다양한 프로그래밍 언어와 프레임워크에 정통하며, 주어진 코드베이스 컨텍스트를 바탕으로 사용자의 질문에 전문적이고 정확하게 답변합니다.
+        {tech_context}
         
         [답변 규칙]
         1. 핵심 로직이나 함수, 클래스를 설명할 때는 반드시 [파일명] 또는 [파일명:라인번호] 형식으로 출처를 명시하세요.
-        2. 파일 간의 연결 관계를 설명해주면 좋습니다.
-        3. 모르는 내용은 추측하지 말고 모른다고 답하세요.
+        2. 파일 간의 의존성 및 연결 관계를 아키텍처 관점에서 설명해주세요.
+        3. 컨텍스트에 없는 내용을 추측하여 답변하지 말고, 모르는 정보는 모른다고 솔직하게 답변하세요.
         """)
         
         user_prompt = HumanMessage(content=f"Context:\n{context_text}\n\nQuestion: {query}")
@@ -109,8 +116,8 @@ class ChatFolioEngine:
         nodes_str = "\n".join(nodes)
         
         system_prompt = SystemMessage(content="""
-        당신은 소프트웨어 아키텍트입니다. 다음은 안드로이드/소프트웨어 프로젝트의 파일 경로 목록입니다.
-        이 파일들을 도메인이나 역할(예: Adapter, Fragment, Model, Network 등)에 따라 그룹화하세요.
+        당신은 소프트웨어 아키텍트입니다. 다음은 분석 중인 프로젝트의 파일 경로 목록입니다.
+        이 파일들을 프로젝트의 도메인, 역할, 또는 기술적 계층(예: UI, Logic, Data, Config, Backend, Frontend 등)에 따라 논리적으로 그룹화하세요.
         
         [출력 형식 - 반드시 JSON만 출력하세요]
         ```json
@@ -277,7 +284,7 @@ class ChatFolioEngine:
         
         system_prompt = SystemMessage(content="""
         당신은 세계 최고의 오픈소스 메인테이너이자 테크니컬 라이터입니다. 
-        사용자가 제공한 정보와 코드베이스를 바탕으로, GitHub 상단에 노출되었을 때 모든 개발자가 별(Star)을 누르고 싶게 만드는 [압도적 퀄리티의 README.md]를 작성하세요.
+        제공된 코드베이스 분석 결과와 사용자 정보를 바탕으로, GitHub 메인 페이지에 노출될 수 있는 수준의 압도적인 퀄리티의 README.md를 작성하세요.
 
         [분석 필수 사항]
         - **비즈니스 로직**: 이 프로젝트가 정확히 무엇을 하는지, 어떤 문제를 해결하는지 코드와 사용자 입력으로부터 깊이 있게 파악하세요.

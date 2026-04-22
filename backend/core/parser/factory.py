@@ -1,5 +1,3 @@
-from .kotlin_parser import generic_extract_metadata
-
 # New Tree-sitter Language Parsers
 from .lang.ts_javascript import JavaScriptParser
 from .lang.ts_python import PythonParser
@@ -20,6 +18,18 @@ from .config.xml_parser import XmlParser
 from .config.yaml_parser import YamlTomlParser
 from .config.gradle_parser import GradleParser
 from .config.sql_parser import SqlParser
+
+def generic_extract_metadata(path: str, content: str) -> dict:
+    """지원되지 않는 확장자의 파일에 대한 기본 폴백 파서"""
+    lines = content.split('\n')
+    line_count = len(lines)
+    file_name = path.split('/')[-1].split('.')[0]
+    return {
+        "file_path": path,
+        "line_count": line_count,
+        "keywords": [file_name],
+        "metadata_json": {}
+    }
 
 def get_parser_result(path: str, content: str) -> dict:
     """
