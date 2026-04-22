@@ -114,28 +114,44 @@ GitHub Repository
 
 ### 3. Data Collection Pipeline (10 Steps)
 
-GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지, 총 10단계의 파이프라인이 실행됩니다.
+GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지의 전 과정이 고도로 최적화된 자율 파이프라인으로 실행됩니다.
 
-```
- Step 01  🔐 Auth            사용자 PAT 유효성 검증, Rate Limit 체크
-    ↓
- Step 02  🔍 Cache Check     GitHub API로 최신 커밋 SHA 확인 → 캐시 재사용 or 재분석 결정
-    ↓
- Step 03  📡 Scan            재귀 디렉토리 순회, .gitignore 및 바이너리 파일 필터링
-    ↓
- Step 04  📥 Fetch           Python Generator 스트리밍으로 대용량 파일 OOM 없이 로드
-    ↓
- Step 05  🏭 Parser Factory  확장자 기반으로 최적 언어 파서 동적 매칭 (Polyglot 지원)
-    ↓
- Step 06  🌳 AST Parse       언어별 파서로 클래스·함수·Import 구문 추출 및 정규화
-    ↓
- Step 07  💾 Persist         파싱 결과 + 원본 코드 PostgreSQL 트랜잭션 저장
-    ↓
- Step 08  🕸 Graph Build     Resolver Factory로 Import 경로를 실제 파일로 매핑, NetworkX DiGraph 구성
-    ↓
- Step 09  📊 Metrics         노드 Degree 계산으로 핵심 파일 식별, 프론트엔드용 JSON 변환
-    ↓
- Step 10  🤖 RAG Engine      분석 데이터를 ChatFolioEngine에 로드, 벡터 임베딩 완료 → 채팅 준비
+```mermaid
+flowchart TD
+    subgraph Inbound ["🌐 Inbound & Scan"]
+        S1["🔐 01 Auth<br/><small>PAT & Rate Limit Check</small>"]
+        S2["🔍 02 Cache Check<br/><small>SHA Hash Comparison</small>"]
+        S3["📡 03 Scan<br/><small>Recursive File Filter</small>"]
+        S4["📥 04 Fetch<br/><small>Python Generator Streaming</small>"]
+    end
+
+    subgraph Backend ["🧠 Polyglot Analysis"]
+        S5["🏭 05 Parser Factory<br/><small>Dynamic Lang Dispatch</small>"]
+        S6["🌳 06 AST Parse<br/><small>Logic & Symbol Extraction</small>"]
+        S7["💾 07 Persist<br/><small>PostgreSQL Transaction</small>"]
+    end
+
+    subgraph Intelligence ["🤖 Intelligence Ready"]
+        S8["🕸 08 Graph Build<br/><small>Dependency Mapping</small>"]
+        S9["📊 09 Metrics<br/><small>In-degree Centrality</small>"]
+        S10["🚀 10 RAG Engine<br/><small>Vector Store Loaded</small>"]
+    end
+
+    S1 --> S2 --> S3 --> S4 --> S5
+    S5 --> S6 --> S7 --> S8
+    S8 --> S9 --> S10
+
+    %% Styling
+    classDef default font-family:Pretendard,font-size:12px;
+    classDef phase fill:#f8fafc,stroke:#e2e8f0,stroke-width:1px,color:#64748b,font-weight:bold;
+    classDef start fill:#4f46e5,stroke:#4338ca,color:#fff,font-weight:bold;
+    classDef endNode fill:#10b981,stroke:#059669,color:#fff,font-weight:bold;
+    classDef step fill:#fff,stroke:#cbd5e1,color:#1e293b;
+
+    class Inbound,Backend,Intelligence phase;
+    class S1 start;
+    class S10 endNode;
+    class S2,S3,S4,S5,S6,S7,S8,S9 step;
 ```
 
 <br/>
