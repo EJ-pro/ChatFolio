@@ -131,7 +131,7 @@ class ChatFolioEngine:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
 
         # 4. 소스 코드 중심의 강력한 시스템 프롬프트
-        system_prompt = SystemMessage(content=f"""
+        system_prompt = f"""
         You are an experienced full-stack software engineer and code architecture expert.
         When answering user questions, strictly adhere to the following guidelines:
         
@@ -142,16 +142,69 @@ class ChatFolioEngine:
         5. **Language**: You must answer in {language}.
         
         {tech_context}
-        """)
+        """
         
-        user_prompt = HumanMessage(content=f"Context:\n{context_text}\n\nQuestion: {query}")
-        response = self.llm.invoke([system_prompt, user_prompt])
+        user_prompt = f"Context:\n{context_text}\n\nQuestion: {query}"
+        response = self.llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ])
         
         return {
             "answer": response.content,
             "sources": sources,
             "graph_trace": visited_nodes
         }
+
+    def analyze_architecture(self, language: str = "English"):
+        """프로젝트 그래프와 테크 스택을 기반으로 아키텍처 분석 리포트 생성"""
+        node_count = self.graph.number_of_nodes()
+        edge_count = self.graph.number_of_edges()
+        
+        # 중요도 높은 파일 (Centrality)
+        try:
+            centrality = nx.degree_centrality(self.graph)
+            top_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:5]
+            top_files = [node[0] for node in top_nodes]
+        except:
+            top_files = []
+            
+        # 파일 내용 일부 가져오기 (가장 중요한 파일들)
+        important_snippets = ""
+        for path in top_files:
+            content = self.files_data.get(path, "")
+            if content:
+                # 첫 1000자 정도
+                important_snippets += f"\n- File: {path}\n```\n{content[:1000]}\n```\n"
+        
+        system_prompt = f"You are a Senior Software Architect. Analyze the project structure and tech stack to provide a professional architecture review in {language}."
+        user_prompt = f"""
+        [Project Statistics]
+        - Total Files: {node_count}
+        - Total Dependencies: {edge_count}
+        - Detected Tech Stack: {json.dumps(self.tech_stack, ensure_ascii=False) if self.tech_stack else "Unknown"}
+        
+        [Important Files (Top Centrality)]:
+        {', '.join(top_files)}
+        
+        [Source Code Snippets of Key Files]:
+        {important_snippets}
+        
+        Please provide a detailed architecture analysis in {language} covering:
+        1. **Overall Design Pattern**: Identify the main structural pattern (e.g., MVC, Layered Architecture, Hexagonal, Clean Architecture, etc.) based on the file names and dependencies.
+        2. **Component Roles**: Explain the roles of the 'Important Files' listed above and how they serve as the project's backbone.
+        3. **Data/Control Flow**: Explain how data or control flows through the system (e.g., Request -> Router -> Controller -> Service -> DB).
+        4. **Architectural Evaluation**: Mention strengths (e.g., good modularity) and potential risks (e.g., circular dependencies, tight coupling in specific areas).
+        
+        Format the output nicely using Markdown with clear headings.
+        """
+        
+        response = self.llm.invoke([
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt)
+        ])
+        
+        return response.content
 
     def _get_cheap_llm(self):
         """가벼운 작업을 위한 보조 모델 (Llama 8B / GPT-4o-mini)을 반환합니다."""

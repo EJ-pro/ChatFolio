@@ -34,7 +34,7 @@ function DocsTab() {
     "Project Logo/Image URL": ""
   });
   const [selectedLanguages, setSelectedLanguages] = useState(['English']);
-  const availableLanguages = ['English', 'Korean', 'Japanese', 'Chinese', 'French', 'German', 'Spanish'];
+  const availableLanguages = ['English', 'Korean'];
 
   const [provider, setProvider] = useState('groq');
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');

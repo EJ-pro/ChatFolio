@@ -66,11 +66,7 @@ function Analysis() {
         }
         // 기본 언어 설정 (국가 기반 자동 매핑)
         if (userData.country === 'South Korea') setSelectedLanguage('Korean');
-        else if (userData.country === 'Japan') setSelectedLanguage('Japanese');
-        else if (userData.country === 'China') setSelectedLanguage('Chinese');
-        else if (userData.country === 'France') setSelectedLanguage('French');
-        else if (userData.country === 'Germany') setSelectedLanguage('German');
-        else if (userData.country === 'UK' || userData.country === 'USA') setSelectedLanguage('English');
+        else setSelectedLanguage('English');
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);
@@ -656,13 +652,9 @@ function Analysis() {
                     className="w-full bg-slate-900 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-blue-500/50 appearance-none"
                   >
                     <option value="" disabled>Select your country</option>
-                    <option value="USA">USA</option>
                     <option value="South Korea">South Korea</option>
+                    <option value="USA">USA</option>
                     <option value="UK">UK</option>
-                    <option value="Germany">Germany</option>
-                    <option value="France">France</option>
-                    <option value="Japan">Japan</option>
-                    <option value="China">China</option>
                     <option value="Other">Other</option>
                   </select>
                 </div>

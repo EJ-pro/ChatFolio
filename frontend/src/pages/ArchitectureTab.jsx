@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Loader2, RefreshCw, GitBranch } from 'lucide-react';
+import { Loader2, RefreshCw, GitBranch, Sparkles, Layout, Activity, ChevronRight } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
+import ReactMarkdown from 'react-markdown';
 
 function ArchitectureTab() {
   const location = useLocation();
@@ -9,6 +10,8 @@ function ArchitectureTab() {
   
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
   const [isLoading, setIsLoading] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState('');
   const [error, setError] = useState('');
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const containerRef = useRef(null);
@@ -65,8 +68,35 @@ function ArchitectureTab() {
     }
   };
 
+  const fetchArchitectureAnalysis = async () => {
+    if (!sessionId) return;
+    setIsAnalyzing(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/generate/architecture-analysis', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAnalysis(data.analysis);
+      }
+    } catch (err) {
+      console.error('Analysis failed:', err);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   useEffect(() => {
-    fetchNetworkData();
+    if (sessionId) {
+      fetchNetworkData();
+      fetchArchitectureAnalysis();
+    }
   }, [sessionId]);
 
   // 그룹별 고유 색상 할당 헬퍼 함수
@@ -77,8 +107,8 @@ function ArchitectureTab() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-slate-950 p-8 overflow-y-auto">
-      <div className="max-w-7xl mx-auto w-full space-y-8">
+    <div className="flex flex-col h-full bg-slate-950 p-8 overflow-y-auto custom-scrollbar">
+      <div className="max-w-7xl mx-auto w-full space-y-12 pb-20">
         
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -87,43 +117,42 @@ function ArchitectureTab() {
               <GitBranch className="w-4 h-4" />
               <span>Interactive Neural Network Graph</span>
             </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Architecture Map (LangSmith Style)</h2>
-            <p className="text-slate-400 mt-1">Dynamic graph based on a physics engine. Drag nodes and zoom in to explore the detailed structure.</p>
+            <h2 className="text-4xl font-black text-white tracking-tight italic uppercase">Architecture Map</h2>
+            <p className="text-slate-400 mt-2 text-lg">Dynamic graph based on a physics engine. Explore the project's structural DNA.</p>
           </div>
           <div className="flex items-center gap-3">
             <button 
-              onClick={fetchNetworkData}
-              disabled={isLoading}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-200 rounded-xl hover:bg-slate-700 transition-colors shadow-sm disabled:opacity-50"
+              onClick={() => { fetchNetworkData(); fetchArchitectureAnalysis(); }}
+              disabled={isLoading || isAnalyzing}
+              className="flex items-center gap-2 px-6 py-3 bg-slate-800 border border-slate-700 text-slate-200 rounded-2xl hover:bg-slate-700 transition-all shadow-lg active:scale-95 disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh Data
+              <RefreshCw className={`w-4 h-4 ${(isLoading || isAnalyzing) ? 'animate-spin' : ''}`} />
+              Sync Analysis
             </button>
           </div>
         </div>
 
-        {/* Content Area */}
+        {/* Graph Section */}
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center min-h-[600px] bg-slate-900/50 rounded-3xl border border-slate-800 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col items-center justify-center min-h-[600px] bg-slate-900/50 rounded-[2.5rem] border border-slate-800 shadow-2xl backdrop-blur-md">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-            <p className="text-slate-300 font-medium">Loading structural data with a high-speed engine...</p>
-            <p className="text-slate-500 text-sm mt-1">Rendered immediately without AI generation wait.</p>
+            <p className="text-slate-300 font-medium text-lg">Synthesizing structure graph...</p>
           </div>
         ) : error ? (
-          <div className="p-8 bg-red-900/20 border border-red-500/30 rounded-3xl text-center">
-            <p className="text-red-400 font-medium">{error}</p>
+          <div className="p-12 bg-red-900/20 border border-red-500/30 rounded-[2.5rem] text-center">
+            <p className="text-red-400 font-medium text-lg">{error}</p>
             <button 
               onClick={fetchNetworkData}
-              className="mt-4 px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
+              className="mt-6 px-8 py-3 bg-red-600 text-white rounded-2xl hover:bg-red-700 transition-all font-bold"
             >
-              Retry
+              Retry Connection
             </button>
           </div>
         ) : graphData.nodes.length > 0 ? (
-          <div className="space-y-6">
+          <div className="space-y-12">
             <div 
               ref={containerRef}
-              className="relative group bg-slate-900 rounded-3xl border border-slate-800 shadow-[0_0_50px_rgba(0,0,0,0.5)] overflow-hidden h-[700px] w-full"
+              className="relative group bg-slate-900 rounded-[2.5rem] border border-slate-800 shadow-[0_0_80px_rgba(0,0,0,0.6)] overflow-hidden h-[700px] w-full"
             >
               <ForceGraph2D
                 width={dimensions.width}
@@ -132,19 +161,19 @@ function ArchitectureTab() {
                 nodeLabel="id"
                 nodeColor={node => getColor(node.group)}
                 nodeRelSize={6}
-                linkColor={() => 'rgba(255,255,255,0.2)'}
-                linkWidth={1.5}
-                linkDirectionalParticles={2}
+                linkColor={() => 'rgba(255,255,255,0.15)'}
+                linkWidth={1.2}
+                linkDirectionalParticles={3}
                 linkDirectionalParticleWidth={2}
                 linkDirectionalParticleSpeed={0.005}
                 nodeCanvasObject={(node, ctx, globalScale) => {
                   const label = node.name;
                   const fontSize = 12/globalScale;
-                  ctx.font = `${fontSize}px Sans-Serif`;
+                  ctx.font = `bold ${fontSize}px Inter, system-ui`;
                   const textWidth = ctx.measureText(label).width;
-                  const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
+                  const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.4);
 
-                  ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+                  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
                   ctx.beginPath();
                   ctx.roundRect(node.x - bckgDimensions[0] / 2, node.y - bckgDimensions[1] / 2, bckgDimensions[0], bckgDimensions[1], 4);
                   ctx.fill();
@@ -163,24 +192,83 @@ function ArchitectureTab() {
                 }}
               />
               
-              <div className="absolute bottom-4 left-6 z-20 flex items-center gap-2 text-slate-400 text-xs font-medium bg-slate-900/80 px-3 py-1.5 rounded-lg border border-white/5 backdrop-blur-md">
-                <span>🖱️ Scroll to zoom</span>
-                <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                <span>👋 Drag to pan</span>
-                <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                <span>👆 Drag nodes to move</span>
+              <div className="absolute bottom-6 left-8 z-20 flex items-center gap-4 text-slate-400 text-xs font-bold bg-slate-950/80 px-5 py-2.5 rounded-2xl border border-white/10 backdrop-blur-xl shadow-2xl">
+                <span className="flex items-center gap-1.5"><Activity className="w-3 h-3 text-emerald-400" /> Scroll to zoom</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-slate-800"></span>
+                <span className="flex items-center gap-1.5"><Layout className="w-3 h-3 text-blue-400" /> Drag to pan</span>
               </div>
               
-              <div className="absolute top-4 right-6 z-20 flex flex-col items-end gap-2 text-slate-400 text-xs font-medium bg-slate-900/80 px-4 py-3 rounded-xl border border-white/5 backdrop-blur-md">
-                <div className="text-white font-bold mb-1">Statistics</div>
-                <div>Nodes (Files): {graphData.nodes.length}</div>
-                <div>Dependencies (Edges): {graphData.links.length}</div>
+              <div className="absolute top-6 right-8 z-20 flex flex-col items-end gap-3 text-slate-400 text-xs font-bold bg-slate-950/80 px-6 py-5 rounded-[2rem] border border-white/10 backdrop-blur-xl shadow-2xl">
+                <div className="text-white text-sm font-black uppercase tracking-widest mb-1 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                    Graph Statistics
+                </div>
+                <div className="flex flex-col items-end gap-1">
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-500">Nodes (Files)</span>
+                        <span className="text-blue-400 text-lg font-black">{graphData.nodes.length}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-slate-500">Edges (Deps)</span>
+                        <span className="text-purple-400 text-lg font-black">{graphData.links.length}</span>
+                    </div>
+                </div>
               </div>
+            </div>
+
+            {/* AI Architecture Analysis Section */}
+            <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                    <div className="p-3 bg-indigo-500/20 rounded-2xl border border-indigo-500/30">
+                        <Sparkles className="w-6 h-6 text-indigo-400" />
+                    </div>
+                    <div>
+                        <h3 className="text-2xl font-black text-white uppercase tracking-tight">AI Architecture Analysis</h3>
+                        <p className="text-slate-400">Deep structural insights generated by AI architect.</p>
+                    </div>
+                </div>
+
+                <div className="relative overflow-hidden bg-slate-900/50 rounded-[2.5rem] border border-white/5 shadow-2xl backdrop-blur-sm p-10 min-h-[400px]">
+                    {isAnalyzing ? (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/40 backdrop-blur-sm z-10">
+                            <div className="relative">
+                                <div className="w-20 h-20 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
+                                <Sparkles className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 text-indigo-400 animate-pulse" />
+                            </div>
+                            <p className="mt-6 text-indigo-300 font-black uppercase tracking-[0.2em] animate-pulse">Analyzing Pattern...</p>
+                        </div>
+                    ) : analysis ? (
+                        <div className="prose prose-invert prose-slate max-w-none 
+                            prose-headings:text-white prose-headings:font-black prose-headings:uppercase prose-headings:tracking-tight
+                            prose-p:text-slate-300 prose-p:leading-relaxed prose-p:text-lg
+                            prose-strong:text-indigo-400 prose-strong:font-bold
+                            prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-indigo-300 prose-code:before:content-none prose-code:after:content-none
+                            prose-ul:list-none prose-ul:pl-0
+                            prose-li:relative prose-li:pl-8 prose-li:mb-4
+                            prose-li:before:content-[''] prose-li:before:absolute prose-li:before:left-0 prose-li:before:top-3 prose-li:before:w-4 prose-li:before:h-[2px] prose-li:before:bg-indigo-500/50">
+                            <ReactMarkdown>{analysis}</ReactMarkdown>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center justify-center h-full py-20 text-center">
+                            <div className="w-20 h-20 bg-slate-800 rounded-3xl flex items-center justify-center mb-6">
+                                <Layout className="w-10 h-10 text-slate-600" />
+                            </div>
+                            <h4 className="text-slate-300 text-xl font-bold mb-2">No Analysis Available</h4>
+                            <p className="text-slate-500 max-w-md">Sync analysis to get path-finding insights and structural evaluations from the AI Agent.</p>
+                            <button 
+                                onClick={fetchArchitectureAnalysis}
+                                className="mt-8 flex items-center gap-2 px-8 py-3 bg-indigo-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20"
+                            >
+                                Generate Analysis
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
           </div>
         ) : (
-          <div className="p-20 text-center border-2 border-dashed border-slate-700 rounded-3xl">
-            <p className="text-slate-400">Click refresh to load data.</p>
+          <div className="p-32 text-center border-4 border-dashed border-slate-800 rounded-[3rem] bg-slate-900/20">
+            <p className="text-slate-500 text-xl font-medium">Click sync to synthesize architecture data.</p>
           </div>
         )}
       </div>

@@ -21,7 +21,7 @@ function Chat() {
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
-  const availableLanguages = ['English', 'Korean', 'Japanese', 'Chinese', 'French', 'German', 'Spanish'];
+  const availableLanguages = ['English', 'Korean'];
   const messagesEndRef = useRef(null);
 
   const models = {
@@ -102,11 +102,7 @@ function Chat() {
         const userData = await response.json();
         // 기본 언어 설정 (국가 기반 자동 매핑)
         if (userData.country === 'South Korea') setSelectedLanguage('Korean');
-        else if (userData.country === 'Japan') setSelectedLanguage('Japanese');
-        else if (userData.country === 'China') setSelectedLanguage('Chinese');
-        else if (userData.country === 'France') setSelectedLanguage('French');
-        else if (userData.country === 'Germany') setSelectedLanguage('German');
-        else if (userData.country === 'UK' || userData.country === 'USA') setSelectedLanguage('English');
+        else setSelectedLanguage('English');
       }
     } catch (err) {
       console.error('Failed to fetch user:', err);

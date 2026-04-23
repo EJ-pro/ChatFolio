@@ -827,3 +827,44 @@ async def get_project_readmes(project_id: int, db: Session = Depends(get_db), cu
             "created_at": r.created_at
         } for r in readmes
     ]
+
+@app.post("/generate/architecture-analysis")
+async def generate_architecture_analysis(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session_id = request.session_id
+    
+    chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        
+    project = chat_session.project
+    if not project or not project.graph_data:
+        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        
+    engine = engine_cache.get(session_id)
+    if not engine:
+        import networkx as nx
+        graph = nx.node_link_graph(project.graph_data)
+        all_project_files = {f.file_path: f.content for f in project.files}
+        tech_stack = project.insight.tech_stack if project.insight else None
+        
+        engine = ChatFolioEngine(
+            all_project_files, 
+            graph, 
+            tech_stack=tech_stack,
+            provider=chat_session.provider, 
+            model_name=chat_session.model_name
+        )
+        engine_cache[session_id] = engine
+        
+    # 언어 설정 (사용자 국가 기반)
+    language = "English"
+    if current_user.country == "South Korea":
+        language = "Korean"
+        
+    try:
+        analysis = engine.analyze_architecture(language=language)
+        return {"analysis": analysis}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
