@@ -275,7 +275,9 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 try:
                     repo_path = request.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
                     repo = fetcher.g.get_repo(repo_path)
-                    project.languages = repo.get_languages()
+                    gh_langs = repo.get_languages()
+                    print(f"📊 [GitHub Languages] {repo_path}: {gh_langs}")
+                    project.languages = gh_langs
                 except Exception as lang_err:
                     print(f"Failed to fetch repo languages: {lang_err}")
                 

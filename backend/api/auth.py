@@ -138,7 +138,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                 # 1. DB에 저장된 언어 정보가 있으면 활용
                 if p.languages:
                     for lang, byte_count in p.languages.items():
-                        lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
+                        if isinstance(byte_count, int):
+                            lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
                     continue
                 
                 # 2. DB에 없으면 GitHub API 호출 후 저장
@@ -150,7 +151,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                     changed = True
                     
                     for lang, byte_count in langs.items():
-                        lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
+                        if isinstance(byte_count, int):
+                            lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
                 except Exception as repo_err:
                     print(f"Failed to fetch languages for {repo_path}: {repo_err}")
             
