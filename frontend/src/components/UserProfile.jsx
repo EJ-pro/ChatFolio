@@ -107,7 +107,7 @@ function UserProfile() {
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center group-hover:bg-blue-500/20 transition-colors">
                 <LayoutDashboard className="w-4 h-4 text-blue-400" />
               </div>
-              <span className="font-bold text-sm">내 마이페이지</span>
+              <span className="font-bold text-sm">My Profile</span>
             </button>
 
             <div className="h-px bg-white/5 my-1 mx-2"></div>
@@ -143,7 +143,7 @@ function UserProfile() {
               <div className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center group-hover:bg-red-500/20 transition-colors">
                 <LogOut className="w-4 h-4" />
               </div>
-              <span className="font-bold">로그아웃</span>
+              <span className="font-bold">Logout</span>
             </button>
           </div>
         </div>

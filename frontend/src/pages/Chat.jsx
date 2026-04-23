@@ -10,7 +10,7 @@ function Chat() {
   const [sessionId, setSessionId] = useState(currentSessionId);
 
   const [messages, setMessages] = useState([
-    { role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }
+    { role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }
   ]);
   const [sessions, setSessions] = useState([]);
   const [currentProjectId, setCurrentProjectId] = useState(null);
@@ -20,6 +20,8 @@ function Chat() {
   const [provider, setProvider] = useState('groq');
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const availableLanguages = ['English', 'Korean', 'Japanese', 'Chinese', 'French', 'German', 'Spanish'];
   const messagesEndRef = useRef(null);
 
   const models = {
@@ -43,7 +45,7 @@ function Chat() {
 
   useEffect(() => {
     if (!sessionId) {
-      alert("유효한 세션이 없습니다. 분석을 먼저 진행해주세요.");
+      alert("No valid session found. Please perform an analysis first.");
       navigate('/');
     }
   }, [sessionId, navigate]);
@@ -55,7 +57,7 @@ function Chat() {
 
       // 1. Get session info
       const infoRes = await fetch(`http://localhost:8000/chat/session/${sid}/info`, { headers });
-      if (!infoRes.ok) throw new Error('세션 정보를 불러오지 못했습니다.');
+      if (!infoRes.ok) throw new Error('Failed to load session information.');
       const infoData = await infoRes.json();
       setCurrentProjectId(infoData.project_id);
 
@@ -66,7 +68,7 @@ function Chat() {
         if (histData.length > 0) {
           setMessages(histData);
         } else {
-          setMessages([{ role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }]);
+          setMessages([{ role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }]);
         }
       }
 
@@ -86,8 +88,30 @@ function Chat() {
   useEffect(() => {
     if (sessionId) {
       loadSessionData(sessionId);
+      fetchUser();
     }
   }, [sessionId]);
+
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        // 기본 언어 설정 (국가 기반 자동 매핑)
+        if (userData.country === 'South Korea') setSelectedLanguage('Korean');
+        else if (userData.country === 'Japan') setSelectedLanguage('Japanese');
+        else if (userData.country === 'China') setSelectedLanguage('Chinese');
+        else if (userData.country === 'France') setSelectedLanguage('French');
+        else if (userData.country === 'Germany') setSelectedLanguage('German');
+        else if (userData.country === 'UK' || userData.country === 'USA') setSelectedLanguage('English');
+      }
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -128,8 +152,8 @@ function Chat() {
     }
   };
   const handleDeleteSession = async (e, sid) => {
-    e.stopPropagation(); // 세션 선택 클릭 방지
-    if (!window.confirm("이 채팅을 목록에서 삭제하시겠습니까?")) return;
+    e.stopPropagation(); // Prevent session selection click
+    if (!window.confirm("Do you want to delete this chat from the list?")) return;
 
     try {
       const token = localStorage.getItem('token');
@@ -141,7 +165,7 @@ function Chat() {
       if (response.ok) {
         // 현재 열려있는 세션이면 다른 세션으로 이동하거나 초기화
         if (sid === sessionId) {
-          setMessages([{ role: 'assistant', content: '안녕하세요! 분석된 코드에 대해 무엇이든 물어보세요.' }]);
+          setMessages([{ role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }]);
           setSessionId(null);
           sessionStorage.removeItem('last_session_id');
           navigate('.', { state: { ...location.state, sessionId: null }, replace: true });
@@ -159,7 +183,7 @@ function Chat() {
       }
     } catch (err) {
       console.error(err);
-      alert("삭제 중 오류가 발생했습니다.");
+      alert("An error occurred during deletion.");
     }
   };
 
@@ -185,12 +209,13 @@ function Chat() {
           session_id: sessionId, 
           query: input,
           provider: provider,
-          model_name: modelName
+          model_name: modelName,
+          language: selectedLanguage
         })
       });
 
       if (!response.ok) {
-        throw new Error('대화 중 오류가 발생했습니다.');
+        throw new Error('An error occurred during the conversation.');
       }
 
 
@@ -202,7 +227,7 @@ function Chat() {
         graph_trace: data.graph_trace
       }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', content: '죄송합니다. 오류가 발생했습니다: ' + err.message }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, an error occurred: ' + err.message }]);
     } finally {
       setIsLoading(false);
     }
@@ -219,7 +244,7 @@ function Chat() {
             className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 bg-transparent border border-slate-700 hover:bg-slate-800 text-slate-200 rounded-xl transition-all font-medium text-sm disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
-            새 대화 시작
+            Start New Chat
           </button>
           <button onClick={() => setIsSidebarOpen(false)} className="lg:hidden ml-2 p-2 text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
@@ -299,7 +324,7 @@ function Chat() {
               >
                 <MessageSquare className="w-4 h-4 mt-0.5 shrink-0" />
                 <div className="overflow-hidden pr-6">
-                  <div className="text-sm truncate font-medium">{s.title || "새 대화"}</div>
+                  <div className="text-sm truncate font-medium">{s.title || "New Chat"}</div>
                   <div className="text-[10px] text-slate-500 mt-1">
                     {new Date(s.created_at).toLocaleDateString()}
                   </div>
@@ -309,7 +334,7 @@ function Chat() {
               <button 
                 onClick={(e) => handleDeleteSession(e, s.session_id)}
                 className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-slate-500 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all rounded-lg hover:bg-red-400/10"
-                title="삭제"
+                title="Delete"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -329,6 +354,22 @@ function Chat() {
             <Menu className="w-5 h-5" />
           </button>
           <span className="font-bold text-slate-200">ChatFolio AI</span>
+        </div>
+
+        {/* Language Strip */}
+        <div className="px-6 py-3 border-b border-white/5 bg-slate-900/40 backdrop-blur-md sticky top-0 md:top-auto z-20 overflow-x-auto custom-scrollbar no-scrollbar flex items-center gap-3">
+          <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">AI Speaking:</span>
+          <div className="flex gap-2">
+            {availableLanguages.map(lang => (
+              <button
+                key={lang}
+                onClick={() => setSelectedLanguage(lang)}
+                className={`px-3 py-1 rounded-full text-[10px] font-bold transition-all border whitespace-nowrap ${selectedLanguage === lang ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-slate-950/30 border-white/5 text-slate-500 hover:border-white/10'}`}
+              >
+                {lang}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* 메시지 영역 */}
@@ -395,7 +436,7 @@ function Chat() {
           <input
             type="text"
             className="w-full p-4 pr-14 border border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-800 text-slate-100 placeholder-slate-500"
-            placeholder="코드의 구조나 특정 기능에 대해 물어보세요..."
+            placeholder="Ask about code structure or features..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             disabled={isLoading}

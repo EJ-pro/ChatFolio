@@ -19,6 +19,7 @@ class ReadmeState(TypedDict, total=False):
     final_readme: str
     provider: str
     model_name: str
+    languages: List[str]
 
 class ReadmeAgent:
     def __init__(self, llm, provider="groq", model_name=None):
@@ -98,19 +99,19 @@ class ReadmeAgent:
         return self.llm
 
     def analyzer_node(self, state: ReadmeState) -> Dict[str, Any]:
-        """프로젝트 구조를 스캔하고 아키타입 정의 (경량 모델 사용)"""
-        print("🔍 [Analyzer] 분석 시작...")
+        """Classify project archetype based on structure scan (Uses lightweight model)"""
+        print("🔍 [Analyzer] Starting analysis...")
         cheap_llm = self._get_cheap_llm()
         try:
-            system_prompt = "당신은 프로젝트 분석 전문가입니다. 주어진 프로젝트 컨텍스트를 분석하여 핵심 아키타입을 분류하고 요약 리포트를 JSON으로 작성하세요."
+            system_prompt = "You are a project analysis expert. Analyze the given project context to classify the core archetype and write a summary report in JSON."
             user_prompt = f"""
             [Context]
             {state['project_context']}
 
-            위 프로젝트를 분석하여 다음 형식을 지켜 응답하세요:
+            Analyze the project above and respond in the following format:
             {{
-              "archetype": "Backend, Frontend, Fullstack, Library, Script 등 택 1",
-              "summary": "프로젝트의 목적과 핵심 기능 요약"
+              "archetype": "Pick one: Backend, Frontend, Fullstack, Library, Script, etc.",
+              "summary": "Summary of the project purpose and core features"
             }}
             """
             
@@ -139,9 +140,9 @@ class ReadmeAgent:
         return {"iteration_count": state.get("iteration_count", 0)}
 
     def writer_node(self, state: ReadmeState) -> Dict[str, Any]:
-        """README 마크다운 초안 작성"""
+        """Write draft README markdown"""
         curr_iter = state.get("iteration_count", 0)
-        print(f"✍️ [Writer] 초안 작성 중... (반복: {curr_iter})")
+        print(f"✍️ [Writer] Writing draft... (Iteration: {curr_iter})")
         
         try:
             # Context Truncation to stay within Ratelimits
@@ -151,7 +152,7 @@ class ReadmeAgent:
             
             feedback_context = f"\n[Reviewer Feedback]: {state.get('feedback', '')}" if state.get('feedback') else ""
             
-            system_prompt = "당신은 테크니컬 라이팅 전문가입니다. 분석 리포트와 실제 소스코드 컨텍스트, 그리고 사용자 정보를 바탕으로 프로젝트의 진정한 가치를 전달하는 압도적인 퀄리티의 README.md를 작성하세요."
+            system_prompt = "You are a technical writing expert. Based on the analysis report, actual source code context, and user information, write an outstanding README.md that conveys the true value of the project."
             user_prompt = f"""
             [Archetype]: {state.get('archetype', 'General')}
             [Analysis Report]: {state.get('analysis_report', '')}
@@ -161,12 +162,13 @@ class ReadmeAgent:
             [User Inputs]: {json.dumps(state.get('user_inputs', {}), ensure_ascii=False)}
             {feedback_context}
             
-            작성 지침:
-            1. **추론(Inference) 우선**: 사용자가 직접 입력하지 않은 항목(프로젝트 이름, 설명, 기술 스택, 시작하기 등)은 반드시 [Project Context]의 실제 코드를 분석하여 스스로 채워 넣으세요. 절대 "입력되지 않았습니다"와 같은 문구를 쓰지 마세요.
-            2. **구조화**: 대제목, 한 줄 소개, 해결하려는 문제(분석 보고서 기반), 주요 기능(코드 기반), 기술 스택(뱃지 포함), 폴더 구조(트리 형태), 시작하기(Installation)를 반드시 포함하세요.
-            3. **디테일**: 실제 파일명과 기술 스택을 언급하여 신뢰도를 높이세요.
-            4. **피드백 반영**: 리퀘스트된 피드백이 있다면 최우선으로 반영하세요.
-            5. **출력**: 오직 README.md 마크다운 텍스트만 출력하세요. 인사말이나 "네, 작성하겠습니다" 같은 지시어는 모두 생략하세요.
+            Guidelines:
+            1. **Prioritize Inference**: For items users did not explicitly enter (project name, description, tech stack, starting, etc.), be sure to analyze the actual code in [Project Context] and fill them in yourself. Never use phrases like "Not entered."
+            2. **Structure**: Must include Title, One-line introduction, Problem solved (based on analysis report), Core features (based on code), Tech stack (including badges), Folder structure (tree format), and Getting Started (Installation).
+            3. **Detail**: Increase credibility by mentioning actual filenames and tech stacks.
+            4. **Feedback Reflection**: If there is feedback, reflect it with high priority.
+            5. **Language**: You must write the README in {', '.join(state.get('languages', ['English']))}. If multiple languages are specified, provide translated sections or separate sections for each language.
+            6. **Output**: Output only the README.md markdown text. Omit all greetings or directives like "Yes, I will write."
             """
             
             response = self._safe_invoke([
@@ -184,23 +186,23 @@ class ReadmeAgent:
             return {"draft": fallback_readme, "iteration_count": curr_iter + 1}
 
     def reviewer_node(self, state: ReadmeState) -> Dict[str, Any]:
-        """초안 검토 및 승인 여부 결정"""
-        print("🕵️ [Reviewer] 검토 진행 중...")
+        """Review draft and decide whether to approve"""
+        print("🕵️ [Reviewer] Reviewing...")
         try:
-            system_prompt = "당신은 깐깐한 리뷰어 에이전트입니다. README 초안을 검사하여 승인 여부와 피드백을 JSON으로 응답하세요."
+            system_prompt = "You are a strict reviewer agent. Review the draft README and respond with approval and feedback in JSON."
             user_prompt = f"""
             [README Draft]
             {state.get('draft', '')}
             
-            체크리스트:
-            1. 시작하기(Getting Started)가 정확한가?
-            2. 기술 스택 뱃지와 폴더 구조가 포함되었는가?
-            3. 프로젝트의 핵심 가치가 잘 설명되었는가?
+            Checklist:
+            1. Is Getting Started accurate?
+            2. Are tech stack badges and folder structure included?
+            3. Is the core value of the project well-explained?
             
-            [출력 형식 - 반드시 JSON만 출력하세요]
+            [Output Format - Output JSON only]
             {{
               "decision": "REVISE or APPROVE",
-              "feedback": "개선이 필요한 구체적인 피드백 (APPROVE일 경우 비워둠)"
+              "feedback": "Specific feedback for improvement (leave blank if APPROVE)"
             }}
             """
             response = self._safe_invoke([
@@ -236,19 +238,20 @@ class ReadmeAgent:
             return text.split("```")[1].split("```")[0].strip()
         return text.strip()
 
-    def run(self, project_context: str, user_inputs: dict) -> str:
+    def run(self, project_context: str, user_inputs: dict, languages: List[str] = ["English"]) -> str:
         initial_state = {
             "project_context": project_context,
             "user_inputs": user_inputs,
             "iteration_count": 0,
             "provider": self.provider,
-            "model_name": self.model_name
+            "model_name": self.model_name,
+            "languages": languages
         }
         try:
             result = self.workflow.invoke(initial_state)
-            return result.get("final_readme") or result.get("draft") or "README 생성 실패"
+            return result.get("final_readme") or result.get("draft") or "Failed to generate README"
         except Exception as e:
-            print(f"❌ [ReadmeAgent.run] 크리티컬 오류: {e}")
+            print(f"❌ [ReadmeAgent.run] Critical error: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(f"--- [Critical Run Error] ---\n{str(e)}\n{traceback.format_exc()}\n")
-            return f"에이전트 실행 중 오류가 발생했습니다: {str(e)}"
+            return f"An error occurred while running the agent: {str(e)}"

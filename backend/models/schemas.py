@@ -7,6 +7,7 @@ class AnalyzeRequest(BaseModel):
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None
     force_update: Optional[bool] = False
+    language: Optional[str] = "English"
 
 # 채팅 메시지 요청
 class ChatRequest(BaseModel):
@@ -14,6 +15,7 @@ class ChatRequest(BaseModel):
     query: str
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None
+    language: Optional[str] = "English"
 
 # 분석 상태 및 결과 응답
 class AnalysisResponse(BaseModel):
@@ -39,6 +41,7 @@ class ReadmeRequest(BaseModel):
     user_inputs: Optional[Dict[str, str]] = None
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None
+    languages: Optional[List[str]] = ["English"]
 
 class ReadmeResponse(BaseModel):
     readme_content: str
@@ -48,3 +51,7 @@ class NewSessionRequest(BaseModel):
     project_id: int
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None
+
+class ProfileUpdateRequest(BaseModel):
+    country: Optional[str] = None
+    job: Optional[str] = None

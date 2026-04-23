@@ -53,7 +53,7 @@ function ArchitectureTab() {
       });
 
       if (!response.ok) {
-        throw new Error('그래프 데이터를 가져오는 중 오류가 발생했습니다.');
+        throw new Error('Failed to fetch graph data.');
       }
 
       const data = await response.json();
@@ -87,8 +87,8 @@ function ArchitectureTab() {
               <GitBranch className="w-4 h-4" />
               <span>Interactive Neural Network Graph</span>
             </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">아키텍처 맵 (LangSmith 스타일)</h2>
-            <p className="text-slate-400 mt-1">물리 엔진 기반의 동적 그래프입니다. 노드를 드래그하고 줌인하여 상세 구조를 탐색하세요.</p>
+            <h2 className="text-3xl font-bold text-white tracking-tight">Architecture Map (LangSmith Style)</h2>
+            <p className="text-slate-400 mt-1">Dynamic graph based on a physics engine. Drag nodes and zoom in to explore the detailed structure.</p>
           </div>
           <div className="flex items-center gap-3">
             <button 
@@ -97,7 +97,7 @@ function ArchitectureTab() {
               className="flex items-center gap-2 px-4 py-2 bg-slate-800 border border-slate-700 text-slate-200 rounded-xl hover:bg-slate-700 transition-colors shadow-sm disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              데이터 새로고침
+              Refresh Data
             </button>
           </div>
         </div>
@@ -106,8 +106,8 @@ function ArchitectureTab() {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center min-h-[600px] bg-slate-900/50 rounded-3xl border border-slate-800 shadow-sm backdrop-blur-md">
             <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-            <p className="text-slate-300 font-medium">초고속 엔진으로 구조 데이터를 로드하는 중입니다...</p>
-            <p className="text-slate-500 text-sm mt-1">AI 생성 대기 없이 즉시 렌더링됩니다.</p>
+            <p className="text-slate-300 font-medium">Loading structural data with a high-speed engine...</p>
+            <p className="text-slate-500 text-sm mt-1">Rendered immediately without AI generation wait.</p>
           </div>
         ) : error ? (
           <div className="p-8 bg-red-900/20 border border-red-500/30 rounded-3xl text-center">
@@ -116,7 +116,7 @@ function ArchitectureTab() {
               onClick={fetchNetworkData}
               className="mt-4 px-6 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 transition-colors"
             >
-              재시도
+              Retry
             </button>
           </div>
         ) : graphData.nodes.length > 0 ? (
@@ -164,23 +164,23 @@ function ArchitectureTab() {
               />
               
               <div className="absolute bottom-4 left-6 z-20 flex items-center gap-2 text-slate-400 text-xs font-medium bg-slate-900/80 px-3 py-1.5 rounded-lg border border-white/5 backdrop-blur-md">
-                <span>🖱️ 휠로 확대/축소</span>
+                <span>🖱️ Scroll to zoom</span>
                 <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                <span>👋 드래그로 맵 이동</span>
+                <span>👋 Drag to pan</span>
                 <span className="w-1 h-1 rounded-full bg-slate-600"></span>
-                <span>👆 노드를 잡고 이동</span>
+                <span>👆 Drag nodes to move</span>
               </div>
               
               <div className="absolute top-4 right-6 z-20 flex flex-col items-end gap-2 text-slate-400 text-xs font-medium bg-slate-900/80 px-4 py-3 rounded-xl border border-white/5 backdrop-blur-md">
-                <div className="text-white font-bold mb-1">통계</div>
-                <div>노드(파일): {graphData.nodes.length}개</div>
-                <div>의존성(엣지): {graphData.links.length}개</div>
+                <div className="text-white font-bold mb-1">Statistics</div>
+                <div>Nodes (Files): {graphData.nodes.length}</div>
+                <div>Dependencies (Edges): {graphData.links.length}</div>
               </div>
             </div>
           </div>
         ) : (
           <div className="p-20 text-center border-2 border-dashed border-slate-700 rounded-3xl">
-            <p className="text-slate-400">데이터를 불러오려면 새로고침 버튼을 눌러주세요.</p>
+            <p className="text-slate-400">Click refresh to load data.</p>
           </div>
         )}
       </div>

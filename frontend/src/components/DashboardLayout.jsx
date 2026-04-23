@@ -56,16 +56,16 @@ function DashboardLayout() {
   // 세션이 없으면 홈으로 (Analysis)
   useEffect(() => {
     if (!sessionId) {
-      alert("유효한 세션이 없습니다. 분석을 먼저 진행해주세요.");
+      alert("No valid session found. Please perform an analysis first.");
       navigate(`/${username}/analysis`);
     }
   }, [sessionId, navigate, username]);
 
   const navItems = [
-    { path: `/${username}/dashboard/chat`, icon: MessageSquare, label: '일반 채팅' },
-    { path: `/${username}/dashboard/architecture`, icon: Share2, label: '아키텍처' },
-    { path: `/${username}/dashboard/docs`, icon: FileText, label: '문서 자동화' },
-    { path: `/${username}/dashboard/interview`, icon: Target, label: '모의 면접' },
+    { path: `/${username}/dashboard/chat`, icon: MessageSquare, label: 'General Chat' },
+    { path: `/${username}/dashboard/architecture`, icon: Share2, label: 'Architecture' },
+    { path: `/${username}/dashboard/docs`, icon: FileText, label: 'Documentation' },
+    { path: `/${username}/dashboard/interview`, icon: Target, label: 'Mock Interview' },
   ];
 
   return (
@@ -121,7 +121,7 @@ function DashboardLayout() {
               >
                 <GitBranch className={`w-4 h-4 ${isDropdownOpen ? 'text-blue-400' : 'text-slate-500'} group-hover:text-blue-400 transition-colors`} />
                 <span className="flex-1 text-left text-sm text-slate-200 font-medium truncate">
-                  {projects.find(p => p.latest_session_id === sessionId)?.repo_url.replace('https://github.com/', '') || '프로젝트 선택...'}
+                  {projects.find(p => p.latest_session_id === sessionId)?.repo_url.replace('https://github.com/', '') || 'Select Project...'}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-blue-400' : ''}`} />
               </button>

@@ -79,14 +79,14 @@ function MyPage() {
             navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
           }
         } else {
-          alert('이미 최신 상태입니다.');
+          alert('Already up to date.');
         }
       } else {
-        alert('업데이트 확인 중 오류가 발생했습니다.');
+        alert('An error occurred while checking for updates.');
       }
     } catch (err) {
       console.error('Failed to update project:', err);
-      alert('서버와 통신 중 오류가 발생했습니다.');
+      alert('An error occurred while communicating with the server.');
     } finally {
       setUpdatingProjectId(null);
     }
@@ -96,7 +96,7 @@ function MyPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center">
         <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
-        <p className="text-slate-400 font-medium">프로필을 불러오는 중...</p>
+        <p className="text-slate-400 font-medium">Loading profile...</p>
       </div>
     );
   }
@@ -105,10 +105,10 @@ function MyPage() {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center">
         <AlertCircle className="w-16 h-16 text-red-500 mb-6" />
-        <h2 className="text-3xl font-bold text-white mb-2">사용자를 찾을 수 없습니다</h2>
-        <p className="text-slate-400 mb-8">요청하신 사용자의 프로필이 존재하지 않거나 비공개 상태입니다.</p>
+        <h2 className="text-3xl font-bold text-white mb-2">User Not Found</h2>
+        <p className="text-slate-400 mb-8">The requested user profile does not exist or is private.</p>
         <button onClick={() => navigate('/')} className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-500 transition-colors">
-          홈으로 돌아가기
+          Return to Home
         </button>
       </div>
     );
@@ -174,11 +174,11 @@ function MyPage() {
             <div className="w-full space-y-3 pt-6 border-t border-white/5">
               <div className="flex items-center gap-3 text-slate-400 text-sm">
                 <Calendar className="w-4 h-4" />
-                <span>가입일: {new Date(profile.user.created_at).toLocaleDateString()}</span>
+                <span>Joined: {new Date(profile.user.created_at).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-3 text-slate-400 text-sm">
                 <Trophy className="w-4 h-4" />
-                <span>분석된 프로젝트: {profile.projects.length}개</span>
+                <span>Analyzed Projects: {profile.projects.length}</span>
               </div>
             </div>
           </div>
@@ -187,9 +187,9 @@ function MyPage() {
           <div className="lg:col-span-2 glass-panel rounded-3xl p-8 border border-white/10 relative flex flex-col md:flex-row items-center gap-10">
             <div className="flex-1 text-center md:text-left">
 
-              <h2 className="text-4xl font-black text-white mb-4 tracking-tighter">AI 기술 스택 분석</h2>
+              <h2 className="text-4xl font-black text-white mb-4 tracking-tighter">AI Tech Stack Analysis</h2>
               <p className="text-slate-400 text-lg leading-relaxed mb-6">
-                최근 분석한 저장소들의 코드를 바탕으로 당신의 기술 스택을 분석했습니다. 당신은 <span className="text-white font-bold">주로 {skillEntries[0]?.[0]} 환경</span>에서 강력한 퍼포먼스를 보여주고 있군요!
+                Analyzed your tech stack based on recently analyzed repositories. You show strong performance primarily in the <span className="text-white font-bold">{skillEntries[0]?.[0]} environment</span>!
               </p>
 
               <div className="grid grid-cols-2 gap-4">
@@ -262,14 +262,14 @@ function MyPage() {
             onClick={() => setActiveTab('projects')}
             className={`px-4 py-2 font-bold transition-all relative ${activeTab === 'projects' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            프로젝트 허브
+            Project Hub
             {activeTab === 'projects' && <div className="absolute bottom-[-17px] left-0 w-full h-1 bg-blue-500 rounded-full"></div>}
           </button>
           <button
             onClick={() => setActiveTab('assets')}
             className={`px-4 py-2 font-bold transition-all relative ${activeTab === 'assets' ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
-            자산 보관함
+            Asset Library
             {activeTab === 'assets' && <div className="absolute bottom-[-17px] left-0 w-full h-1 bg-blue-500 rounded-full"></div>}
           </button>
         </div>
@@ -281,7 +281,7 @@ function MyPage() {
             <div>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-1.5 h-6 bg-emerald-500 rounded-full"></div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">분석 완료된 프로젝트</h3>
+                <h3 className="text-2xl font-bold text-white tracking-tight">Analyzed Projects</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {profile.projects.map(project => (
@@ -320,12 +320,12 @@ function MyPage() {
                         className="flex-1 py-2.5 bg-slate-800 hover:bg-blue-600 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
                       >
                         <MessageSquare className="w-3.5 h-3.5" />
-                        채팅 진입
+                        Enter Chat
                       </button>
                       <button
                         onClick={() => navigate(`/${username}/dashboard/architecture`, { state: { sessionId: project.latest_session_id } })}
                         className="px-3 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-all"
-                        title="아키텍처 보기"
+                        title="View Architecture"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                       </button>
@@ -333,7 +333,7 @@ function MyPage() {
                         onClick={() => handleUpdateProject(project.id, project.repo_url)}
                         disabled={updatingProjectId === project.id}
                         className={`px-3 py-2.5 bg-slate-800 hover:bg-emerald-600 text-slate-300 hover:text-white rounded-xl transition-all ${updatingProjectId === project.id ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        title="업데이트 확인"
+                        title="Check for Updates"
                       >
                         <RefreshCw className={`w-3.5 h-3.5 ${updatingProjectId === project.id ? 'animate-spin' : ''}`} />
                       </button>
@@ -349,13 +349,13 @@ function MyPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
-                    <h3 className="text-2xl font-bold text-white tracking-tight">내 깃허브 저장소</h3>
+                    <h3 className="text-2xl font-bold text-white tracking-tight">My GitHub Repositories</h3>
                   </div>
                   <button
                     onClick={handleViewAllGithub}
                     className="text-slate-400 hover:text-white text-sm flex items-center gap-1.5 font-bold transition-colors"
                   >
-                    전체 보기 <ChevronRight className="w-4 h-4" />
+                    View All <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -370,13 +370,13 @@ function MyPage() {
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{repo.language || 'Plain'}</span>
                           {isAnalyzed ? (
-                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">완료</span>
+                            <span className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">Done</span>
                           ) : (
                             <button
                               onClick={() => handleAnalyzeRepo(repo.html_url)}
                               className="text-[10px] text-blue-400 font-bold hover:underline"
                             >
-                              분석하기
+                              Analyze
                             </button>
                           )}
                         </div>
@@ -396,7 +396,7 @@ function MyPage() {
             <div>
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-1.5 h-6 bg-purple-500 rounded-full"></div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">생성된 README 문서</h3>
+                <h3 className="text-2xl font-bold text-white tracking-tight">Generated READMEs</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {profile.assets.readmes.map(readme => (
@@ -423,7 +423,7 @@ function MyPage() {
                           onClick={() => navigate(`/${username}/dashboard/docs`, { state: { sessionId: readme.latest_session_id } })}
                           className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg transform scale-90 group-hover:scale-100 transition-transform"
                         >
-                          문서 보기
+                          View Document
                         </button>
                       </div>
                     </div>
@@ -436,7 +436,7 @@ function MyPage() {
             <div>
               <div className="flex items-center gap-3 mb-8">
                 <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">아키텍처 다이어그램 갤러리</h3>
+                <h3 className="text-2xl font-bold text-white tracking-tight">Architecture Diagram Gallery</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {profile.assets.diagrams.map(diag => (
@@ -477,12 +477,12 @@ function MyPage() {
 
       <footer className="w-full text-center p-4 text-slate-600 text-sm border-t border-white/5 relative z-10 flex flex-col items-center gap-8 bg-slate-950/50">
         <div className="flex gap-10 font-black text-slate-500 uppercase tracking-widest text-[10px]">
-          <button onClick={() => navigate('/terms')} className="hover:text-white transition-all">이용약관</button>
-          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-all">개인정보 처리방침</button>
-          <button onClick={() => navigate('/faq')} className="hover:text-white transition-all">고객센터(FAQ)</button>
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-all">Terms of Service</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-all">Privacy Policy</button>
+          <button onClick={() => navigate('/faq')} className="hover:text-white transition-all">Support (FAQ)</button>
         </div>
         <div className="space-y-2 opacity-60">
-          <p className="font-bold">대표 : 이재희 | TEL : 02-529-4237 | Mail : ChatFolio@chatfolio.com</p>
+          <p className="font-bold">CEO : Jaehee Lee | TEL : 02-529-4237 | Mail : ChatFolio@chatfolio.com</p>
           <p className="text-[10px]">&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
         </div>
       </footer>

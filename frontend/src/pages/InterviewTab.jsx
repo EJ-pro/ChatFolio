@@ -10,8 +10,8 @@ function InterviewTab() {
             <Flame className="w-6 h-6 text-red-500" />
           </div>
           <div>
-            <h2 className="font-bold text-white text-xl">하드코어 모의 면접</h2>
-            <p className="text-sm text-slate-400">10년 차 안드로이드 시니어 개발자의 압박 면접</p>
+            <h2 className="font-bold text-white text-xl">Hardcore Mock Interview</h2>
+            <p className="text-sm text-slate-400">Pressure interview by a 10-year senior developer</p>
           </div>
         </div>
         
@@ -30,9 +30,9 @@ function InterviewTab() {
             </div>
             <div className="bg-slate-800 text-slate-200 p-5 rounded-2xl rounded-tl-none border border-slate-700 shadow-md">
               <p className="leading-relaxed">
-                반갑습니다. 제출하신 <code className="bg-slate-900 px-2 py-1 rounded text-red-400 font-mono text-sm">AppContainer.kt</code> 코드를 잘 봤습니다. 
+                Nice to meet you. I've reviewed your <code className="bg-slate-900 px-2 py-1 rounded text-red-400 font-mono text-sm">AppContainer.kt</code> code.
                 <br/><br/>
-                의존성 주입을 수동으로 구성하셨던데, 만약 프로젝트 규모가 커져서 싱글톤 객체가 수백 개로 늘어난다면 메모리 누수나 초기화 순서 문제는 어떻게 제어하실 계획인가요? Hilt나 Dagger를 쓰지 않은 특별한 이유가 있나요?
+                You configured dependency injection manually. If the project scale grows and the number of singleton objects increases to hundreds, how do you plan to control memory leaks or initialization order? Is there a specific reason you didn't use Hilt or Dagger?
               </p>
             </div>
           </div>
@@ -45,10 +45,10 @@ function InterviewTab() {
             </div>
             <div className="bg-blue-600 text-white p-5 rounded-2xl rounded-tr-none shadow-md opacity-50 relative">
               <div className="absolute inset-0 bg-slate-900/40 rounded-2xl rounded-tr-none flex items-center justify-center backdrop-blur-sm z-10">
-                <span className="bg-slate-900 px-4 py-2 rounded-lg font-bold text-slate-300 border border-slate-700">기능 준비 중입니다</span>
+                <span className="bg-slate-900 px-4 py-2 rounded-lg font-bold text-slate-300 border border-slate-700">Coming Soon</span>
               </div>
               <p className="leading-relaxed blur-[2px]">
-                어... 그 부분은 아직 깊게 고민해보지 못했습니다. 프로젝트 초기 단계라서 당장 복잡한 라이브러리를 도입하기보다는 직관적인 구조를 가져가려고 했습니다...
+                Uh... I haven't thought deeply about that part yet. Since it's the early stage of the project, I tried to maintain an intuitive structure rather than adopting complex libraries right away...
               </p>
             </div>
           </div>
@@ -62,7 +62,7 @@ function InterviewTab() {
             type="text"
             disabled
             className="w-full p-4 pr-14 border border-slate-700 rounded-2xl bg-slate-900 text-slate-300 placeholder-slate-600 cursor-not-allowed"
-            placeholder="압박 질문에 대한 답변을 입력하세요 (개발 중)..."
+            placeholder="Enter your answer to the pressure question (Coming soon)..."
           />
           <button
             disabled

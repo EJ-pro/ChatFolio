@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse, NewSessionRequest
+from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse, NewSessionRequest, ProfileUpdateRequest
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import os
@@ -54,7 +54,25 @@ async def create_inquiry(request: Request, db: Session = Depends(get_db), curren
     db.commit()
     db.refresh(inquiry)
     
-    return {"status": "success", "message": "문의가 접수되었습니다."}
+    return {"status": "success", "message": "Your inquiry has been received."}
+
+@app.patch("/user/profile")
+async def update_user_profile(request: ProfileUpdateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    """사용자 국가 및 직업 정보를 업데이트"""
+    if request.country is not None:
+        current_user.country = request.country
+    if request.job is not None:
+        current_user.job = request.job
+        
+    db.commit()
+    db.refresh(current_user)
+    return {
+        "status": "success", 
+        "user": {
+            "country": current_user.country, 
+            "job": current_user.job
+        }
+    }
 
 @app.get("/stats/global")
 async def get_global_stats(db: Session = Depends(get_db)):
@@ -120,7 +138,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                             "file_count": existing_project.file_count,
                             "node_count": existing_project.node_count,
                             "edge_count": existing_project.edge_count,
-                            "message": "기존 분석 결과를 불러왔습니다. (최신 상태)"
+                            "message": "Loaded existing analysis result. (Latest)"
                         }
                         yield f"data: RESULT:{json.dumps(result)}\n\n"
                     
@@ -154,7 +172,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                             "file_count": existing_project.file_count,
                             "node_count": existing_project.node_count,
                             "edge_count": existing_project.edge_count,
-                            "message": "기존 프로젝트 데이터를 기반으로 새로운 분석 세션을 시작합니다."
+                            "message": "Starting a new analysis session based on existing project data."
                         }
                         yield f"data: RESULT:{json.dumps(result)}\n\n"
                     
@@ -254,12 +272,12 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     db_session.add(new_file)
                 
                 # --- [Project Insight DB 저장] ---
-                q.put("💡 프로젝트 인사이트 도출 중...")
+                q.put("💡 Identifying project insights...")
                 main_language = max(lang_counts, key=lang_counts.get) if lang_counts else "Unknown"
                 
-                insight_summary = f"주 언어: {main_language.title()}"
+                insight_summary = f"Main Language: {main_language.title()}"
                 if detected_frameworks:
-                    insight_summary += f" | 감지된 기술/환경: {', '.join(detected_frameworks)}"
+                    insight_summary += f" | Detected Tech/Env: {', '.join(detected_frameworks)}"
                 
                 tech_stack_json = {
                     "main_language": main_language,
@@ -279,7 +297,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.add(insight)
                 
                 # 4. 의존성 그래프 분석
-                q.put("📊 의존성 그래프 분석 중...")
+                q.put("📊 Analyzing dependency graph...")
                 builder = DependencyGraphBuilder()
                 graph = builder.build_graph(all_meta)
                 graph_data = nx.node_link_data(graph)
@@ -289,7 +307,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 project.edge_count = graph.number_of_edges()
                 project.graph_data = graph_data
                 
-                q.put("💾 데이터베이스 최종 저장 중...")
+                q.put("💾 Saving data to database...")
                 
                 chat_session = ChatSession(
                     user_id=current_user.id,
@@ -314,7 +332,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     "file_count": project.file_count,
                     "node_count": project.node_count,
                     "edge_count": project.edge_count,
-                    "message": "분석이 완료되었습니다."
+                    "message": "Analysis completed."
                 }
                 q.put(f"RESULT:{json.dumps(result)}")
                 q.put(None)
@@ -437,7 +455,7 @@ async def delete_chat_session(session_id: str, db: Session = Depends(get_db), cu
     chat_session.is_deleted = 1
     db.commit()
     
-    return {"status": "success", "message": "채팅 세션이 성공적으로 삭제되었습니다."}
+    return {"status": "success", "message": "Chat session deleted successfully."}
 
 @app.get("/chat/history/{session_id}")
 async def get_chat_history(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -494,7 +512,7 @@ async def create_new_chat_session(request: NewSessionRequest, db: Session = Depe
         "status": "success",
         "session_id": new_session.id,
         "project_id": project.id,
-        "message": "새로운 채팅 세션이 생성되었습니다."
+        "message": "New chat session created."
     }
 
 @app.post("/chat")
@@ -546,9 +564,9 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         )
         db.add(user_message)
         
-        # 3. RAG 엔진 실행
-        result = engine.ask(query)
-        answer = result.get("answer", "죄송합니다. 답변을 생성하지 못했습니다.")
+        # 3. RAG 엔진 실행 (언어 추가)
+        result = engine.ask(query, language=request.language)
+        answer = result.get("answer", "Sorry, I couldn't generate an answer.")
         sources = result.get("sources", [])
         
         # 4. 답변 저장
@@ -765,7 +783,8 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
             request.user_inputs, 
             llm=temp_llm, 
             provider=request.provider, 
-            model_name=request.model_name
+            model_name=request.model_name,
+            languages=request.languages
         )
         
         # 항상 새로운 버전을 생성

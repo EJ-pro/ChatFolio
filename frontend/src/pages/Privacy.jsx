@@ -38,59 +38,59 @@ function Privacy() {
             <div className="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-400 border border-blue-500/20">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <h1 className="text-4xl font-black text-white tracking-tight">개인정보 처리방침</h1>
+            <h1 className="text-4xl font-black text-white tracking-tight">Privacy Policy</h1>
           </div>
 
           <div className="space-y-8 text-slate-400 leading-relaxed">
             <section>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                제1조 (수집하는 개인정보 항목)
+                Article 1 (Personal Information Items Collected)
               </h2>
-              <p>서비스는 원활한 서비스 제공을 위해 다음과 같은 정보를 수집합니다.</p>
+              <p>The service collects the following information for smooth service provision.</p>
               <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li><span className="text-slate-200">GitHub 연동 시:</span> GitHub ID, 이메일, 이름, 아바타 URL, GitHub 액세스 토큰.</li>
-                <li><span className="text-slate-200">서비스 이용 과정:</span> 분석 요청한 레포지토리 URL, 코드 내용(분석용), AI와의 채팅 내역.</li>
+                <li><span className="text-slate-200">When integrating GitHub:</span> GitHub ID, email, name, avatar URL, GitHub access token.</li>
+                <li><span className="text-slate-200">Service use process:</span> Repository URL requested for analysis, code content (for analysis), and chat history with AI.</li>
               </ul>
             </section>
 
             <section>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                제2조 (개인정보의 이용 목적)
+                Article 2 (Purpose of Using Personal Information)
               </h2>
-              <p>수집된 정보는 다음의 목적을 위해 활용됩니다.</p>
+              <p>The collected information is used for the following purposes:</p>
               <ul className="list-disc pl-6 mt-2 space-y-1">
-                <li>서비스 제공 및 이용자 본인 확인</li>
-                <li>맞춤형 코드 의존성 분석 및 기술 스택 파악</li>
-                <li>개발자 페르소나(MBTI) 정의 및 시각화 데이터 생성</li>
-                <li>서비스 개선을 위한 통계적 분석</li>
+                <li>Service provision and user identity verification</li>
+                <li>Tailored code dependency analysis and tech stack identification</li>
+                <li>Developer persona (MBTI) definition and visualization data generation</li>
+                <li>Statistical analysis for service improvement</li>
               </ul>
             </section>
 
             <section>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                제3조 (GitHub 액세스 토큰 관리)
+                Article 3 (GitHub Access Token Management)
               </h2>
               <p>
-                이용자의 <span className="text-blue-400 font-mono">GitHub 액세스 토큰</span>은 프라이빗 레포지토리의 코드를 읽어오기 위한 용도로만 사용되며, 서버 내에 암호화되어 안전하게 저장됩니다. 이용자가 서비스 연동을 해제하거나 계정을 삭제할 경우, 해당 토큰 및 관련 정보는 즉시 복구 불가능한 방법으로 파기됩니다.
+                The user's <span className="text-blue-400 font-mono">GitHub Access Token</span> is used only for reading code from private repositories and is securely stored encrypted within the server. If the user disconnects the service or deletes their account, the token and related information are immediately destroyed in an unrecoverable manner.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full"></span>
-                제4조 (정보의 제3자 제공)
+                Article 4 (Disclosure to Third Parties)
               </h2>
               <p>
-                ChatFolio는 이용자의 사전 동의 없이 개인정보를 외부에 제공하지 않습니다. 다만, AI 분석을 위해 이용되는 코드 데이터는 API 제공사(OpenAI, Groq 등)를 통해 처리될 수 있으며, 이 과정에서 개인 식별 정보는 제외됩니다.
+                ChatFolio does not disclose personal information to third parties without the user's prior consent. However, code data used for AI analysis may be processed through API providers (OpenAI, Groq, etc.), and personally identifiable information is excluded during this process.
               </p>
             </section>
           </div>
 
           <div className="mt-12 pt-8 border-t border-white/5 text-sm text-slate-500">
-            시행 일자: 2026년 4월 20일
+            Effective Date: April 20, 2026
           </div>
         </div>
       </main>

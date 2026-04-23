@@ -53,7 +53,7 @@ class PythonParser(BaseTreeSitterParser):
                 parsed_data["is_web_backend"] = True
 
         except Exception as e:
-            meta["error"] = f"Python 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during Python parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

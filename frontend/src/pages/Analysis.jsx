@@ -26,6 +26,10 @@ function Analysis() {
     total_nodes: 0,
     ai_health: 99.9
   });
+  const [user, setUser] = useState(null);
+  const [showSurvey, setShowSurvey] = useState(false);
+  const [surveyData, setSurveyData] = useState({ country: '', job: '' });
+  const [selectedLanguage, setSelectedLanguage] = useState('English');
 
   const formatStat = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -34,6 +38,7 @@ function Analysis() {
   };
 
   useEffect(() => {
+    fetchUser();
     fetchProjects();
     fetchGlobalStats();
     const repoUrl = searchParams.get('repo_url');
@@ -46,6 +51,54 @@ function Analysis() {
       }
     }
   }, [searchParams]);
+
+  const fetchUser = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('http://localhost:8000/auth/me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const userData = await response.json();
+        setUser(userData);
+        if (!userData.country || !userData.job) {
+          setShowSurvey(true);
+        }
+        // 기본 언어 설정 (국가 기반 자동 매핑)
+        if (userData.country === 'South Korea') setSelectedLanguage('Korean');
+        else if (userData.country === 'Japan') setSelectedLanguage('Japanese');
+        else if (userData.country === 'China') setSelectedLanguage('Chinese');
+        else if (userData.country === 'France') setSelectedLanguage('French');
+        else if (userData.country === 'Germany') setSelectedLanguage('German');
+        else if (userData.country === 'UK' || userData.country === 'USA') setSelectedLanguage('English');
+      }
+    } catch (err) {
+      console.error('Failed to fetch user:', err);
+    }
+  };
+
+  const handleSurveySubmit = async (skipped = false) => {
+    try {
+      const token = localStorage.getItem('token');
+      const body = skipped ? { country: 'Other', job: 'Other' } : surveyData;
+      
+      const response = await fetch('http://localhost:8000/user/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+      });
+      
+      if (response.ok) {
+        setShowSurvey(false);
+        fetchUser(); // 최신 정보로 갱신
+      }
+    } catch (err) {
+      console.error('Failed to update profile:', err);
+    }
+  };
 
   const fetchProjects = async () => {
     try {
@@ -83,7 +136,7 @@ function Analysis() {
     setError('');
     setResult(null);
     setLogs([]);
-    setCurrentLog('분석 시작 중...');
+    setCurrentLog('Initializing analysis...');
     setProgress(0);
 
 
@@ -99,7 +152,8 @@ function Analysis() {
           repo_url: targetUrl,
           provider: provider,
           model_name: modelName,
-          force_update: forceUpdate
+          force_update: forceUpdate,
+          language: selectedLanguage
         })
       });
 
@@ -149,10 +203,10 @@ function Analysis() {
 
   const getActivePhase = () => {
     const log = currentLog.toLowerCase();
-    if (log.includes('인덱싱') || log.includes('최종') || log.includes('성공') || log.includes('완료')) return 5;
-    if (log.includes('그래프') || log.includes('의존성') || log.includes('맵핑')) return 4;
-    if (log.includes('파싱') || log.includes('분석 진행') || log.includes('ast') || log.includes('분석 중')) return 3;
-    if (log.includes('클론') || log.includes('레포지토리') || log.includes('수집') || log.includes('가져오는')) return 2;
+    if (log.includes('indexing') || log.includes('final') || log.includes('success') || log.includes('complete')) return 5;
+    if (log.includes('graph') || log.includes('dependency') || log.includes('mapping')) return 4;
+    if (log.includes('parsing') || log.includes('analyzing') || log.includes('ast') || log.includes('identifying')) return 3;
+    if (log.includes('clone') || log.includes('repository') || log.includes('collect') || log.includes('fetch')) return 2;
     return 1;
   };
 
@@ -215,10 +269,10 @@ function Analysis() {
             <span>ChatFolio AI Beta</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-400">
-            당신의 코드와<br />대화를 시작하세요.
+            Start a Conversation<br />with Your Code.
           </h1>
           <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-            복잡한 레포지토리의 의존성을 시각화하고, AI와 대화하며 코드에 대해 깊이 알아보세요.
+            Visualize complex repository dependencies, chat with AI, and explore your code in depth.
           </p>
         </div>
 
@@ -263,10 +317,10 @@ function Analysis() {
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" /> 분석 중
+                    <Loader2 className="w-5 h-5 animate-spin" /> Analyzing
                   </span>
                 ) : (
-                  '분석 시작'
+                  'Start Analysis'
                 )}
               </button>
             </div>
@@ -336,7 +390,7 @@ function Analysis() {
           {projects.length > 0 && !result && !error && !isLoading && (
             <div className="mt-6 animate-fade-in">
               <div className="flex items-center gap-2 mb-3 px-1">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">최근 분석 기록</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Recent Analysis History</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {projects.slice(0, 5).map((project) => (
@@ -358,7 +412,7 @@ function Analysis() {
                   onClick={() => navigate(`/${username}`)}
                   className="px-3 py-1.5 text-xs font-bold text-blue-400 hover:text-blue-300 transition-colors"
                 >
-                  모두 보기
+                  View All
                 </button>
               </div>
             </div>
@@ -471,7 +525,7 @@ function Analysis() {
                 <Sparkles className="w-10 h-10" />
               </div>
               <h3 className="text-3xl font-bold text-white mb-3 tracking-tight">{result.message}</h3>
-              <p className="text-slate-300 text-lg">성공적으로 레포지토리 구조를 파악했습니다.</p>
+              <p className="text-slate-300 text-lg">Successfully understood the repository structure.</p>
             </div>
 
             <div className="grid grid-cols-3 gap-6 mb-10">
@@ -496,7 +550,7 @@ function Analysis() {
               className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-xl shadow-[0_0_30px_rgba(79,70,229,0.4)] transition-all transform hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(79,70,229,0.5)] active:scale-95"
               onClick={() => navigate(`/${username}/dashboard/chat`, { state: { sessionId: result.session_id } })}
             >
-              대시보드 입장하기 ✨
+              Enter Dashboard ✨
             </button>
           </div>
         )}
@@ -508,22 +562,22 @@ function Analysis() {
               <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4 text-blue-400">
                 <GitBranch className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">의존성 그래프 분석</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">복잡하게 얽힌 클래스와 함수 간의 호출 관계를 시각적으로 분석하여 전체 아키텍처를 빠르게 파악합니다.</p>
+              <h3 className="text-xl font-bold text-white mb-2">Dependency Graph</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Visually analyze calling relationships between complex classes and functions to quickly understand the overall architecture.</p>
             </div>
             <div className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50 transition-colors">
               <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4 text-purple-400">
                 <MessageSquare className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">컨텍스트 AI 대화</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">단순한 코드 검색을 넘어, 프로젝트의 맥락을 완벽히 이해한 AI와 심도 깊은 기술적 대화를 나눌 수 있습니다.</p>
+              <h3 className="text-xl font-bold text-white mb-2">Contextual AI Chat</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Go beyond simple code search and engage in deep technical conversations with an AI that fully understands the project context.</p>
             </div>
             <div className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50 transition-colors">
               <div className="w-12 h-12 rounded-xl bg-emerald-500/20 flex items-center justify-center mb-4 text-emerald-400">
                 <BookOpen className="w-6 h-6" />
               </div>
-              <h3 className="text-xl font-bold text-white mb-2">자동화된 문서화</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">README 작성, 포트폴리오 성과 요약, 면접 대비용 압박 질문까지 AI가 자동으로 생성해 드립니다.</p>
+              <h3 className="text-xl font-bold text-white mb-2">Automated Documentation</h3>
+              <p className="text-slate-400 text-sm leading-relaxed">Let AI automatically generate READMEs, portfolio summaries, and even pressure-cooker interview questions.</p>
             </div>
           </div>
         )}
@@ -581,14 +635,83 @@ function Analysis() {
 
       </main>
 
+      {/* Survey Modal */}
+      {showSurvey && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-slate-950/60 transition-all animate-fade-in">
+          <div className="glass-panel w-full max-w-lg rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden animate-scale-in">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-[60px] -mr-16 -mt-16"></div>
+            <div className="relative z-10">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center text-blue-400 mb-6 mx-auto">
+                <Sparkles size={32} className="animate-pulse" />
+              </div>
+              <h2 className="text-3xl font-black text-white text-center mb-2 tracking-tight">Welcome to ChatFolio!</h2>
+              <p className="text-slate-400 text-center mb-8">Short survey to enhance your analysis experience.</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Country</label>
+                  <select 
+                    value={surveyData.country}
+                    onChange={(e) => setSurveyData({...surveyData, country: e.target.value})}
+                    className="w-full bg-slate-900 border border-white/10 rounded-2xl px-6 py-4 text-white focus:outline-none focus:border-blue-500/50 appearance-none"
+                  >
+                    <option value="" disabled>Select your country</option>
+                    <option value="USA">USA</option>
+                    <option value="South Korea">South Korea</option>
+                    <option value="UK">UK</option>
+                    <option value="Germany">Germany</option>
+                    <option value="France">France</option>
+                    <option value="Japan">Japan</option>
+                    <option value="China">China</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Your Occupation</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['Developer', 'Student', 'Designer', 'PM', 'Recruiter', 'Other'].map(job => (
+                      <button
+                        key={job}
+                        onClick={() => setSurveyData({...surveyData, job})}
+                        type="button"
+                        className={`px-4 py-3 rounded-xl font-bold text-sm transition-all border ${surveyData.job === job ? 'bg-blue-600 border-blue-500 text-white shadow-lg shadow-blue-500/20' : 'bg-white/5 border-white/10 text-slate-400 hover:border-white/20'}`}
+                      >
+                        {job}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    onClick={() => handleSurveySubmit(true)}
+                    className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-slate-400 font-bold rounded-2xl transition-all"
+                  >
+                    Maybe Later
+                  </button>
+                  <button 
+                    onClick={() => handleSurveySubmit(false)}
+                    disabled={!surveyData.country || !surveyData.job}
+                    className="flex-[2] py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none"
+                  >
+                    Get Started
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="w-full text-center p-4 text-slate-500 text-sm animate-fade-in delay-500 relative z-10 flex flex-col items-center gap-6 border-t border-white/5 bg-slate-950">
         <div className="flex gap-8 font-bold text-slate-400">
-          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
-          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
-          <button onClick={() => navigate('/faq')} className="hover:text-white transition-colors">고객센터(FAQ)</button>
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms of Service</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy Policy</button>
+          <button onClick={() => navigate('/faq')} className="hover:text-white transition-colors">Support (FAQ)</button>
         </div>
         <div className="text-xs text-slate-600 space-y-2">
-          <p>대표 : 이재희 | TEL : 010-1234-1234 | Mail : hsshss2522@naver.com</p>
+          <p>CEO : Jaehee Lee | TEL : 02-529-4237 | Mail : ChatFolio@chatfolio.com</p>
           <p>&copy; 2026 ChatFolio. Designed for the Next Generation of Developers.</p>
         </div>
       </footer>

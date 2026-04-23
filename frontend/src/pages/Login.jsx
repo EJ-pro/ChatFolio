@@ -30,7 +30,7 @@ function Login() {
         </div>
 
         <h1 className="text-3xl font-extrabold text-white mb-2">ChatFolio</h1>
-        <p className="text-slate-400 mb-6">당신의 레포지토리를 가장 완벽하게 분석하는 방법</p>
+        <p className="text-slate-400 mb-6">The most sophisticated way to analyze your repository</p>
 
         <div className="mb-10 w-full space-y-6">
           {/* Languages */}
@@ -98,15 +98,15 @@ function Login() {
         </button>
 
         <div className="flex justify-center gap-4 text-xs text-slate-500 font-medium mb-6">
-          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">이용약관</button>
+          <button onClick={() => navigate('/terms')} className="hover:text-white transition-colors">Terms of Service</button>
           <span className="opacity-20">|</span>
-          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">개인정보 처리방침</button>
+          <button onClick={() => navigate('/privacy')} className="hover:text-white transition-colors">Privacy Policy</button>
           <span className="opacity-20">|</span>
-          <button onClick={() => navigate('/faq')} className="hover:text-white transition-colors">고객센터(FAQ)</button>
+          <button onClick={() => navigate('/faq')} className="hover:text-white transition-colors">Support (FAQ)</button>
         </div>
 
         <div className="pt-6 border-t border-white/5 text-[10px] text-slate-600 space-y-1">
-          <p>대표 : 이재희 | TEL : 02-529-4237</p>
+          <p>CEO : Jaehee Lee | TEL : 02-529-4237</p>
           <p>Mail : ChatFolio@chatfolio.com</p>
           <p className="pt-2">&copy; 2026 ChatFolio. All rights reserved.</p>
         </div>

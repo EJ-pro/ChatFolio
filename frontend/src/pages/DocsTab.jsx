@@ -24,15 +24,17 @@ function DocsTab() {
   const [agentStep, setAgentStep] = useState(0); // 0: Idle, 1: Analyzer, 2: Router, 3: Writer, 4: Reviewer
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [userInputs, setUserInputs] = useState({
-    "프로젝트 이름": "",
-    "한 줄 소개": "",
-    "해결하려는 문제": "",
-    "주요 기능": "",
-    "타겟 사용자": "",
-    "기술 스택 부연 설명": "",
-    "향후 계획 / 로드맵": "",
-    "프로젝트 로고/대표 이미지 URL": ""
+    "Project Name": "",
+    "One-line Intro": "",
+    "Problem Solved": "",
+    "Key Features": "",
+    "Target Users": "",
+    "Tech Stack Details": "",
+    "Future Roadmap": "",
+    "Project Logo/Image URL": ""
   });
+  const [selectedLanguages, setSelectedLanguages] = useState(['English']);
+  const availableLanguages = ['English', 'Korean', 'Japanese', 'Chinese', 'French', 'German', 'Spanish'];
 
   const [provider, setProvider] = useState('groq');
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
@@ -161,12 +163,13 @@ function DocsTab() {
           force_regenerate: true,
           user_inputs: userInputs,
           provider: provider,
-          model_name: modelName
+          model_name: modelName,
+          languages: selectedLanguages
         })
       });
 
       if (!response.ok) {
-        throw new Error('README 생성 중 오류가 발생했습니다.');
+        throw new Error('An error occurred during README generation.');
       }
 
       const data = await response.json();
@@ -210,8 +213,8 @@ function DocsTab() {
             <Sparkles className="w-3.5 h-3.5" />
             <span>AI Auto-Docs</span>
           </div>
-          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">문서 자동화</h2>
-          <p className="text-slate-400 text-sm leading-relaxed">프로젝트 아키텍처와 핵심 코드를 분석하여 고품질의 문서를 생성합니다.</p>
+          <h2 className="text-3xl font-black text-white mb-2 tracking-tight">Documentation</h2>
+          <p className="text-slate-400 text-sm leading-relaxed">Analyze project architecture and core code to generate high-quality documents.</p>
         </header>
 
         <div className="bg-slate-900/50 border border-white/10 rounded-3xl p-6 shadow-2xl backdrop-blur-xl relative overflow-hidden group">
@@ -219,9 +222,9 @@ function DocsTab() {
           <div className="w-12 h-12 bg-blue-500/10 text-blue-400 rounded-2xl flex items-center justify-center mb-4 border border-blue-500/20">
             <FileText className="w-6 h-6" />
           </div>
-          <h3 className="text-xl font-bold text-white mb-2">README 생성기</h3>
+          <h3 className="text-xl font-bold text-white mb-2">README Generator</h3>
           <p className="text-slate-400 text-sm mb-6 leading-relaxed">
-            전체 파일 개수, 가장 많이 참조된 핵심 파일 Top 5, 그리고 디렉토리 구조를 바탕으로 Github에 올릴 수 있는 README.md를 자동 작성합니다.
+            Automatically writes a README.md that can be uploaded to GitHub based on the total number of files, Top 5 most referenced core files, and directory structure.
           </p>
 
           {/* User Inputs Form (Accordion) */}
@@ -232,7 +235,7 @@ function DocsTab() {
             >
               <div className="flex items-center gap-2">
                 <Settings className="w-4 h-4 text-blue-400" />
-                <span className="text-sm font-bold text-slate-300">맞춤 설정 (선택 항목)</span>
+                <span className="text-sm font-bold text-slate-300">Custom Settings (Optional)</span>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-300 ${isFormOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -247,14 +250,14 @@ function DocsTab() {
                         type="text" 
                         value={userInputs[field]}
                         onChange={(e) => handleInputChange(field, e.target.value)}
-                        placeholder={`${field}을(를) 입력하세요...`}
+                        placeholder={`Enter ${field}...`}
                         className="w-full bg-slate-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all"
                       />
                     ) : (
                       <textarea 
                         value={userInputs[field]}
                         onChange={(e) => handleInputChange(field, e.target.value)}
-                        placeholder={`${field}에 대한 자세한 설명을 적어주세요...`}
+                        placeholder={`Provide a detailed description of ${field}...`}
                         rows={2}
                         className="w-full bg-slate-950/50 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-600 focus:outline-none focus:border-blue-500/50 focus:bg-slate-900 transition-all resize-none"
                       />
@@ -263,6 +266,31 @@ function DocsTab() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Language Selection */}
+          <div className="mb-6">
+            <label className="block text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-2 ml-1">Output Languages (Multi-select)</label>
+            <div className="flex flex-wrap gap-2">
+              {availableLanguages.map(lang => (
+                <button
+                  key={lang}
+                  type="button"
+                  onClick={() => {
+                    if (selectedLanguages.includes(lang)) {
+                      if (selectedLanguages.length > 1) {
+                        setSelectedLanguages(selectedLanguages.filter(l => l !== lang));
+                      }
+                    } else {
+                      setSelectedLanguages([...selectedLanguages, lang]);
+                    }
+                  }}
+                  className={`px-3 py-2 rounded-xl text-[10px] font-bold transition-all border ${selectedLanguages.includes(lang) ? 'bg-blue-600/20 border-blue-500 text-blue-400' : 'bg-slate-950/50 border-white/5 text-slate-500 hover:border-white/10'}`}
+                >
+                  {lang}
+                </button>
+              ))}
+            </div>
           </div>
           
           {/* Model Selector */}
@@ -343,12 +371,12 @@ function DocsTab() {
             {isLoading ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                <span>README 생성 중...</span>
+                <span>Generating README...</span>
               </>
             ) : (
               <>
                 <Sparkles className="w-5 h-5" />
-                <span>README 자동 생성 🚀</span>
+                <span>Generate README 🚀</span>
               </>
             )}
           </button>
@@ -381,7 +409,7 @@ function DocsTab() {
                   <div>
                     <div className="text-sm font-bold text-slate-200 mb-1 flex items-center gap-2">
                       <FileText className={`w-4 h-4 ${activeReadmeId === readme.id ? 'text-blue-400' : 'text-slate-500'}`} />
-                      버전 {readmes.length - idx}
+                      Version {readmes.length - idx}
                       {idx === 0 && <span className="bg-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-full uppercase">Latest</span>}
                     </div>
                     <div className="text-xs text-slate-500">
@@ -411,17 +439,17 @@ function DocsTab() {
                   <div className="w-20 h-20 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
                   <Sparkles className="absolute inset-0 m-auto w-8 h-8 text-blue-400 animate-pulse" />
                 </div>
-                <h2 className="text-2xl font-black text-white mb-2 tracking-tight">AI 에이전트 가동 중...</h2>
-                <p className="text-slate-400 text-sm">프로젝트 아키텍처를 심층 분석하여 최적의 README를 생성합니다.</p>
+                <h2 className="text-2xl font-black text-white mb-2 tracking-tight">AI Agent Working...</h2>
+                <p className="text-slate-400 text-sm">Deeply analyzing project architecture to generate the optimal README.</p>
               </div>
 
               {/* Agent Workflow Steps */}
               <div className="space-y-4">
                 {[
-                  { id: 1, name: "Analyzer", desc: "프로젝트 구조 및 기술 스택 스캔", icon: "🔍" },
-                  { id: 2, name: "Router", desc: "아키타입 기반 최적 전략 수립", icon: "🔀" },
-                  { id: 3, name: "Writer", desc: "마크다운 기반 기술 초안 작성", icon: "✍️" },
-                  { id: 4, name: "Reviewer", desc: "품질 검토 및 루프 피드백", icon: "🕵️" }
+                  { id: 1, name: "Analyzer", desc: "Scan project structure and tech stack", icon: "🔍" },
+                  { id: 2, name: "Router", desc: "Establish optimal strategy based on archetype", icon: "🔀" },
+                  { id: 3, name: "Writer", desc: "Write technical draft based on markdown", icon: "✍️" },
+                  { id: 4, name: "Reviewer", desc: "Quality review and feedback loop", icon: "🕵️" }
                 ].map((s, idx) => (
                   <div key={s.id} className={`flex items-center gap-4 p-4 rounded-2xl border transition-all duration-500 ${
                     agentStep === s.id 
@@ -485,7 +513,7 @@ function DocsTab() {
                       className="flex items-center gap-2 px-3 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white rounded-xl border border-white/10 transition-all text-xs font-bold"
                     >
                       {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                      {copied ? '복사됨' : '복사'}
+                      {copied ? 'Copied' : 'Copy'}
                     </button>
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
@@ -515,7 +543,7 @@ function DocsTab() {
               <div className="bg-white/5 border-b border-white/10 px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Eye className="w-5 h-5 text-slate-400" />
-                  <span className="text-sm font-bold text-slate-300 tracking-tight">스타일 미리보기 (Preview)</span>
+                  <span className="text-sm font-bold text-slate-300 tracking-tight">Style Preview</span>
                 </div>
                 <span className="text-[10px] font-bold text-slate-500 bg-white/5 px-2 py-1 rounded-lg border border-white/5 uppercase tracking-widest">
                   Standard Professional

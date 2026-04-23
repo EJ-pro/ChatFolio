@@ -15,6 +15,8 @@ class User(Base):
     github_username = Column(String, unique=True, index=True, nullable=True)
     github_token = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
+    country = Column(String, nullable=True) # 사용자 국가
+    job = Column(String, nullable=True) # 사용자 직업
     persona_data = Column(JSONB, nullable=True) # 개발자 MBTI (Persona) 데이터 저장
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -89,7 +91,7 @@ class ChatSession(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     provider = Column(String, default="groq")
     model_name = Column(String, nullable=True)
-    title = Column(String, default="새 대화")
+    title = Column(String, default="New Chat")
     is_deleted = Column(Integer, default=0) # 0: Active, 1: Deleted
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -134,6 +136,8 @@ def init_db():
             with engine.connect() as conn:
                 try:
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS job VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
                     # ProjectFile 컬럼 추가
@@ -142,7 +146,7 @@ def init_db():
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS metadata_json JSONB"))
                     # ChatSession 컬럼 추가
-                    conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title VARCHAR DEFAULT '새 대화'"))
+                    conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title VARCHAR DEFAULT 'New Chat'"))
                     conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
                     conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))

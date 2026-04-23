@@ -52,7 +52,7 @@ class ChatFolioEngine:
         
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
 
-    def ask(self, query: str):
+    def ask(self, query: str, language: str = "English"):
         # 1. k값을 늘려 더 풍부한 후보군을 확보 (8 -> 12)
         related_docs = self.vector_db.similarity_search(query, k=12)
         
@@ -132,13 +132,14 @@ class ChatFolioEngine:
 
         # 4. 소스 코드 중심의 강력한 시스템 프롬프트
         system_prompt = SystemMessage(content=f"""
-        당신은 숙련된 풀스택 소프트웨어 엔지니어이자 코드 아키텍처 전문가입니다. 
-        사용자의 질문에 답변할 때 다음 지침을 엄격히 준수하십시오:
+        You are an experienced full-stack software engineer and code architecture expert.
+        When answering user questions, strictly adhere to the following guidelines:
         
-        1. **코드 최우선 분석 (Code-First Analysis)**: 'DOCUMENTATION' 섹션은 참고용일 뿐입니다. 모든 기술적 질문은 반드시 'SOURCE CODE' 섹션의 실제 코드를 분석하여 답변하십시오. 
-        2. **구체적 근거 제시**: 답변 시 핵심 로직이 담긴 함수명, 클래스명, 혹은 특정 코드 패턴을 직접 언급하십시오.
-        3. **비판적 분석**: 문서상 설명과 실제 코드가 다르다면, 코드의 구현 상태를 진실로 간주하고 그 차이점을 지적하십시오.
-        4. **가독성**: 복잡한 로직은 단계별로 설명하되 기술적 정확성을 유지하십시오.
+        1. **Code-First Analysis**: The 'DOCUMENTATION' section is for reference only. All technical questions must be answered by analyzing the actual code in the 'SOURCE CODE' section.
+        2. **Provide Specific Evidence**: Mention specific function names, class names, or code patterns that contain the core logic in your answer.
+        3. **Critical Analysis**: If the documentation differs from the actual code, consider the code implementation as the truth and point out the discrepancy.
+        4. **Readability**: Explain complex logic step-by-step while maintaining technical accuracy.
+        5. **Language**: You must answer in {language}.
         
         {tech_context}
         """)
@@ -163,7 +164,7 @@ class ChatFolioEngine:
     def summarize_title(self, query: str) -> str:
         """첫 번째 질문을 기반으로 짧은 채팅방 제목을 생성합니다. (경량 모델 사용)"""
         cheap_llm = self._get_cheap_llm()
-        system_prompt = SystemMessage(content="사용자의 질문을 기반으로 3~5단어 내외의 아주 짧은 제목을 작성해줘. 제목만 출력하고 따옴표나 마침표는 생략해.")
+        system_prompt = SystemMessage(content="Create a very short title of about 3~5 words based on the user's question. Output only the title without quotes or periods.")
         user_prompt = HumanMessage(content=f"Question: {query}")
         
         try:
@@ -181,10 +182,10 @@ class ChatFolioEngine:
         nodes_str = "\n".join(nodes)
         
         system_prompt = SystemMessage(content="""
-        당신은 소프트웨어 아키텍트입니다. 다음은 분석 중인 프로젝트의 파일 경로 목록입니다.
-        이 파일들을 프로젝트의 도메인, 역할, 또는 기술적 계층에 따라 논리적으로 그룹화하세요.
+        You are a software architect. The following is a list of file paths for the project under analysis.
+        Logically group these files based on the project's domain, role, or technical layer.
         
-        [출력 형식 - 반드시 JSON만 출력하세요]
+        [Output Format - Output JSON only]
         ```json
         {
           "subgraphs": [
@@ -243,13 +244,13 @@ class ChatFolioEngine:
                     fallback_lines.append(f"    {node_id_map[u]} --> {node_id_map[v]}")
             return "\n".join(fallback_lines)
 
-    def generate_readme(self, user_inputs: dict = None, llm=None, provider=None, model_name=None) -> str:
+    def generate_readme(self, user_inputs: dict = None, llm=None, provider=None, model_name=None, languages=["English"]) -> str:
         target_llm = llm if llm else self.llm
         target_provider = provider if provider else self.provider
         target_model = model_name if model_name else self.model_name
 
         if not target_llm:
-            return "# README\n\nLLM이 구성되지 않았습니다."
+            return "# README\n\nLLM is not configured."
             
         nodes = list(self.graph.nodes())
         file_count = len(nodes)
@@ -308,7 +309,7 @@ class ChatFolioEngine:
 
         top_exts = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:3]
         top_exts_str = ", ".join([f".{ext}({cnt}개)" for ext, cnt in top_exts])
-        framework_str = ", ".join(list(framework_hints)) if framework_hints else "특정 프레임워크 추론 불가"
+        framework_str = ", ".join(list(framework_hints)) if framework_hints else "Specific framework could not be inferred"
 
         user_input_context = ""
         if user_inputs and any(user_inputs.values()):
@@ -319,8 +320,8 @@ class ChatFolioEngine:
 
         context = f"""
         [🤖 프로젝트 정체성 분석 결과]
-        - 주 사용 언어/확장자: {top_exts_str}
-        - 감지된 환경/프레임워크 힌트: {framework_str}
+        - Main Language/Extension: {top_exts_str}
+        - Detected Env/Framework Hints: {framework_str}
         {user_input_context}
         
         [📂 프로젝트 구조 및 핵심 데이터]
@@ -333,4 +334,4 @@ class ChatFolioEngine:
         """
         
         agent = ReadmeAgent(target_llm, provider=target_provider, model_name=target_model)
-        return agent.run(context, user_inputs or {})
+        return agent.run(context, user_inputs or {}, languages=languages)

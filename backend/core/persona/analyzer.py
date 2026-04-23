@@ -50,18 +50,20 @@ class PersonaAnalyzer:
             "total_files": len(files_data)
         }
 
-    async def generate_persona(self, metrics: dict):
+    async def generate_persona(self, metrics: dict, language: str = "English"):
         system_prompt = SystemMessage(content="""
-        당신은 개발자들의 코딩 습관과 스타일을 분석해 재치 있는 별명을 붙여주는 '코더 페르소나 전문가'입니다.
-        제공된 데이터(언어 비율, 주석 밀도, 모듈화 수준, 활동 시간대)를 바탕으로 해당 개발자의 '코딩 MBTI'와 '재치 있는 타이틀'을 생성하세요.
+        You are a 'Coder Persona Expert' who analyzes developers' coding habits and styles to give them witty nicknames.
+        Based on the provided data (language ratio, comment density, modularization level, activity time), generate a 'Coding MBTI' and a 'Witty Title' for the developer.
         
-        [출력 포맷 (JSON 전용)]
+        [Output Format (JSON only)]
         {
-          "title": "새벽 3시의 뱀파이어 해커",
-          "description": "모두가 잠든 시간, 가장 날카로운 코드를 작성하는 심야의 지배자입니다.",
-          "traits": ["심야 집중형", "주석 성애자", "모듈화 장인"],
+          "title": "3 AM Vampire Hacker",
+          "description": "A ruler of the deep night who writes the sharpest code while everyone else is asleep.",
+          "traits": ["Night Owl", "Comment Enthusiast", "Modularization Master"],
           "mbti_type": "VMPR (Vampire)"
         }
+        
+        IMPORTANT: Your output (title, description, traits) MUST be in {language}.
         """)
         
         user_prompt = HumanMessage(content=f"다음 데이터를 분석해줘: {json.dumps(metrics)}")
@@ -74,8 +76,8 @@ class PersonaAnalyzer:
         except Exception as e:
             print(f"Persona Generation Error: {e}")
             return {
-                "title": "코드 분석가",
-                "description": "데이터 분석 중 오류가 발생했지만, 당신의 열정은 확인되었습니다.",
-                "traits": ["열정 가득", "분석 중"],
+                "title": "Code Analyst",
+                "description": "An error occurred during data analysis, but your passion was confirmed.",
+                "traits": ["Full of Passion", "Analyzing"],
                 "mbti_type": "UNKNOWN"
             }

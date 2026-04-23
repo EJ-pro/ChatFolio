@@ -110,7 +110,9 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "name": current_user.name,
         "github_username": current_user.github_username,
         "avatar_url": current_user.avatar_url,
-        "provider": current_user.provider
+        "provider": current_user.provider,
+        "country": current_user.country,
+        "job": current_user.job
     }
 
 # 유저 마이페이지 프로필 정보 조회
@@ -162,6 +164,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
             "name": user.name,
             "avatar_url": user.avatar_url,
             "github_username": user.github_username,
+            "country": user.country,
+            "job": user.job,
             "created_at": user.created_at
         },
         "skills": skills,
