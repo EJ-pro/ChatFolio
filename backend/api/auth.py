@@ -122,8 +122,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
     
-    # 프로젝트 데이터 가져오기
-    projects = db.query(Project).filter(Project.user_id == user.id).all()
+    # 완료된 프로젝트 데이터만 가져오기
+    projects = db.query(Project).filter(Project.user_id == user.id, Project.status == "COMPLETED").all()
     
     # 스킬 통계 (Github API Languages 활용)
     lang_stats = {}
@@ -133,24 +133,40 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
         try:
             auth = Auth.Token(token)
             g = Github(auth=auth)
+            changed = False
             for p in projects:
+                # 1. DB에 저장된 언어 정보가 있으면 활용
+                if p.languages:
+                    for lang, byte_count in p.languages.items():
+                        lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
+                    continue
+                
+                # 2. DB에 없으면 GitHub API 호출 후 저장
                 repo_path = p.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
                 try:
                     repo = g.get_repo(repo_path)
                     langs = repo.get_languages()
+                    p.languages = langs # DB 캐싱
+                    changed = True
+                    
                     for lang, byte_count in langs.items():
                         lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
                 except Exception as repo_err:
                     print(f"Failed to fetch languages for {repo_path}: {repo_err}")
+            
+            if changed:
+                db.commit() # 한 번에 커밋
         except Exception as e:
             print(f"Failed to fetch languages from GitHub API: {e}")
             
-    # GitHub API에서 언어 정보를 가져오지 못했다면 기존 파일 확장자 방식으로 폴백
+    # GitHub API에서 언어 정보를 가져오지 못했다면 기존 Insight 정보 활용 (가장 빠름)
     if not lang_stats:
-        all_files = db.query(ProjectFile.file_path).join(Project).filter(Project.user_id == user.id).all()
-        for f in all_files:
-            ext = f.file_path.split('.')[-1].lower() if '.' in f.file_path else 'others'
-            lang_stats[ext] = lang_stats.get(ext, 0) + 1
+        from database.models import ProjectInsight
+        insights = db.query(ProjectInsight).join(Project).filter(Project.user_id == user.id).all()
+        for ins in insights:
+            if ins.tech_stack and "language_distribution" in ins.tech_stack:
+                for lang, count in ins.tech_stack["language_distribution"].items():
+                    lang_stats[lang] = lang_stats.get(lang, 0) + count
 
     # 상위 6개 언어만 추출
     sorted_skills = sorted(lang_stats.items(), key=lambda x: x[1], reverse=True)[:6]

@@ -35,6 +35,7 @@ class Project(Base):
     graph_data = Column(JSONB, nullable=True) # 직렬화된 NetworkX 그래프 저장
     mermaid_code = Column(Text, nullable=True) # 생성된 Mermaid 다이어그램 캐싱
     status = Column(String, default="COMPLETED") # 분석 상태
+    languages = Column(JSONB, nullable=True) # GitHub 언어 통계 데이터 저장 (Bytes)
     last_commit_hash = Column(String, nullable=True)
     last_commit_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -138,6 +139,7 @@ def init_db():
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR"))
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS job VARCHAR"))
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS languages JSONB"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
                     # ProjectFile 컬럼 추가

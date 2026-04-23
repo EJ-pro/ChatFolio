@@ -271,6 +271,14 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     )
                     db_session.add(new_file)
                 
+                # 3.1 GitHub 언어 통계 가져오기 (마이페이지 최적화용)
+                try:
+                    repo_path = request.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
+                    repo = fetcher.g.get_repo(repo_path)
+                    project.languages = repo.get_languages()
+                except Exception as lang_err:
+                    print(f"Failed to fetch repo languages: {lang_err}")
+                
                 # --- [Project Insight DB 저장] ---
                 q.put("💡 Identifying project insights...")
                 main_language = max(lang_counts, key=lang_counts.get) if lang_counts else "Unknown"
@@ -318,6 +326,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.add(chat_session)
                 
                 # 원자적 트랜잭션 커밋
+                project.status = "COMPLETED"
                 db_session.commit()
                 db_session.refresh(project)
                 db_session.refresh(chat_session)
