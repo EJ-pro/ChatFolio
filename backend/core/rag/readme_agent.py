@@ -20,6 +20,7 @@ class ReadmeState(TypedDict, total=False):
     provider: str
     model_name: str
     languages: List[str]
+    usage: Dict[str, int]  # { model_name: count }
 
 class ReadmeAgent:
     def __init__(self, llm, provider="groq", model_name=None):
@@ -123,10 +124,16 @@ class ReadmeAgent:
             content = self._extract_json(response.content)
             res = json.loads(content)
             
+            usage_info = response.response_metadata.get("token_usage", {})
+            model = getattr(cheap_llm, "model_name", getattr(cheap_llm, "model", "unknown"))
+            current_usage = state.get("usage", {})
+            current_usage[model] = current_usage.get(model, 0) + usage_info.get("total_tokens", 0)
+
             return {
                 "archetype": res.get("archetype", "General"),
                 "analysis_report": res.get("summary", "분석 완료"),
-                "iteration_count": 0
+                "iteration_count": 0,
+                "usage": current_usage
             }
         except Exception as e:
             print(f"❌ [Analyzer] 오류 발생: {e}")
@@ -175,7 +182,12 @@ class ReadmeAgent:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ])
-            return {"draft": response.content, "iteration_count": curr_iter + 1}
+            usage_info = response.response_metadata.get("token_usage", {})
+            model = self.model_name or getattr(self.llm, "model_name", getattr(self.llm, "model", "unknown"))
+            current_usage = state.get("usage", {})
+            current_usage[model] = current_usage.get(model, 0) + usage_info.get("total_tokens", 0)
+
+            return {"draft": response.content, "iteration_count": curr_iter + 1, "usage": current_usage}
         except Exception as e:
             print(f"❌ [Writer] 오류 발생: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:
@@ -214,10 +226,16 @@ class ReadmeAgent:
             res = json.loads(content)
             decision = res.get("decision", "REVISE")
             
+            usage_info = response.response_metadata.get("token_usage", {})
+            model = self.model_name or getattr(self.llm, "model_name", getattr(self.llm, "model", "unknown"))
+            current_usage = state.get("usage", {})
+            current_usage[model] = current_usage.get(model, 0) + usage_info.get("total_tokens", 0)
+
             return {
                 "final_readme": state.get('draft', '') if decision == "APPROVE" else "",
                 "feedback": res.get("feedback", ""),
-                "decision": decision
+                "decision": decision,
+                "usage": current_usage
             }
         except Exception as e:
             print(f"❌ [Reviewer] 오류 발생: {e}")
@@ -249,7 +267,10 @@ class ReadmeAgent:
         }
         try:
             result = self.workflow.invoke(initial_state)
-            return result.get("final_readme") or result.get("draft") or "Failed to generate README"
+            return {
+                "readme_content": result.get("final_readme") or result.get("draft") or "Failed to generate README",
+                "usage": result.get("usage", {})
+            }
         except Exception as e:
             print(f"❌ [ReadmeAgent.run] Critical error: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:

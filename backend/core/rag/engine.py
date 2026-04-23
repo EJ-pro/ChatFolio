@@ -153,7 +153,8 @@ class ChatFolioEngine:
         return {
             "answer": response.content,
             "sources": sources,
-            "graph_trace": visited_nodes
+            "graph_trace": visited_nodes,
+            "usage": response.response_metadata.get("token_usage", {})
         }
 
     def analyze_architecture(self, language: str = "English"):
@@ -204,7 +205,10 @@ class ChatFolioEngine:
             HumanMessage(content=user_prompt)
         ])
         
-        return response.content
+        return {
+            "analysis": response.content,
+            "usage": response.response_metadata.get("token_usage", {})
+        }
 
     def _get_cheap_llm(self):
         """가벼운 작업을 위한 보조 모델 (Llama 8B / GPT-4o-mini)을 반환합니다."""
@@ -222,7 +226,10 @@ class ChatFolioEngine:
         
         try:
             response = cheap_llm.invoke([system_prompt, user_prompt])
-            return response.content.strip().replace('"', '').replace("'", "")
+            return {
+                "title": response.content.strip().replace('"', '').replace("'", ""),
+                "usage": response.response_metadata.get("token_usage", {})
+            }
         except Exception:
             return query[:20] + "..."
 

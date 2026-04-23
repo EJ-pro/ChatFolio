@@ -22,6 +22,7 @@ class User(Base):
 
     projects = relationship("Project", back_populates="user", cascade="all, delete")
     sessions = relationship("ChatSession", back_populates="user", cascade="all, delete")
+    token_usages = relationship("TokenUsage", back_populates="user", cascade="all, delete")
 
 class Project(Base):
     __tablename__ = "projects"
@@ -122,6 +123,18 @@ class Inquiry(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", backref="inquiries")
+
+class TokenUsage(Base):
+    __tablename__ = "token_usages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    model_name = Column(String, index=True)
+    feature_name = Column(String, index=True) # 'Chat', 'Analyze', 'Readme', 'Architecture', 'Interview'
+    token_count = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="token_usages")
 
 import time
 from sqlalchemy.exc import OperationalError

@@ -16,12 +16,29 @@ from core.parser.github_fetcher import GitHubFetcher
 from core.parser.factory import get_parser_result
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
-from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry, ProjectInsight
+from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry, ProjectInsight, TokenUsage
 from database.database import get_db, SessionLocal
 from api.auth import router as auth_router, get_current_user
 
 load_dotenv()
 init_db()
+
+def record_token_usage(db: Session, user_id: int, model_name: str, feature_name: str, token_count: int):
+    """토큰 사용량을 상세히 기록합니다. (누가, 언제, 어디서, 어떤 모델로, 얼마나)"""
+    if not token_count or token_count <= 0:
+        return
+    try:
+        new_usage = TokenUsage(
+            user_id=user_id,
+            model_name=model_name,
+            feature_name=feature_name,
+            token_count=int(token_count)
+        )
+        db.add(new_usage)
+        db.commit()
+    except Exception as e:
+        print(f"Failed to record token usage: {e}")
+        db.rollback()
 
 app = FastAPI(title="ChatFolio API")
 
@@ -589,12 +606,33 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         )
         db.add(assistant_message)
 
+        # --- 토큰 사용량 기록 ---
+        usage = result.get("usage", {})
+        record_token_usage(
+            db=db,
+            user_id=current_user.id,
+            model_name=engine.model_name,
+            feature_name="Chat",
+            token_count=usage.get("total_tokens", 0)
+        )
+
         # 5. 첫 질문인 경우 제목 요약
         is_first_msg = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).count() == 1 # 방금 add한 user_message만 있어야함
         if is_first_msg:
             try:
-                new_title = engine.summarize_title(query)
-                chat_session.title = new_title
+                res = engine.summarize_title(query)
+                chat_session.title = res.get("title", query[:20])
+                
+                # 제목 요약 토큰 기록
+                usage = res.get("usage", {})
+                model = usage.get("model_name") or ("llama-3.1-8b-instant" if engine.provider == "groq" else "gpt-4o-mini")
+                record_token_usage(
+                    db=db,
+                    user_id=current_user.id,
+                    model_name=model,
+                    feature_name="Chat-Title",
+                    token_count=usage.get("total_tokens", 0)
+                )
             except Exception as e:
                 print(f"Title summarization failed: {e}")
 
@@ -790,13 +828,25 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
                 from langchain_groq import ChatGroq
                 temp_llm = ChatGroq(model=request.model_name, temperature=0)
         
-        readme_content = engine.generate_readme(
+        result = engine.generate_readme(
             request.user_inputs, 
             llm=temp_llm, 
             provider=request.provider, 
             model_name=request.model_name,
             languages=request.languages
         )
+        readme_content = result.get("readme_content", "")
+        usage_map = result.get("usage", {}) # { model_name: total_tokens }
+        
+        # 모델별 사용량 루프 기록
+        for model, tokens in usage_map.items():
+            record_token_usage(
+                db=db,
+                user_id=current_user.id,
+                model_name=model,
+                feature_name="Readme",
+                token_count=tokens
+            )
         
         # 항상 새로운 버전을 생성
         new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
@@ -864,7 +914,18 @@ async def generate_architecture_analysis(request: DiagramRequest, db: Session = 
         language = "Korean"
         
     try:
-        analysis = engine.analyze_architecture(language=language)
+        result = engine.analyze_architecture(language=language)
+        analysis = result.get("analysis")
+        usage = result.get("usage", {})
+        
+        record_token_usage(
+            db=db,
+            user_id=current_user.id,
+            model_name=engine.model_name,
+            feature_name="Architecture",
+            token_count=usage.get("total_tokens", 0)
+        )
+        
         return {"analysis": analysis}
     except Exception as e:
         import traceback
