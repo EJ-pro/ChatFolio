@@ -9,20 +9,20 @@ class GradleParser(BaseTreeSitterParser):
         parsed_data = {
             "file_path": self.file_path,
             "type": "gradle",
-            "dependencies": [],         # implementation, api 등 라이브러리
+            "dependencies": [],         # libraries such as implementation, api, etc.
             "plugins": [],              # apply plugin, plugins { ... }
             "metadata": {}
         }
 
         try:
-            # 1. 의존성 추출 (정규식 기반)
-            # 패턴: implementation 'group:name:version' 또는 implementation("...")
+            # 1. Extract dependencies (regex-based)
+            # Pattern: implementation 'group:name:version' or implementation("...")
             dep_pattern = r"(?:implementation|api|testImplementation|runtimeOnly|compileOnly)\s*\(?[\'\"]([^\"\'\)]+)[\'\"]"
             deps = re.findall(dep_pattern, self.content)
-            parsed_data["dependencies"] = list(set(deps)) # 중복 제거
+            parsed_data["dependencies"] = list(set(deps)) # Remove duplicates
 
-            # 2. 플러그인 추출
-            # 패턴: id 'com.android.application' 또는 apply plugin: '...'
+            # 2. Extract plugins
+            # Pattern: id 'com.android.application' or apply plugin: '...'
             plugin_id_pattern = r"id\s*[\'\"]([^\"\'\s]+)[\'\"]"
             plugin_apply_pattern = r"apply\s+plugin:\s*[\'\"]([^\"\'\s]+)[\'\"]"
             
@@ -30,14 +30,14 @@ class GradleParser(BaseTreeSitterParser):
             plugins.extend(re.findall(plugin_apply_pattern, self.content))
             parsed_data["plugins"] = list(set(plugins))
 
-            # 3. 주요 설정 감지
+            # 3. Detect key configuration
             if "com.android.application" in parsed_data["plugins"] or "com.android.library" in parsed_data["plugins"]:
                 parsed_data["metadata"]["is_android"] = True
             if "org.springframework.boot" in parsed_data["plugins"]:
                 parsed_data["metadata"]["is_spring_boot"] = True
 
         except Exception as e:
-            meta["error"] = f"Gradle 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Gradle Error during parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

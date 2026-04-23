@@ -40,7 +40,7 @@ class JavaParser(BaseTreeSitterParser):
                 parsed_data["is_spring_boot"] = True
 
         except Exception as e:
-            meta["error"] = f"Java 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during Java parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

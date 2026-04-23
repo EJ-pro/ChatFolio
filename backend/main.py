@@ -24,7 +24,7 @@ load_dotenv()
 init_db()
 
 def record_token_usage(db: Session, user_id: int, model_name: str, feature_name: str, token_count: int):
-    """토큰 사용량을 상세히 기록합니다. (누가, 언제, 어디서, 어떤 모델로, 얼마나)"""
+    """Records token usage in detail (who, when, where, which model, how many tokens)."""
     if not token_count or token_count <= 0:
         return
     try:
@@ -51,16 +51,16 @@ app.add_middleware(
 
 app.include_router(auth_router)
 
-# 문의하기 등록 엔드포인트
+# Inquiry submission endpoint
 from fastapi import Request
 @app.post("/inquiries")
 async def create_inquiry(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = await request.json()
     title = data.get("title")
     content = data.get("content")
-    
+
     if not title or not content:
-        raise HTTPException(status_code=400, detail="제목과 내용을 입력해주세요.")
+        raise HTTPException(status_code=400, detail="Please enter a title and content.")
         
     inquiry = Inquiry(
         user_id=current_user.id,
@@ -75,7 +75,7 @@ async def create_inquiry(request: Request, db: Session = Depends(get_db), curren
 
 @app.patch("/user/profile")
 async def update_user_profile(request: ProfileUpdateRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    """사용자 국가 및 직업 정보를 업데이트"""
+    """Update the user's country and occupation information."""
     if request.country is not None:
         current_user.country = request.country
     if request.job is not None:
@@ -93,13 +93,13 @@ async def update_user_profile(request: ProfileUpdateRequest, db: Session = Depen
 
 @app.get("/stats/global")
 async def get_global_stats(db: Session = Depends(get_db)):
-    """플랫폼 전체 통계를 반환 (공개 데이터)"""
+    """Returns platform-wide statistics (public data)."""
     total_projects = db.query(Project).count()
     total_users = db.query(User).count()
-    
-    # 누적 코드 라인 수 합계
+
+    # Total cumulative code line count
     total_lines = db.query(func.sum(ProjectFile.line_count)).scalar() or 0
-    # 누적 의존성 노드 수 합계
+    # Total cumulative dependency node count
     total_nodes = db.query(func.sum(Project.node_count)).scalar() or 0
     
     return {
@@ -114,29 +114,29 @@ engine_cache = {}
 
 @app.post("/analyze")
 async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    # 1. 이미 분석된 프로젝트가 있는지 확인
+    # 1. Check if the project has already been analyzed
     existing_project = db.query(Project).filter(
         Project.repo_url == request.repo_url,
         Project.user_id == current_user.id
     ).first()
     
     if existing_project and not request.force_update:
-        # GitHub에서 최신 커밋 확인
+        # Check latest commit from GitHub
         token = current_user.github_token or os.getenv("GITHUB_TOKEN")
         fetcher = GitHubFetcher(token=token)
         try:
             latest_commit = fetcher.fetch_latest_commit(request.repo_url)
             if latest_commit["hash"] == existing_project.last_commit_hash:
-                # 커밋이 동일하면 기존 결과 반환
+                # Return existing result if commit is unchanged
                 existing_session = db.query(ChatSession).filter(
                     ChatSession.project_id == existing_project.id,
                     ChatSession.user_id == current_user.id,
                     ChatSession.provider == request.provider,
                     ChatSession.model_name == request.model_name
                 ).order_by(ChatSession.created_at.desc()).first()
-                
+
                 if existing_session:
-                    # 엔진 캐시 확인 및 복구
+                    # Check and restore engine cache
                     if existing_session.id not in engine_cache:
                         all_project_files = {f.file_path: f.content for f in existing_project.files}
                         graph = nx.node_link_graph(existing_project.graph_data)
@@ -161,7 +161,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     
                     return StreamingResponse(quick_return(), media_type="text/event-stream")
                 else:
-                    # 동일 프로젝트지만 모델이 변경된 경우: 새 ChatSession 생성 및 기존 데이터 재사용
+                    # Same project but model changed: create a new ChatSession and reuse existing data
                     new_session = ChatSession(
                         user_id=current_user.id,
                         project_id=existing_project.id,
@@ -195,11 +195,11 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     
                     return StreamingResponse(new_session_return(), media_type="text/event-stream")
             else:
-                # 커밋이 다름 -> 아래의 분석 로직으로 진행
+                # Commit differs — proceed to analysis logic below
                 print(f"Update detected for {request.repo_url}. Re-analyzing...")
         except Exception as e:
             print(f"Error checking for updates: {e}")
-            # 에러 발생 시 안전하게 기존 결과 반환 시도 (또는 무시하고 분석 진행)
+            # On error, safely attempt to return existing result (or skip and proceed with analysis)
             pass
 
     def generate():
@@ -209,16 +209,16 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
             q.put(msg)
             
         def run_analysis():
-            db_session = SessionLocal() # 스레드 안전성을 위해 별도의 세션 생성
+            db_session = SessionLocal() # Create a separate session for thread safety
             try:
-                # 사용자의 개인 토큰 사용 (프라이빗 레포 접근 가능)
+                # Use the user's personal token (allows private repo access)
                 token = current_user.github_token or os.getenv("GITHUB_TOKEN")
                 fetcher = GitHubFetcher(token=token)
-                
-                # 1. 메타데이터와 제너레이터 가져오기
+
+                # 1. Fetch metadata and generator
                 commit_info, file_generator = fetcher.fetch_repo_files(request.repo_url, progress_callback=progress_callback)
                 
-                # 2. 프로젝트 레코드 준비 (ID가 필요함)
+                # 2. Prepare project record (ID needed)
                 project = db_session.query(Project).filter(Project.repo_url == request.repo_url, Project.user_id == current_user.id).first()
                 if project:
                     project.file_count = commit_info["total_files"]
@@ -235,13 +235,13 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     )
                     db_session.add(project)
                 
-                db_session.flush() # ID 발급
+                db_session.flush() # Assign ID
 
-                # 3. 제너레이터를 순회하며 파일 저장 및 메타데이터 추출
+                # 3. Iterate generator to save files and extract metadata
                 all_files = {}
                 all_meta = {}
-                
-                # 인사이트 집계용 데이터
+
+                # Data for insight aggregation
                 lang_counts = {}
                 detected_frameworks = set()
                 used_parsers = set()
@@ -249,10 +249,10 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 for path, content in file_generator:
                     all_files[path] = content
                     
-                    # 통합 파서 팩토리를 통해 메타데이터 추출
+                    # Extract metadata via the unified parser factory
                     meta = get_parser_result(path, content)
                     
-                    # 인사이트 집계 로직
+                    # Insight aggregation logic
                     parsed_data = meta.get("metadata_json", {}).get("parsed", {})
                     if "language" in parsed_data:
                         lang = parsed_data["language"]
@@ -262,13 +262,13 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                         config_type = parsed_data["type"]
                         used_parsers.add(f"{config_type.title()} Config Parser")
                         
-                    # 프레임워크/자격 요건 감지 (is_ 계열 boolean 플래그 추출)
+                    # Detect frameworks/requirements (extract is_* boolean flags)
                     for key, val in parsed_data.items():
                         if key.startswith("is_") and val is True:
                             framework_name = key.replace("is_", "").replace("_", " ").title()
                             detected_frameworks.add(framework_name)
                     
-                    # 그래프 분석용 데이터 수집 (주요 언어 대상)
+                    # Collect data for graph analysis (major language files only)
                     if path.endswith(('.kt', '.kts', '.java', '.py', '.js', '.ts', '.jsx', '.tsx', '.cpp', '.c', '.h', '.cc', '.go', '.rs', '.swift', '.rb', '.php', '.cs', '.dart')):
                         all_meta[path] = meta
                     
@@ -276,7 +276,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     keywords = meta.get("keywords", [])
                     metadata_json = meta.get("metadata_json", {})
 
-                    # DB에 즉시 추가 (메모리 효율적 저장)
+                    # Add to DB immediately (memory-efficient storage)
                     new_file = ProjectFile(
                         project_id=project.id, 
                         file_path=path, 
@@ -288,7 +288,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     )
                     db_session.add(new_file)
                 
-                # 3.1 GitHub 언어 통계 가져오기 (마이페이지 최적화용)
+                # 3.1 Fetch GitHub language statistics (for profile page optimization)
                 try:
                     repo_path = request.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
                     repo = fetcher.g.get_repo(repo_path)
@@ -298,7 +298,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 except Exception as lang_err:
                     print(f"Failed to fetch repo languages: {lang_err}")
                 
-                # --- [Project Insight DB 저장] ---
+                # --- [Save Project Insight to DB] ---
                 q.put("💡 Identifying project insights...")
                 main_language = max(lang_counts, key=lang_counts.get) if lang_counts else "Unknown"
                 
@@ -313,7 +313,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     "used_parsers": list(used_parsers)
                 }
 
-                # 기존 인사이트 덮어쓰기
+                # Overwrite existing insight
                 db_session.query(ProjectInsight).filter(ProjectInsight.project_id == project.id).delete()
                 
                 insight = ProjectInsight(
@@ -323,13 +323,13 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 )
                 db_session.add(insight)
                 
-                # 4. 의존성 그래프 분석
+                # 4. Dependency graph analysis
                 q.put("📊 Analyzing dependency graph...")
                 builder = DependencyGraphBuilder()
                 graph = builder.build_graph(all_meta)
                 graph_data = nx.node_link_data(graph)
                 
-                # 프로젝트 그래프 정보 업데이트
+                # Update project graph information
                 project.node_count = graph.number_of_nodes()
                 project.edge_count = graph.number_of_edges()
                 project.graph_data = graph_data
@@ -344,7 +344,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 )
                 db_session.add(chat_session)
                 
-                # 원자적 트랜잭션 커밋
+                # Atomic transaction commit
                 project.status = "COMPLETED"
                 db_session.commit()
                 db_session.refresh(project)
@@ -387,17 +387,17 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
-        
+        raise HTTPException(status_code=404, detail="Session not found.")
+
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="이 세션에 접근할 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="You do not have permission to access this session.")
         
     engine = engine_cache.get(session_id)
     
     if not engine:
         project = chat_session.project
         if not project or not project.graph_data:
-            raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+            raise HTTPException(status_code=404, detail="Project graph data not found.")
             
         graph = nx.node_link_graph(project.graph_data)
         all_project_files = {f.file_path: f.content for f in project.files}
@@ -436,9 +436,9 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
 async def get_chat_session_info(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     return {
         "session_id": chat_session.id,
@@ -452,9 +452,9 @@ async def get_chat_session_info(session_id: str, db: Session = Depends(get_db), 
 async def get_project_chat_sessions(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project not found.")
     if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     sessions = db.query(ChatSession).filter(
         ChatSession.project_id == project_id,
@@ -475,9 +475,9 @@ async def get_project_chat_sessions(project_id: int, db: Session = Depends(get_d
 async def delete_chat_session(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
     
     # Soft delete
     chat_session.is_deleted = 1
@@ -489,9 +489,9 @@ async def delete_chat_session(session_id: str, db: Session = Depends(get_db), cu
 async def get_chat_history(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     messages = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc()).all()
     
@@ -509,9 +509,9 @@ async def get_chat_history(session_id: str, db: Session = Depends(get_db), curre
 async def create_new_chat_session(request: NewSessionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == request.project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project not found.")
     if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     new_session = ChatSession(
         user_id=current_user.id,
@@ -550,18 +550,18 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     project = chat_session.project
     if not project:
-        raise HTTPException(status_code=404, detail="관련 프로젝트를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Associated project not found.")
 
-    # 1. 엔진 가져오기 또는 로드
+    # 1. Fetch or load engine
     engine = engine_cache.get(session_id)
     
-    # 모델 변경 요청이 있거나 캐시된 엔진이 없는 경우 새로 생성
+    # Create a new engine if a model change is requested or no cached engine exists
     need_new_engine = False
     if engine:
         if request.provider and engine.provider != request.provider:
@@ -584,7 +584,7 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         engine_cache[session_id] = engine
     
     try:
-        # 2. 질문 저장
+        # 2. Save user question
         user_message = ChatMessage(
             session_id=session_id,
             role="user",
@@ -592,12 +592,12 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         )
         db.add(user_message)
         
-        # 3. RAG 엔진 실행 (언어 추가)
+        # 3. Run RAG engine (with language)
         result = engine.ask(query, language=request.language)
         answer = result.get("answer", "Sorry, I couldn't generate an answer.")
         sources = result.get("sources", [])
         
-        # 4. 답변 저장
+        # 4. Save answer
         assistant_message = ChatMessage(
             session_id=session_id,
             role="assistant",
@@ -606,7 +606,7 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         )
         db.add(assistant_message)
 
-        # --- 토큰 사용량 기록 ---
+        # --- Record token usage ---
         usage = result.get("usage", {})
         record_token_usage(
             db=db,
@@ -616,14 +616,14 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
             token_count=usage.get("total_tokens", 0)
         )
 
-        # 5. 첫 질문인 경우 제목 요약
-        is_first_msg = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).count() == 1 # 방금 add한 user_message만 있어야함
+        # 5. Summarize title for the first message
+        is_first_msg = db.query(ChatMessage).filter(ChatMessage.session_id == session_id).count() == 1 # Only the user_message just added should be present
         if is_first_msg:
             try:
                 res = engine.summarize_title(query)
                 chat_session.title = res.get("title", query[:20])
                 
-                # 제목 요약 토큰 기록
+                # Record title summarization token usage
                 usage = res.get("usage", {})
                 model = usage.get("model_name") or ("llama-3.1-8b-instant" if engine.provider == "groq" else "gpt-4o-mini")
                 record_token_usage(
@@ -655,20 +655,20 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
         
     if chat_session.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     project = chat_session.project
     if not project or not project.graph_data:
-        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project graph data not found.")
 
-    # 1. DB에 캐시된 다이어그램이 있고, 강제 재생성 요청이 아니라면 즉시 반환
+    # 1. Return immediately if a cached diagram exists and no forced regeneration was requested
     if project.mermaid_code and not request.force_regenerate:
         return DiagramResponse(mermaid_code=project.mermaid_code)
 
-    # 2. 캐시가 없거나 강제 재생성 요청이면 LLM을 통해 생성
+    # 2. Generate via LLM if cache is missing or forced regeneration is requested
     engine = engine_cache.get(session_id)
     if not engine:
         graph = nx.node_link_graph(project.graph_data)
@@ -687,7 +687,7 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
     try:
         mermaid_code = engine.generate_mermaid()
         
-        # 생성된 코드를 DB에 캐싱
+        # Cache generated code in DB
         project.mermaid_code = mermaid_code
         db.commit()
         
@@ -700,7 +700,7 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
 async def check_project_update(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == project_id, Project.user_id == current_user.id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project not found.")
     
     token = current_user.github_token or os.getenv("GITHUB_TOKEN")
     fetcher = GitHubFetcher(token=token)
@@ -723,7 +723,7 @@ async def get_user_projects(db: Session = Depends(get_db), current_user: User = 
     
     result = []
     for p in projects:
-        # 각 프로젝트의 최신 세션 및 인사이트 가져오기
+        # Fetch latest session and insight for each project
         latest_session = db.query(ChatSession).filter(ChatSession.project_id == p.id).order_by(ChatSession.created_at.desc()).first()
         insight = p.insight
         tech_stack = insight.tech_stack if insight else None
@@ -747,11 +747,11 @@ async def generate_network_data(request: DiagramRequest, db: Session = Depends(g
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
         
     project = chat_session.project
     if not project or not project.graph_data:
-        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project graph data not found.")
         
     graph = nx.node_link_graph(project.graph_data)
     
@@ -765,7 +765,7 @@ async def generate_network_data(request: DiagramRequest, db: Session = Depends(g
         name = parts[-1]
         group = parts[-2] if len(parts) > 1 else "root"
         
-        # 노드의 연결 수(degree)를 계산하여 크기(val) 결정 (최소 1, 최대 20으로 제한)
+        # Calculate node degree and determine size (val), clamped between 1 and 20
         val = max(1, min(20, degree_dict.get(node, 1)))
         
         nodes.append({
@@ -789,13 +789,13 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
         
     project = chat_session.project
     if not project or not project.graph_data:
-        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project graph data not found.")
         
-    # 1. 캐시 확인
+    # 1. Check cache
     from database.models import GeneratedReadme
     latest_readme = db.query(GeneratedReadme).filter(GeneratedReadme.project_id == project.id).order_by(GeneratedReadme.created_at.desc()).first()
     
@@ -838,7 +838,7 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         readme_content = result.get("readme_content", "")
         usage_map = result.get("usage", {}) # { model_name: total_tokens }
         
-        # 모델별 사용량 루프 기록
+        # Loop-record usage per model
         for model, tokens in usage_map.items():
             record_token_usage(
                 db=db,
@@ -848,7 +848,7 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
                 token_count=tokens
             )
         
-        # 항상 새로운 버전을 생성
+        # Always create a new version
         new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
         db.add(new_readme)
         db.commit()
@@ -864,9 +864,9 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
 async def get_project_readmes(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
-        raise HTTPException(status_code=404, detail="프로젝트를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project not found.")
     if project.user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="접근 권한이 없습니다.")
+        raise HTTPException(status_code=403, detail="Access denied.")
         
     from database.models import GeneratedReadme
     readmes = db.query(GeneratedReadme).filter(GeneratedReadme.project_id == project.id).order_by(GeneratedReadme.created_at.desc()).all()
@@ -886,11 +886,11 @@ async def generate_architecture_analysis(request: DiagramRequest, db: Session = 
     
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session:
-        raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Session not found.")
         
     project = chat_session.project
     if not project or not project.graph_data:
-        raise HTTPException(status_code=404, detail="프로젝트 그래프 정보를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="Project graph data not found.")
         
     engine = engine_cache.get(session_id)
     if not engine:
@@ -908,7 +908,7 @@ async def generate_architecture_analysis(request: DiagramRequest, db: Session = 
         )
         engine_cache[session_id] = engine
         
-    # 언어 설정 (사용자 국가 기반)
+    # Language setting (based on user country)
     language = "English"
     if current_user.country == "South Korea":
         language = "Korean"

@@ -6,16 +6,16 @@ class JavaKotlinResolver(BaseResolver):
         # 'import com.example.service.MyService;' -> 'com.example.service.MyService'
         src = import_str.replace(";", "").replace("import ", "").strip()
 
-        # 1. 완전한 패키지 경로 매핑 (entity_map 사용)
+        # 1. Full package path mapping (using entity_map)
         if src in self.entity_map:
             return self.entity_map[src]
 
-        # 2. 클래스명만 있는 경우 (import com.example.Service 에서 Service 추출)
+        # 2. Class name only (extract Service from import com.example.Service)
         last_segment = src.split(".")[-1]
         if last_segment in self.entity_map:
             return self.entity_map[last_segment]
 
-        # 3. 최후의 수단: 파일명 기반 퍼지 매칭
+        # 3. Last resort: filename-based fuzzy matching
         if last_segment in self.basename_map:
             return self.basename_map[last_segment]
 

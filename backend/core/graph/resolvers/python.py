@@ -6,35 +6,35 @@ class PythonResolver(BaseResolver):
     def resolve(self, path: str, import_str: str) -> list:
         targets = []
         
-        # 1. 'from x import y' 형태 처리
+        # 1. Handle 'from x import y' form
         if " import " in import_str:
             parts = import_str.split(" import ")
             imp_module = parts[0].replace("from ", "").strip()
             imp_symbols = [s.strip() for s in parts[1].split(",")]
             
-            # (1) x.y 형태가 실제 모듈(파일)인 경우 (from backend.core.parser import cpp_parser)
+            # (1) x.y form is an actual module (file) (e.g., from backend.core.parser import cpp_parser)
             for sym in imp_symbols:
                 full_module = f"{imp_module}.{sym}"
                 if full_module in self.entity_map:
                     targets.append(self.entity_map[full_module])
                 elif sym in self.entity_map:
-                    # sym이 파일 내부에 선언된 클래스인 경우
+                    # sym is a class declared inside the file
                     targets.append(self.entity_map[sym])
             
-            # (2) x 형태가 모듈인 경우 (from backend.database.models import User)
+            # (2) x form is a module (e.g., from backend.database.models import User)
             if imp_module in self.entity_map:
                 targets.append(self.entity_map[imp_module])
                 
         else:
-            # 'import os, sys' 형태
+            # 'import os, sys' form
             imp_module_str = import_str.replace("import ", "").strip()
             imp_modules = [m.strip() for m in imp_module_str.split(",")]
             for m in imp_modules:
                 if m in self.entity_map:
                     targets.append(self.entity_map[m])
                     
-        # 2. 상대 경로 및 퍼지 매칭
-        # entity_map으로 찾지 못한 경우 단어 단위로 분리하여 basename_map 대조
+        # 2. Relative path and fuzzy matching
+        # If not found via entity_map, split by word and compare against basename_map
         if not targets:
             clean_str = import_str.replace("from ", "").replace("import ", "").replace(",", " ")
             words = clean_str.split()

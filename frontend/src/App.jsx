@@ -16,7 +16,7 @@ import Terms from './pages/Terms';
 import FAQ from './pages/FAQ';
 import DocDeepPipeline from './pages/DocDeepPipeline';
 
-// 인증 가드 컴포넌트
+// Authentication guard component
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
   
@@ -27,7 +27,7 @@ function ProtectedRoute({ children }) {
   return children;
 }
 
-// 홈 리다이렉트 컴포넌트 (루트 / 접속 시 처리)
+// Home redirect component (handles root / access)
 function Home() {
   const token = localStorage.getItem('token');
   const navigate = useNavigate();
@@ -38,7 +38,7 @@ function Home() {
       return;
     }
 
-    // 토큰이 있으면 유저 정보를 가져와서 해당 유저의 경로로 이동
+    // If token exists, fetch user info and navigate to their page
     fetch('http://localhost:8000/auth/me', {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -70,7 +70,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/auth/callback" element={<AuthCallback />} />
         
-        {/* 모든 주요 경루에 :username 포함 */}
+{/* All major routes include :username */}
         <Route path="/:username" element={
           <ProtectedRoute>
             <MyPage />
@@ -94,15 +94,15 @@ function App() {
           <Route path="interview" element={<InterviewTab />} />
         </Route>
 
-        {/* 기본 경로는 로그인 상태에 따라 리다이렉트 */}
+{/* Default route redirects based on login state */}
         <Route path="/" element={<Home />} />
         
-        {/* 법적 고지 페이지 */}
+{/* Legal notice pages */}
         <Route path="/privacy" element={<Privacy />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/faq" element={<FAQ />} />
         
-        {/* 문서 페이지 */}
+{/* Documentation page */}
         <Route path="/doc" element={<DocDeepPipeline />} />
       </Routes>
     </Router>

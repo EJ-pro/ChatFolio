@@ -6,7 +6,7 @@ function Login() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    // 로컬스토리지에 토큰이 있으면 바로 메인으로
+    // If a token exists in localStorage, navigate directly to main page
     if (localStorage.getItem('token')) {
       navigate('/');
     }

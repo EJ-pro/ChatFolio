@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# 데이터베이스 연결 URL
-# Docker Compose 사용 시 서비스 이름을 호스트로 사용합니다.
+# Database connection URL
+# When using Docker Compose, the service name is used as the host.
 SQLALCHEMY_DATABASE_URL = os.getenv(
     "DATABASE_URL", 
     "postgresql://user:password@db:5432/chatfolio"
@@ -18,7 +18,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# DB 세션 의존성 주입을 위한 함수
+# Function for DB session dependency injection
 def get_db():
     db = SessionLocal()
     try:

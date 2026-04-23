@@ -85,7 +85,7 @@ function Chat() {
   const fetchUser = async () => {
     try {
       const userData = await authService.me();
-      // 기본 언어 설정 (국가 기반 자동 매핑)
+      // Default language setting (auto-mapped from country)
       if (userData.country === 'South Korea') setSelectedLanguage('Korean');
       else setSelectedLanguage('English');
     } catch (err) {
@@ -140,14 +140,14 @@ function Chat() {
       });
 
       if (response.ok) {
-        // 현재 열려있는 세션이면 다른 세션으로 이동하거나 초기화
+        // If the currently open session, navigate to another session or reset
         if (sid === sessionId) {
           setMessages([{ role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }]);
           setSessionId(null);
           sessionStorage.removeItem('last_session_id');
           navigate('.', { state: { ...location.state, sessionId: null }, replace: true });
         }
-        // 리스트 새로고침
+        // Refresh list
         if (currentProjectId) {
           const siblingData = await chatService.getProjectSessions(currentProjectId);
           setSessions(siblingData);
@@ -329,7 +329,7 @@ function Chat() {
           </div>
         </div>
 
-        {/* 메시지 영역 */}
+        {/* Message area */}
         <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 relative z-10 custom-scrollbar scroll-smooth">
         {messages.map((msg, idx) => (
           <div 
@@ -387,7 +387,7 @@ function Chat() {
         <div ref={messagesEndRef} />
         </main>
 
-        {/* 입력 영역 */}
+        {/* Input area */}
         <footer className="bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-4 pb-8 relative z-10">
           <form onSubmit={handleSend} className="max-w-4xl mx-auto relative">
             <input

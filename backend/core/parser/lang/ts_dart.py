@@ -9,17 +9,17 @@ class DartParser(BaseTreeSitterParser):
             "file_path": meta.get("file_path", ""),
             "language": "dart",
             "imports": [],             # import 'package:flutter/material.dart';
-            "classes": [],             # 클래스 정보 (Stateless/Stateful 여부 포함)
-            "is_flutter_script": False,# Flutter UI 스크립트 여부
-            "has_build_method": False  # 화면을 그리는 build() 존재 여부
+            "classes": [],             # Class info (including Stateless/Stateful flag)
+            "is_flutter_script": False,# Whether this is a Flutter UI script
+            "has_build_method": False  # Whether a build() method (UI rendering) exists
         }
 
-        # 1. Dart 문법에 맞춘 Tree-sitter Query
+        # 1. Tree-sitter Query for Dart syntax
         query_source = """
-        ;; 1. Import 구문의 URI 캡처 (package:flutter 등)
+        ;; 1. Capture URI in import statement (e.g., package:flutter)
         (import_directive uri: (string_literal) @import_uri)
 
-        ;; 2. Class 선언 및 부모 클래스(상속), Mixin(with), Interface(implements) 캡처
+        ;; 2. Capture Class declarations, parent class (inheritance), Mixin (with), Interface (implements)
         (class_definition
             name: (identifier) @class_name
             superclass: (superclass (type_identifier) @base_class)?
@@ -37,11 +37,11 @@ class DartParser(BaseTreeSitterParser):
                 
                 # --- 1. Imports ---
                 if capture_name == "import_uri":
-                    # 따옴표 제거 ('package:flutter/material.dart' -> package:flutter/material.dart)
+                    # Remove quotes ('package:flutter/material.dart' -> package:flutter/material.dart)
                     uri_text = node_text.strip("'\"")
                     parsed_data["imports"].append(uri_text)
                     
-                    # Flutter UI 컴포넌트 여부 감지
+                    # Detect whether this is a Flutter UI component
                     if uri_text.startswith("package:flutter/"):
                         parsed_data["is_flutter_script"] = True
 
@@ -50,29 +50,29 @@ class DartParser(BaseTreeSitterParser):
                     class_info = self._process_dart_class(node)
                     parsed_data["classes"].append(class_info)
                     
-                    # 클래스 중 하나라도 Flutter의 Widget을 상속받았다면 UI 파일로 간주
+                    # If at least one class inherits from Flutter Widget, treat as UI file
                     if class_info["widget_type"] != "none":
                         parsed_data["is_flutter_script"] = True
                     
-                    # build 메서드가 존재하는지 확인 (UI 렌더링 클래스)
+                    # Check whether a build method exists (UI rendering class)
                     if "build" in class_info["methods"]:
                         parsed_data["has_build_method"] = True
 
         except Exception as e:
-            meta["error"] = f"Dart 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during Dart parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta
 
     def _process_dart_class(self, node) -> Dict[str, Any]:
         """
-        Dart 클래스의 내부 구조를 분석하여 Widget 타입과 메서드, 주석을 추출합니다.
+        Analyze the internal structure of a Dart class to extract Widget type, methods, and comments.
         """
-        # 1. 클래스 이름 추출
+        # 1. Extract class name
         name_node = node.child_by_field_name("name")
         name = name_node.text.decode('utf8', errors='ignore') if name_node else "Unknown"
 
-        # 2. 상속(extends) 분석 -> Flutter Widget 타입 분류
+        # 2. Analyze inheritance (extends) -> classify Flutter Widget type
         base_class_name = ""
         widget_type = "none" # none, stateless, stateful, state, provider
         
@@ -92,7 +92,7 @@ class DartParser(BaseTreeSitterParser):
             elif base_class_name == "InheritedWidget":
                 widget_type = "inherited_widget"
 
-        # 3. Mixin(with) 및 Interface(implements) 추출
+        # 3. Extract Mixin (with) and Interface (implements)
         mixins = []
         mixins_node = node.child_by_field_name("mixins")
         if mixins_node:
@@ -114,7 +114,7 @@ class DartParser(BaseTreeSitterParser):
                     if child.type == "type_identifier":
                         interfaces.append(child.text.decode('utf8', errors='ignore'))
 
-        # 4. 클래스 내부 메서드 탐색
+        # 4. Traverse methods inside the class
         methods = []
         body_node = node.child_by_field_name("body")
         if body_node:
@@ -124,7 +124,7 @@ class DartParser(BaseTreeSitterParser):
                     if m_name_node:
                         methods.append(m_name_node.text.decode('utf8', errors='ignore'))
 
-        # 5. Docstring (///) 추출
+        # 5. Extract Docstring (//)
         docstring = self._extract_docstring(node)
 
         return {
@@ -139,7 +139,7 @@ class DartParser(BaseTreeSitterParser):
 
     def _extract_docstring(self, node) -> str:
         """
-        Dart의 공식 문서화 주석인 /// 또는 //, /* */ 를 역추적하여 추출합니다.
+        Extract Dart official doc comments (/// or //, /* */) by backtracking.
         """
         if not node or not node.prev_sibling:
             return ""

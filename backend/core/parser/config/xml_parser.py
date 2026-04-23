@@ -15,16 +15,16 @@ class XmlParser(BaseTreeSitterParser):
         }
 
         try:
-            # XML 파싱 (네임스페이스를 무시하기 위해 태그 이름을 정규화할 수 있음)
+            # XML parsing (tag names can be normalized to ignore namespaces)
             root = ET.fromstring(self.content)
             
-            # 1. Maven (pom.xml) 분석
+            # 1. Analyze Maven (pom.xml)
             if "project" in root.tag:
                 parsed_data["type"] = "maven_pom"
-                # namespace 처리
+                # Handle namespace
                 ns = {'m': root.tag.split('}')[0].strip('{')} if '}' in root.tag else {}
                 
-                # 의존성 추출 (가장 간단한 버전)
+                # Extract dependencies (simplest version)
                 deps = root.findall(".//m:dependency" if ns else ".//dependency", ns)
                 for dep in deps:
                     g_id = dep.find("m:groupId" if ns else "groupId", ns)
@@ -32,12 +32,12 @@ class XmlParser(BaseTreeSitterParser):
                     if g_id is not None and a_id is not None:
                         parsed_data["maven_dependencies"].append(f"{g_id.text}:{a_id.text}")
 
-            # 2. Android Manifest 분석
+            # 2. Analyze Android Manifest
             elif "manifest" in root.tag:
                 parsed_data["type"] = "android_manifest"
                 parsed_data["metadata"]["package"] = root.get("package")
                 
-                # 권한(Permission) 추출
+                # Extract permissions
                 perms = root.findall(".//uses-permission")
                 for p in perms:
                     name = p.get("{http://schemas.android.com/apk/res/android}name") or p.get("android:name")
@@ -45,7 +45,7 @@ class XmlParser(BaseTreeSitterParser):
                         parsed_data["android_permissions"].append(name)
 
         except Exception as e:
-            meta["error"] = f"XML 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"XML Error during parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

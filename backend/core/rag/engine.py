@@ -1,6 +1,6 @@
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_groq import ChatGroq
-# Chroma 대신 순수 파이썬 인메모리 스토어 사용
+# Use pure Python in-memory store instead of Chroma
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
@@ -17,7 +17,7 @@ class ChatFolioEngine:
         self.provider = provider
         self.model_name = model_name
         
-        # LLM 초기화
+        # Initialize LLM
         if provider == "openai":
             self.llm = ChatOpenAI(model=model_name or "gpt-4o-mini", temperature=0)
         else: # Default is groq
@@ -25,11 +25,11 @@ class ChatFolioEngine:
             
         self.embeddings = OpenAIEmbeddings()
         
-        # 1. 벡터 스토어 구축
+        # 1. Build vector store
         self.vector_db = self._prepare_vector_db()
 
     def _prepare_vector_db(self):
-        # 코드를 의미 있는 단위로 쪼개기
+        # Split code into meaningful units
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, 
             chunk_overlap=100,
@@ -53,22 +53,22 @@ class ChatFolioEngine:
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
 
     def ask(self, query: str, language: str = "English"):
-        # 1. k값을 늘려 더 풍부한 후보군을 확보 (8 -> 12)
+        # 1. Increase k for a richer candidate pool (8 -> 12)
         related_docs = self.vector_db.similarity_search(query, k=12)
         
         sources = []
         visited_nodes = []
         
-        # 2. 토큰 예산 관리 (최대 8,000자)
+        # 2. Token budget management (max 8,000 chars)
         CONTEXT_BUDGET = 8000
         current_usage = 0
         
-        # 2-1. 문서(README)와 코드(Implementation) 분리 및 제한
+        # 2-1. Separate and limit docs (README) and code (Implementation)
         readme_chunks = []
         code_chunks = []
         seen_paths = set()
         
-        # 실제 파일 데이터(neighbor 등)를 위한 추가 경로 저장
+        # Store additional paths for actual file data (neighbors, etc.)
         neighbor_paths = []
 
         for doc in related_docs:
@@ -93,10 +93,10 @@ class ChatFolioEngine:
                             sources.append({"path": n, "reason": f"Dependency (from {file_name_short})"})
                         visited_nodes.append({"from": path, "to": n})
 
-        # 3. 계층형 컨텍스트 구성 (예산 내에서)
+        # 3. Build hierarchical context (within budget)
         context_text = ""
         
-        # 3-1. 핵심 코드 청크 먼저 배치 (가장 중요)
+        # 3-1. Place core code chunks first (highest priority)
         if code_chunks:
             context_text += "\n### [SECTION: TECHNICAL IMPLEMENTATION (Source Code)]\n"
             for doc in code_chunks:
@@ -105,7 +105,7 @@ class ChatFolioEngine:
                 context_text += snippet
                 current_usage += len(snippet)
 
-        # 3-2. README 내용 배치 (예산 남을 때만)
+        # 3-2. Place README content (only if budget remains)
         if readme_chunks and current_usage < CONTEXT_BUDGET:
             context_text += "\n### [SECTION: PROJECT OVERVIEW (Documentation)]\n"
             for doc in readme_chunks:
@@ -114,13 +114,13 @@ class ChatFolioEngine:
                 context_text += snippet
                 current_usage += len(snippet)
 
-        # 3-3. 연관 파일(Neighbor) 배치 - 최소 정보만 (예산 남을 때만)
+        # 3-3. Place related files (Neighbors) - minimal info only (budget permitting)
         if neighbor_paths and current_usage < CONTEXT_BUDGET:
             context_text += "\n### [SECTION: RELATED CONTEXT (Dependencies)]\n"
             for path in neighbor_paths:
                 if current_usage >= CONTEXT_BUDGET: break
                 if path in self.files_data:
-                    # 주변 파일은 아주 짧게 (500자)
+                    # Keep neighbor file snippets very short (500 chars)
                     content = self.files_data[path][:500]
                     snippet = f"\n--- File (Partial): {path} ---\n{content}\n"
                     context_text += snippet
@@ -130,7 +130,7 @@ class ChatFolioEngine:
         if self.tech_stack:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
 
-        # 4. 소스 코드 중심의 강력한 시스템 프롬프트
+        # 4. Strong source-code-centric system prompt
         system_prompt = f"""
         You are an experienced full-stack software engineer and code architecture expert.
         When answering user questions, strictly adhere to the following guidelines:
@@ -158,11 +158,11 @@ class ChatFolioEngine:
         }
 
     def analyze_architecture(self, language: str = "English"):
-        """프로젝트 그래프와 테크 스택을 기반으로 아키텍처 분석 리포트 생성"""
+        """Generate an architecture analysis report based on the project graph and tech stack."""
         node_count = self.graph.number_of_nodes()
         edge_count = self.graph.number_of_edges()
         
-        # 중요도 높은 파일 (Centrality)
+        # High-importance files (Centrality)
         try:
             centrality = nx.degree_centrality(self.graph)
             top_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -170,12 +170,12 @@ class ChatFolioEngine:
         except:
             top_files = []
             
-        # 파일 내용 일부 가져오기 (가장 중요한 파일들)
+        # Fetch partial content of the most important files
         important_snippets = ""
         for path in top_files:
             content = self.files_data.get(path, "")
             if content:
-                # 첫 1000자 정도
+                # First ~1000 characters
                 important_snippets += f"\n- File: {path}\n```\n{content[:1000]}\n```\n"
         
         system_prompt = f"You are a Senior Software Architect. Analyze the project structure and tech stack to provide a professional architecture review in {language}."
@@ -211,7 +211,7 @@ class ChatFolioEngine:
         }
 
     def _get_cheap_llm(self):
-        """가벼운 작업을 위한 보조 모델 (Llama 8B / GPT-4o-mini)을 반환합니다."""
+        """Return a lightweight auxiliary model for simple tasks (Llama 8B / GPT-4o-mini)."""
         if self.provider == "groq":
             return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
         elif self.provider == "openai":
@@ -219,7 +219,7 @@ class ChatFolioEngine:
         return self.llm
 
     def summarize_title(self, query: str) -> str:
-        """첫 번째 질문을 기반으로 짧은 채팅방 제목을 생성합니다. (경량 모델 사용)"""
+        """Generate a short chat room title based on the first user question (uses lightweight model)."""
         cheap_llm = self._get_cheap_llm()
         system_prompt = SystemMessage(content="Create a very short title of about 3~5 words based on the user's question. Output only the title without quotes or periods.")
         user_prompt = HumanMessage(content=f"Question: {query}")
@@ -315,12 +315,12 @@ class ChatFolioEngine:
         nodes = list(self.graph.nodes())
         file_count = len(nodes)
         
-        # 3-1. 설정 파일(Manifest) 추출 및 최적화
+        # 3-1. Extract and optimize manifest/config files
         manifest_content = ""
         README_CONTEXT_BUDGET = 10000
         current_usage = 0
         
-        # 중복 방지를 위해 자물쇠 파일보다는 설정 파일 원본을 우선함
+        # Prioritize original config files over lock files to avoid duplication
         manifest_priority = ["package.json", "build.gradle", "pom.xml", "requirements.txt", "settings.gradle", "docker-compose.yml"]
         skip_files = ["package-lock.json", "yarn.lock", "gradle-wrapper.properties"]
         
@@ -328,22 +328,22 @@ class ChatFolioEngine:
             if current_usage >= README_CONTEXT_BUDGET: break
             fname = os.path.basename(path).lower()
             if any(m in fname for m in manifest_priority) and not any(s in fname for s in skip_files):
-                # 설정 파일은 800자만 있어도 의존성 파악 가능
+                # 800 chars is enough to identify dependencies in config files
                 snippet = f"\n--- {path} ---\n{content[:800]}\n"
                 manifest_content += snippet
                 current_usage += len(snippet)
         
-        # 3-2. 핵심 파일 선정 (In-degree 기준)
+        # 3-2. Select core files (by in-degree)
         in_degrees = dict(self.graph.in_degree())
         top_files = sorted(in_degrees.items(), key=lambda x: x[1], reverse=True)[:5]
-        top_files_str = "\n".join([f"- {f} (참조됨: {count}회)" for f, count in top_files])
+        top_files_str = "\n".join([f"- {f} (referenced: {count} times)" for f, count in top_files])
         
-        # 3-3. 핵심 코드 본문 추출 (1,000자 캡핑)
+        # 3-3. Extract core code body (capped at 1,000 chars)
         core_files_code = ""
         for f, _ in top_files:
             if current_usage >= README_CONTEXT_BUDGET: break
             if f in self.files_data:
-                # 코드 본문은 1,000자면 핵심 로직 파악 가능
+                # 1,000 chars is enough to grasp core logic from code body
                 snippet = f"\n--- {f} ---\n{self.files_data[f][:1000]}...\n"
                 core_files_code += snippet
                 current_usage += len(snippet)
@@ -368,27 +368,27 @@ class ChatFolioEngine:
             if "tsconfig.json" in path_lower: framework_hints.add("TypeScript")
 
         top_exts = sorted(extensions.items(), key=lambda x: x[1], reverse=True)[:3]
-        top_exts_str = ", ".join([f".{ext}({cnt}개)" for ext, cnt in top_exts])
+        top_exts_str = ", ".join([f".{ext}({cnt} files)" for ext, cnt in top_exts])
         framework_str = ", ".join(list(framework_hints)) if framework_hints else "Specific framework could not be inferred"
 
         user_input_context = ""
         if user_inputs and any(user_inputs.values()):
-            user_input_context = "\n[👤 사용자 추가 정보]\n"
+            user_input_context = "\n[👤 User Additional Info]\n"
             for k, v in user_inputs.items():
                 if v and str(v).strip():
                     user_input_context += f"- {k}: {v}\n"
 
         context = f"""
-        [🤖 프로젝트 정체성 분석 결과]
+        [🤖 Project Identity Analysis Result]
         - Main Language/Extension: {top_exts_str}
         - Detected Env/Framework Hints: {framework_str}
         {user_input_context}
         
-        [📂 프로젝트 구조 및 핵심 데이터]
-        1. 전체 파일 수: {file_count}개
-        2. 디렉토리 구조 (최상위 일부): {dir_tree}
-        3. 핵심 파일 (많이 참조된 파일): {top_files_str}
-        4. 주요 파일들의 실제 내용 (일부):
+        [📂 Project Structure and Core Data]
+        1. Total File Count: {file_count}
+        2. Directory Structure (top-level sample): {dir_tree}
+        3. Core Files (most referenced): {top_files_str}
+        4. Actual Content of Key Files (partial):
         {manifest_content}
         {core_files_code}
         """

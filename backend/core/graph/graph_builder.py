@@ -8,9 +8,9 @@ class DependencyGraphBuilder:
 
     def build_graph(self, files_meta: dict):
         """
-        언어별 전용 리졸버(Resolver)를 사용하여 엣지 탐지 정확도를 극대화한 그래프를 구축합니다.
+Build a graph with maximized edge detection accuracy using language-specific resolvers.
         """
-        # 1. 전역 인덱스 생성
+        # 1. Build global index
         full_path_map = {}
         basename_map = {}
         entity_map = {}
@@ -25,7 +25,7 @@ class DependencyGraphBuilder:
             
             self.graph.add_node(path, label=filename, type="file")
             
-            # Java/Kotlin 패키지 & 클래스
+            # Java/Kotlin packages & classes
             pkg = parsed.get("package", "")
             for cls in parsed.get("classes", []):
                 cls_name = cls.get("name", "") if isinstance(cls, dict) else cls
@@ -34,7 +34,7 @@ class DependencyGraphBuilder:
                         entity_map[f"{pkg}.{cls_name}"] = path
                     entity_map[cls_name] = path
             
-            # Python 모듈 경로 유추 (폴더 구조 기반 다양한 깊이의 접미사 인덱싱)
+            # Infer Python module path (suffix indexing at various depths based on folder structure)
             py_module = path.replace("/", ".").replace("\\", ".")
             if py_module.endswith(".py"):
                 py_module = py_module[:-3]
@@ -46,17 +46,17 @@ class DependencyGraphBuilder:
                     if suffix_module not in entity_map:
                         entity_map[suffix_module] = path
             
-            # JS/TS 엔티티 (간단하게 파일명 등록)
+            # JS/TS entities (register by filename)
             if parsed.get("language") in ["javascript", "typescript"]:
                 entity_map[base] = path
 
-        # 2. 언어별 리졸버를 활용한 엣지(Edge) 연결
+        # 2. Connect edges using language-specific resolvers
         for path, meta in files_meta.items():
             parsed = meta.get("metadata_json", {}).get("parsed", {})
             language = parsed.get("language", "generic")
             imports = parsed.get("imports", [])
             
-            # 해당 언어 전용 리졸버 획득
+            # Obtain language-specific resolver
             resolver = ResolverFactory.get_resolver(
                 language, 
                 full_path_map, 

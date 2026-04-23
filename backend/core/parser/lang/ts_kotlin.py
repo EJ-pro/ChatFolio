@@ -40,7 +40,7 @@ class KotlinParser(BaseTreeSitterParser):
                 parsed_data["is_android_project"] = True
 
         except Exception as e:
-            meta["error"] = f"Kotlin 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during Kotlin parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

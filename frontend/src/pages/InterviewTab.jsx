@@ -3,7 +3,7 @@ import { Target, User, Send, Flame, ShieldAlert } from 'lucide-react';
 function InterviewTab() {
   return (
     <div className="flex flex-col h-full bg-slate-900">
-      {/* 인터뷰 전용 다크 헤더 */}
+      {/* Interview-only dark header */}
       <header className="bg-slate-950 border-b border-slate-800 p-6 flex items-center justify-between shadow-md">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-red-500/10 rounded-xl flex items-center justify-center border border-red-500/20">
@@ -17,11 +17,11 @@ function InterviewTab() {
         
         <div className="flex items-center gap-2 bg-amber-500/10 text-amber-500 px-4 py-2 rounded-full border border-amber-500/20 shadow-[0_0_15px_rgba(245,158,11,0.15)]">
           <ShieldAlert className="w-4 h-4" />
-          <span className="text-sm font-bold tracking-wide">개발 중 (Under Construction)</span>
+          <span className="text-sm font-bold tracking-wide">Under Construction</span>
         </div>
       </header>
 
-      {/* 대화 영역 (Mock) */}
+      {/* Conversation area (Mock) */}
       <main className="flex-1 overflow-y-auto p-8 space-y-6">
         <div className="flex justify-start">
           <div className="flex gap-4 max-w-[80%]">
@@ -55,7 +55,7 @@ function InterviewTab() {
         </div>
       </main>
 
-      {/* 입력 영역 (비활성화) */}
+      {/* Input area (disabled) */}
       <footer className="bg-slate-950 border-t border-slate-800 p-6">
         <div className="max-w-4xl mx-auto relative opacity-50 cursor-not-allowed">
           <input

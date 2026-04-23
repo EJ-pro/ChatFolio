@@ -17,23 +17,23 @@ from core.rag.engine import ChatFolioEngine
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# 환경 변수에서 OAuth 정보 가져오기
+# Load OAuth credentials from environment variables
 GITHUB_CLIENT_ID = os.getenv("GITHUB_CLIENT_ID", "")
 GITHUB_CLIENT_SECRET = os.getenv("GITHUB_CLIENT_SECRET", "")
 JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY", "fallback_secret_key_if_not_set")
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7 # 7 days
 
-# SSO 객체 초기화 (Redirect URI는 프론트엔드가 아니라 백엔드의 callback 주소입니다)
+# Initialize SSO object (Redirect URI points to the backend callback, not the frontend)
 github_sso = GithubSSO(
     client_id=GITHUB_CLIENT_ID,
     client_secret=GITHUB_CLIENT_SECRET,
     redirect_uri="http://localhost:8000/auth/github/callback",
-    allow_insecure_http=True, # 개발 환경(http) 허용
-    scope=["user:email", "repo"] # 프라이빗 레포지토리 접근 권한 추가
+    allow_insecure_http=True, # Allow HTTP in development environment
+    scope=["user:email", "repo"] # Add private repository access scope
 )
 
-# JWT 생성 유틸리티
+# JWT creation utility
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode = data.copy()
     if expires_delta:
@@ -44,7 +44,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
     return encoded_jwt
 
-# 현재 로그인한 사용자 검증 (Dependency)
+# Validate the currently logged-in user (Dependency)
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 security = HTTPBearer()
 
@@ -54,22 +54,22 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
         user_id: int = payload.get("sub")
         if user_id is None:
-            raise HTTPException(status_code=401, detail="유효하지 않은 토큰입니다.")
+            raise HTTPException(status_code=401, detail="Invalid token.")
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="토큰 검증에 실패했습니다.")
-    
+        raise HTTPException(status_code=401, detail="Token validation failed.")
+
     user = db.query(User).filter(User.id == int(user_id)).first()
     if user is None:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+        raise HTTPException(status_code=404, detail="User not found.")
     return user
 
-# 공통 소셜 로그인 콜백 처리 로직
+# Common social login callback processing logic
 async def process_sso_login(sso_user, provider: str, db: Session, github_username: str = None, github_token: str = None):
-    # 이메일로 기존 사용자 찾기
+    # Look up existing user by email
     user = db.query(User).filter(User.email == sso_user.email).first()
-    
+
     if not user:
-        # 없으면 새로 생성
+        # Create a new user if not found
         user = User(
             provider=provider,
             email=sso_user.email,
@@ -80,7 +80,7 @@ async def process_sso_login(sso_user, provider: str, db: Session, github_usernam
         )
         db.add(user)
     else:
-        # 정보 업데이트
+        # Update user information
         user.name = sso_user.display_name or user.name
         user.avatar_url = sso_user.picture or user.avatar_url
         if github_username:
@@ -91,17 +91,17 @@ async def process_sso_login(sso_user, provider: str, db: Session, github_usernam
     db.commit()
     db.refresh(user)
     
-    # JWT 발급
+    # Issue JWT
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": str(user.id)}, expires_delta=access_token_expires
     )
-    
-    # 프론트엔드로 리다이렉트 (토큰 포함)
+
+    # Redirect to frontend with token
     frontend_url = f"http://localhost/auth/callback?token={access_token}"
     return RedirectResponse(url=frontend_url)
 
-# 현재 사용자 정보 조회
+# Retrieve current user information
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_user)):
     return {
@@ -115,17 +115,17 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "job": current_user.job
     }
 
-# 유저 마이페이지 프로필 정보 조회
+# Retrieve user profile page information
 @router.get("/profile/{username}")
 async def get_user_profile(username: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.github_username == username).first()
     if not user:
-        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
-    
-    # 완료된 프로젝트 데이터만 가져오기
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Fetch only completed project data
     projects = db.query(Project).filter(Project.user_id == user.id, Project.status == "COMPLETED").all()
-    
-    # 스킬 통계 (Github API Languages 활용)
+
+    # Skill statistics (using GitHub API Languages)
     lang_stats = {}
     token = user.github_token or os.getenv("GITHUB_TOKEN")
     
@@ -135,19 +135,19 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
             g = Github(auth=auth)
             changed = False
             for p in projects:
-                # 1. DB에 저장된 언어 정보가 있으면 활용
+                # 1. Use language data stored in DB if available
                 if p.languages:
                     for lang, byte_count in p.languages.items():
                         if isinstance(byte_count, int):
                             lang_stats[lang] = lang_stats.get(lang, 0) + byte_count
                     continue
-                
-                # 2. DB에 없으면 GitHub API 호출 후 저장
+
+                # 2. If not in DB, fetch from GitHub API and cache it
                 repo_path = p.repo_url.replace("https://github.com/", "").replace(".git", "").strip("/")
                 try:
                     repo = g.get_repo(repo_path)
                     langs = repo.get_languages()
-                    p.languages = langs # DB 캐싱
+                    p.languages = langs # Cache in DB
                     changed = True
                     
                     for lang, byte_count in langs.items():
@@ -157,11 +157,11 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                     print(f"Failed to fetch languages for {repo_path}: {repo_err}")
             
             if changed:
-                db.commit() # 한 번에 커밋
+                db.commit() # Commit all at once
         except Exception as e:
             print(f"Failed to fetch languages from GitHub API: {e}")
             
-    # GitHub API에서 언어 정보를 가져오지 못했다면 기존 Insight 정보 활용 (가장 빠름)
+    # Fall back to existing Insight data if GitHub API language fetch failed (fastest)
     if not lang_stats:
         from database.models import ProjectInsight
         insights = db.query(ProjectInsight).join(Project).filter(Project.user_id == user.id).all()
@@ -170,11 +170,11 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                 for lang, count in ins.tech_stack["language_distribution"].items():
                     lang_stats[lang] = lang_stats.get(lang, 0) + count
 
-    # 상위 6개 언어만 추출
+    # Extract only the top 6 languages
     sorted_skills = sorted(lang_stats.items(), key=lambda x: x[1], reverse=True)[:6]
     skills = {k: v for k, v in sorted_skills if v > 0}
 
-    # 생성된 자산
+    # Generated assets
     readmes = db.query(GeneratedReadme).join(Project).filter(Project.user_id == user.id).order_by(GeneratedReadme.created_at.desc()).limit(10).all()
     
     return {
@@ -238,20 +238,20 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
         }
     }
 
-# 깃허브 레포지토리 목록 조회
+# Retrieve list of GitHub repositories
 @router.get("/github/repos")
 async def get_github_repos(current_user: User = Depends(get_current_user)):
-    # 토큰이 없으면 환경변수 GITHUB_TOKEN이라도 시도
+    # Fall back to GITHUB_TOKEN env var if no user token available
     token = current_user.github_token or os.getenv("GITHUB_TOKEN")
     if not token:
-        # 토큰이 아예 없으면 빈 리스트 반환 (에러 대신)
+        # Return empty list instead of error if no token at all
         return []
-    
+
     try:
         auth = Auth.Token(token)
         g = Github(auth=auth)
-        
-        # 본인의 레포지토리 최신순 20개
+
+        # Get up to 20 of the user's own repositories sorted by most recently updated
         repos = g.get_user().get_repos(sort="updated", direction="desc")
         
         return [
@@ -269,7 +269,7 @@ async def get_github_repos(current_user: User = Depends(get_current_user)):
         print(f"GitHub API Error: {e}")
         return []
 
-# 라우터 - GitHub
+# Router - GitHub
 @router.get("/github/login")
 async def github_login():
     with github_sso:
@@ -277,7 +277,7 @@ async def github_login():
 
 @router.get("/github/callback")
 async def github_callback(request: Request, db: Session = Depends(get_db)):
-    # 1. 깃허브로부터 access_token 직접 획득
+    # 1. Obtain access_token directly from GitHub
     code = request.query_params.get("code")
     if not code:
         raise HTTPException(status_code=400, detail="Code not found")
@@ -300,14 +300,14 @@ async def github_callback(request: Request, db: Session = Depends(get_db)):
     if not github_token:
         raise HTTPException(status_code=400, detail="Failed to get access token from GitHub")
 
-    # 2. 유저 정보 획득 (PyGithub 사용)
-    # PyGithub은 동기 라이브러리이므로 필요시 run_in_threadpool 등을 고려할 수 있으나 
-    # 여기서는 간단히 직접 호출
+    # 2. Fetch user information (using PyGithub)
+    # PyGithub is a synchronous library; run_in_threadpool could be used if needed,
+    # but a simple direct call is used here for simplicity.
     auth = Auth.Token(github_token)
     g = Github(auth=auth)
     gh_user = g.get_user()
-    
-    # SSOUser 인터페이스와 유사하게 데이터 구조화 (ImportError 방지)
+
+    # Structure data similarly to the SSOUser interface (to avoid ImportError)
     class GithubUser:
         def __init__(self, id, email, display_name, picture):
             self.id = id

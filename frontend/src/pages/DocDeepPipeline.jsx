@@ -12,171 +12,171 @@ export default function DocDeepPipeline() {
   const steps = [
     {
       id: "auth",
-      title: "분석 요청 및 인증",
+      title: "Analysis Request & Auth",
       icon: <Lock size={22} />,
       color: "#3b82f6",
       file: "main.py > /analyze",
-      desc: "API 엔드포인트 진입 및 보안 검증",
+      desc: "API endpoint entry and security validation",
       tech: ["FastAPI", "OAuth2"],
       details: {
         payload: { user_id: "EJ-pro", repo_url: "..." },
         actions: [
-          "사용자 GitHub Personal Access Token(PAT) 유효성 검증",
-          "분석 요청 파라미터(URL, Branch) 정규화",
-          "Rate Limit 및 API 접근 권한 상태 체크"
+          "Validate user's GitHub Personal Access Token (PAT)",
+          "Normalize analysis request parameters (URL, Branch)",
+          "Check Rate Limit and API access permission status"
         ]
       }
     },
     {
       id: "cache",
-      title: "코드 업데이트 검사",
+      title: "Code Update Check",
       icon: <Search size={22} />,
       color: "#0ea5e9",
       file: "main.py",
-      desc: "코드 업데이트 이력 대조 및 캐싱 전략 결정",
+      desc: "Compare code update history and decide caching strategy",
       tech: ["PostgreSQL", "SHA-256"],
       details: {
         payload: { last_commit: "a1b2c3d...", is_updated: true },
         actions: [
-          "GitHub API를 통한 최신 커밋 해시(SHA) 실시간 확인",
-          "기존 데이터베이스와 비교하여 신규 분석 필요성 판단",
-          "Force Update 요청 시 기존 데이터 무효화 처리"
+          "Real-time latest commit hash (SHA) check via GitHub API",
+          "Determine whether new analysis is needed by comparing with existing database",
+          "Invalidate existing data when Force Update is requested"
         ]
       }
     },
     {
       id: "scan",
-      title: "분석 대상 스캐닝",
+      title: "Target Scanning",
       icon: <Binary size={22} />,
       color: "#22d3ee",
       file: "github_fetcher.py",
-      desc: "프로젝트 구조 파악 및 필터링",
+      desc: "Understand and filter project structure",
       tech: ["Recursive Tree", "Globs"],
       details: {
         payload: { total_files: 142, targets: 89 },
         actions: [
-          "디렉토리 재귀 순회 및 전체 파일 트리 구성",
-          "타겟 확장자(code, config, docs) 기반 분석 대상 선별",
-          ".gitignore 및 불필요한 바이너리 파일 분석 제외"
+          "Recursive directory traversal and full file tree construction",
+          "Select analysis targets based on target extensions (code, config, docs)",
+          "Exclude .gitignore and unnecessary binary files from analysis"
         ]
       }
     },
     {
       id: "fetch",
-      title: "스트리밍 데이터 수집",
+      title: "Streaming Data Collection",
       icon: <CloudDownload size={22} />,
       color: "#2dd4bf",
       file: "github_fetcher.py",
-      desc: "메모리 최적화 기반 파일 로드",
+      desc: "Memory-optimized file loading",
       tech: ["Python Generator", "Streaming"],
       details: {
         payload: "yield (path, content)",
         actions: [
-          "Generator 패턴을 활용하여 대량의 파일을 순차적 로드",
-          "파일별 Base64 페이로드 비동기 디코딩 처리",
-          "대규모 레포지토리 로드시 메모리 부족(OOM) 방지"
+          "Sequential loading of large volumes of files using Generator pattern",
+          "Asynchronous Base64 payload decoding per file",
+          "Prevent Out-of-Memory (OOM) when loading large repositories"
         ]
       }
     },
     {
       id: "factory",
-      title: "파서 팩토리 라우팅",
+      title: "Parser Factory Routing",
       icon: <Terminal size={22} />,
       color: "#10b981",
       file: "core/parser/factory.py",
-      desc: "언어별 최적화 분석기 할당",
+      desc: "Assign language-optimized analyzers",
       tech: ["Factory Pattern"],
       details: {
         payload: "get_parser_result(ext)",
         actions: [
-          "입력 파일의 확장자 분석 후 언어 전용 파서 매칭",
-          "멀티 언어 프로젝트(Polyglot) 동시 분석 지원",
-          "알 수 없는 형식의 경우 기본 메타데이터 추출기로 폴백"
+          "Match language-specific parsers after analyzing input file extensions",
+          "Support concurrent analysis of multi-language (Polyglot) projects",
+          "Fall back to default metadata extractor for unknown formats"
         ]
       }
     },
     {
       id: "parse",
-      title: "AST 심층 구문 분석",
+      title: "Deep AST Parsing",
       icon: <FileCode2 size={22} />,
       color: "#84cc16",
       file: "core/parser/lang/*.py",
-      desc: "Native AST 및 Regex 엔진 기반 구조 추출",
+      desc: "Structure extraction using native AST and Regex engine",
       tech: ["Native AST (Python)", "Regex Engine (JS/JAVA/KT)"],
       details: {
         payload: { classes: ["Auth"], functions: ["login"] },
         actions: [
-          "Python 내장 ast 모듈 및 언어별 정규표현식 엔진을 활용한 고속 메타데이터 추출",
-          "클래스, 함수, 네임스페이스 및 Import 구문의 정확한 식별 및 정규화",
-          "도커 컨테이너 환경에서의 OS 종속성 제거 및 런타임 안정성 확보"
+          "High-speed metadata extraction using Python's built-in ast module and per-language regex engines",
+          "Accurate identification and normalization of classes, functions, namespaces, and import statements",
+          "Remove OS dependencies and ensure runtime stability in Docker container environments"
         ]
       }
     },
     {
       id: "persistence",
-      title: "데이터 영구 저장",
+      title: "Persistent Data Storage",
       icon: <Database size={22} />,
       color: "#eab308",
       file: "database/models.py",
-      desc: "분석 정보의 DB 정규화 저장",
+      desc: "Normalized DB storage of analysis data",
       tech: ["SQLAlchemy", "PostgreSQL"],
       details: {
         payload: { status: "commit_success", rows: 124 },
         actions: [
-          "파싱된 정보와 원본 코드를 PostgreSQL 트랜잭션 저장",
-          "파일별 라인 수, 키워드, 메타데이터 JSON 필드화",
-          "프로젝트 레코드 업데이트 및 분석 시간 기록"
+          "Save parsed data and original code in a PostgreSQL transaction",
+          "Store per-file line count, keywords, and metadata as JSON fields",
+          "Update project record and record analysis timestamp"
         ]
       }
     },
     {
       id: "graph",
-      title: "의존성 네트워크 구축",
+      title: "Dependency Network Construction",
       icon: <Share2 size={22} />,
       color: "#f97316",
       file: "core/graph/graph_builder.py",
-      desc: "Resolver Factory 기반 상호 참조 관계 정립",
+      desc: "Establish cross-reference relationships using Resolver Factory",
       tech: ["Resolver Factory", "Language Resolvers", "NetworkX"],
       details: {
         payload: "nx.DiGraph(nodes=89, edges=234)",
         actions: [
-          "ResolverFactory를 통한 언어별 맞춤형 리졸버(PythonResolver, JSResolver 등) 배정",
-          "Import 구문의 점 표기법, 상대 경로 등을 실제 파일 시스템 경로로 정규화 매핑",
-          "NetworkX DiGraph 기반의 전역 모듈 의존성 네트워크 및 토폴로지 구성"
+          "Assign language-specific custom resolvers (PythonResolver, JSResolver, etc.) via ResolverFactory",
+          "Normalize and map import statement dot notation and relative paths to actual filesystem paths",
+          "Build global module dependency network and topology using NetworkX DiGraph"
         ]
       }
     },
     {
       id: "metrics",
-      title: "네트워크 통계 분석",
+      title: "Network Statistics Analysis",
       icon: <BarChart3 size={22} />,
       color: "#ef4444",
       file: "main.py / graph_builder",
-      desc: "아키텍처 시각화 데이터 가공",
+      desc: "Process data for architecture visualization",
       tech: ["Graph Algorithm", "JSON"],
       details: {
         payload: { degree_dict: { "main.py": 12 } },
         actions: [
-          "노드별 연결 지수(Degree) 계산을 통한 중심 파일 식별",
-          "프론트엔드 시각화(D3.js/3D-Force)를 위한 JSON 변환",
-          "프로젝트 아키텍처 토폴로지 데이터 생성"
+          "Identify central files by calculating per-node connection degree",
+          "Convert to JSON for frontend visualization (D3.js/3D-Force)",
+          "Generate project architecture topology data"
         ]
       }
     },
     {
       id: "engine",
-      title: "RAG 엔진 및 세션 활성화",
+      title: "RAG Engine & Session Activation",
       icon: <Cpu size={22} />,
       color: "#ec4899",
       file: "engine.py",
-      desc: "LLM 대화 준비 및 엔진 로드",
+      desc: "Prepare LLM conversation and load engine",
       tech: ["LangChain", "Vector Store"],
       details: {
         payload: "ChatFolioEngine.ask()_ready",
         actions: [
-          "분석된 전체 데이터를 ChatFolioEngine 컨텍스트에 로드",
-          "벡터 임베딩 및 검색 증강 생성(RAG) 파이프라인 구성",
-          "사용자와의 상호작용을 위한 채팅 세션 오픈"
+          "Load all analyzed data into the ChatFolioEngine context",
+          "Configure vector embedding and Retrieval-Augmented Generation (RAG) pipeline",
+          "Open a chat session for user interaction"
         ]
       }
     }
@@ -185,31 +185,31 @@ export default function DocDeepPipeline() {
   const agentSteps = [
     {
       id: "analyzer",
-      title: "🔍 분석가 에이전트 (Analyzer)",
-      desc: "프로젝트 구조 및 비즈니스 로직 스캔",
-      detail: "유저가 입력한 GitHub URL과 RAG(Retrieval-Augmented Generation)를 통해 프로젝트의 전체적인 기술 스택, 핵심 디렉토리, DB 스키마 등을 파악하여 요약 리포트를 생성합니다.",
-      tip: "Spring Boot, React, FastAPI 등 프로젝트의 '정체성'을 확립하는 단계입니다."
+      title: "🔍 Analyzer Agent",
+      desc: "Scan project structure and business logic",
+      detail: "Generates a summary report by identifying the overall tech stack, core directories, DB schema, etc., using the GitHub URL entered by the user and RAG (Retrieval-Augmented Generation).",
+      tip: "This is the stage that establishes the project's 'identity', such as Spring Boot, React, FastAPI, etc."
     },
     {
       id: "router",
-      title: "🔀 라우터 (Router)",
-      desc: "분석 결과 기반의 동적 분기 처리",
-      detail: "분석 리포트의 아키타입(BE/FE/ML 등)에 따라 적합한 Draft Writer에게 일을 넘깁니다. 기술 스택에 최적화된 프롬프트 템플릿을 동적으로 선택합니다.",
-      tip: "백엔드면 API 명세 중심, 프론트엔드면 UI/UX 시작 가이드 중심으로 전략을 변경합니다."
+      title: "🔀 Router",
+      desc: "Dynamic branching based on analysis results",
+      detail: "Hands off work to the appropriate Draft Writer based on the analysis report archetype (BE/FE/ML, etc.). Dynamically selects a prompt template optimized for the tech stack.",
+      tip: "Shifts strategy to API spec-centric for backends, and UI/UX getting-started guides for frontends."
     },
     {
       id: "writer",
-      title: "✍️ 작성자 에이전트 (Draft Writer)",
-      desc: "Markdown 기반 초안 파일 작성",
-      detail: "라우터가 정해준 전략과 분석가의 리포트를 결합하여 README.md 초안을 작성합니다. 설치 방법, 기술 스택 뱃지, 주요 기능, 폴더 구조 등을 형상화합니다.",
-      tip: "마크다운 문법의 가독성을 극대화하여 전문적인 느낌을 줍니다."
+      title: "✍️ Draft Writer Agent",
+      desc: "Write draft file in Markdown",
+      detail: "Writes a README.md draft by combining the router's strategy and the analyzer's report. Shapes installation instructions, tech stack badges, key features, folder structure, and more.",
+      tip: "Maximizes Markdown readability to deliver a professional feel."
     },
     {
       id: "reviewer",
-      title: "🕵️ 리뷰어 에이전트 (Critic / Reviewer)",
-      desc: "마크다운 품질 검토 및 루프 제어",
-      detail: "작성자의 결과물을 깐깐하게 검토합니다. 실행 명령어가 정확한지, 필수 항목이 누락되었는지 확인하여 부족할 경우 피드백을 담아 다시 작성자에게 돌려보냅니다.",
-      tip: "LangGraph의 핵심인 '반복(Loop)'을 통해 수동 수정이 필요 없는 최종본을 보장합니다."
+      title: "🕵️ Reviewer Agent (Critic)",
+      desc: "Markdown quality review and loop control",
+      detail: "Rigorously reviews the writer's output. Checks whether execution commands are accurate and required sections are present, and sends feedback back to the writer if anything is lacking.",
+      tip: "Guarantees a final output that requires no manual corrections through LangGraph's core 'Loop' mechanism."
     }
   ];
 
@@ -221,12 +221,12 @@ export default function DocDeepPipeline() {
       <div className="w-full max-w-6xl mb-12 text-center md:text-left flex flex-col md:flex-row items-center justify-between gap-6">
         <div>
           <div className="inline-flex items-center gap-2 px-3 py-1 bg-slate-800/50 border border-slate-700 rounded-full text-xs text-emerald-400 font-bold uppercase tracking-widest mb-4">
-            <Database size={14} /> 아키텍처 심층 분석 (Architecture Deep Dive)
+            <Database size={14} /> Architecture Deep Dive
           </div>
           <h1 className="text-3xl md:text-5xl font-extrabold tracking-tight text-white mb-2 leading-tight">
             Doc<span className="text-emerald-400">DeepPipeline</span>
           </h1>
-          <p className="text-slate-400 text-lg">내부 데이터 실행 흐름 및 10단계 핵심 파이프라인 가이드</p>
+          <p className="text-slate-400 text-lg">Internal data execution flow and 10-step core pipeline guide</p>
         </div>
         
         <div className="flex flex-col gap-6">
@@ -248,11 +248,11 @@ export default function DocDeepPipeline() {
 
           <div className="flex gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 min-w-[140px] shadow-lg">
-              <div className="text-[11px] text-slate-500 mb-1 font-bold tracking-wider uppercase">{viewType === "pipeline" ? "분석 단계" : "에이전트 수"}</div>
+              <div className="text-[11px] text-slate-500 mb-1 font-bold tracking-wider uppercase">{viewType === "pipeline" ? "Pipeline Steps" : "Agent Count"}</div>
               <div className="text-2xl font-black text-slate-100">{viewType === "pipeline" ? "10 Steps" : "4 Agents"}</div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 min-w-[140px] shadow-lg">
-              <div className="text-[11px] text-slate-500 mb-1 font-bold tracking-wider uppercase">엔진 상태</div>
+              <div className="text-[11px] text-slate-500 mb-1 font-bold tracking-wider uppercase">Engine Status</div>
               <div className="text-2xl font-black text-emerald-400 animate-pulse">READY</div>
             </div>
           </div>
@@ -335,7 +335,7 @@ export default function DocDeepPipeline() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="bg-black/40 rounded-2xl p-5 border border-slate-800/80 shadow-md">
                     <div className="text-[11px] text-slate-500 mb-3 tracking-widest font-black uppercase flex items-center gap-2">
-                      <Terminal size={14} /> 실행 파일 (Source)
+                      <Terminal size={14} /> Source File
                     </div>
                     <div className="font-bold text-emerald-400 text-sm font-mono break-all leading-relaxed">
                       {active.file}
@@ -344,7 +344,7 @@ export default function DocDeepPipeline() {
 
                   <div className="bg-black/40 rounded-2xl p-5 border border-slate-800/80 shadow-md">
                     <div className="text-[11px] text-slate-500 mb-3 tracking-widest font-black uppercase flex items-center gap-2">
-                      <Layers size={14} /> 핵심 기술 (Core Tech)
+                      <Layers size={14} /> Core Tech
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {active.tech.map(t => (
@@ -358,7 +358,7 @@ export default function DocDeepPipeline() {
 
                 <div className="flex-1 bg-black/40 rounded-3xl border border-slate-800/80 p-8 mt-2 flex flex-col shadow-2xl ring-1 ring-white/5">
                   <div className="text-[11px] text-slate-500 mb-6 tracking-widest font-black uppercase flex items-center gap-2">
-                    <Info size={16} /> 상세 동작 로직 (Internal Logic)
+                    <Info size={16} /> Internal Logic
                   </div>
                   
                   <div className="space-y-5 mb-10">
@@ -372,7 +372,7 @@ export default function DocDeepPipeline() {
 
                   <div className="mt-auto pt-8 border-t border-slate-800">
                     <div className="text-[11px] text-slate-500 mb-4 tracking-widest font-black uppercase flex items-center justify-between">
-                      <span>데이터 구조 (Data Shape)</span>
+                      <span>Data Structure</span>
                       <span className="text-emerald-500/70 bg-emerald-500/10 px-2 py-0.5 rounded text-[9px]">LIVE_INSTANCE</span>
                     </div>
                     <pre className="bg-black/80 border border-slate-800 p-6 rounded-2xl text-[12px] overflow-x-auto text-pink-400 font-mono shadow-inner leading-relaxed custom-scrollbar max-h-[180px]">
@@ -421,16 +421,16 @@ export default function DocDeepPipeline() {
             <div className="relative z-10">
               <h2 className="text-3xl font-black text-white mb-8 tracking-tighter flex items-center gap-3">
                 <CheckCircle2 className="text-emerald-500" />
-                최종본 출력 (Final Output)
+                Final Output
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
                 <div className="space-y-6">
                   <p className="text-slate-300 text-lg leading-relaxed">
-                    리뷰어 에이전트의 승인을 받은 완벽한 <b>README.md</b>가 사용자에게 제공됩니다. 
-                    단순한 코드 나열이 아닌 프로젝트의 핵심 가치와 아키텍처를 전문적으로 설명하는 고품질 문서를 경험하세요.
+                    A perfect <b>README.md</b>, approved by the Reviewer Agent, is delivered to the user.
+                    Experience high-quality documentation that professionally explains the core value and architecture of the project — not just a list of code.
                   </p>
                   <ul className="space-y-3">
-                    {["사용자 맞춤형 섹션 자동 구성", "프로젝트 핵심 기능(Feature) 도출", "정확한 설치 및 실행 가이드", "세련된 기술 스택 뱃지 자동 삽입"].map(item => (
+                    {["Automatic custom section composition", "Derive core project features", "Accurate installation and execution guide", "Elegant tech stack badge auto-insertion"].map(item => (
                       <li key={item} className="flex items-center gap-3 text-slate-400 text-sm font-medium">
                         <ArrowRight size={14} className="text-emerald-500" />
                         {item}
@@ -440,11 +440,11 @@ export default function DocDeepPipeline() {
                 </div>
                 <div className="bg-black/40 rounded-3xl p-8 border border-white/5 font-mono text-[13px] text-pink-400/90 whitespace-pre-wrap leading-relaxed shadow-inner">
                   # 🚀 AwesomeProject{"\n"}
-                  &gt; "개발자를 위한 최고의 생산성 도구"{"\n\n"}
-                  ## ✨ 주요 기능{"\n"}
-                  - ⚡ **실시간 동기화**: WebSocket 기반...{"\n"}
-                  - 🔒 **안전한 인증**: JWT 기반 Oauth...{"\n\n"}
-                  ## 📂 폴더 구조{"\n"}
+                  &gt; "The ultimate productivity tool for developers"{"\n\n"}
+                  ## ✨ Key Features{"\n"}
+                  - ⚡ **Real-time Sync**: WebSocket-based...{"\n"}
+                  - 🔒 **Secure Auth**: JWT-based OAuth...{"\n\n"}
+                  ## 📂 Folder Structure{"\n"}
                   📦 src/{"\n"}
                    ┣ 📂 components{"\n"}
                    ┗ 📂 utils
