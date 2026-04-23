@@ -17,7 +17,7 @@ function ArchitectureTab() {
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const containerRef = useRef(null);
 
-  // 컨테이너 크기에 맞춰 그래프 크기 자동 조절
+  // Auto-adjust graph size to fit container dimensions
   useEffect(() => {
     if (containerRef.current) {
       setDimensions({
@@ -75,7 +75,7 @@ function ArchitectureTab() {
     }
   }, [sessionId]);
 
-  // 그룹별 고유 색상 할당 헬퍼 함수
+  // Helper function to assign unique color per group
   const getColor = (group) => {
     const hash = group.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
     const h = hash % 360;

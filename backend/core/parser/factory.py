@@ -20,7 +20,7 @@ from .config.gradle_parser import GradleParser
 from .config.sql_parser import SqlParser
 
 def generic_extract_metadata(path: str, content: str) -> dict:
-    """지원되지 않는 확장자의 파일에 대한 기본 폴백 파서"""
+    """Default fallback parser for files with unsupported extensions."""
     lines = content.split('\n')
     line_count = len(lines)
     file_name = path.split('/')[-1].split('.')[0]
@@ -33,8 +33,8 @@ def generic_extract_metadata(path: str, content: str) -> dict:
 
 def get_parser_result(path: str, content: str) -> dict:
     """
-    파일 확장자에 따라 적절한 파서를 호출하여 메타데이터를 반환합니다.
-    강력한 Tree-sitter 기반 파서 아키텍처로 전면 교체되었습니다.
+    Call the appropriate parser based on file extension and return metadata.
+    Fully replaced with a powerful Tree-sitter-based parser architecture.
     """
     ext = path.split('.')[-1].lower() if '.' in path else ''
     filename = path.split('/')[-1].lower()
@@ -78,7 +78,7 @@ def get_parser_result(path: str, content: str) -> dict:
         parser = PhpParser(content, path)
         
     else:
-        # 매칭되는 파서가 없을 경우 기본 메타데이터 추출기 사용
+        # Use default metadata extractor if no parser matches
         return generic_extract_metadata(path, content)
         
     return parser.parse()

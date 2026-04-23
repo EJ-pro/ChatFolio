@@ -10,9 +10,9 @@ class BaseResolver(ABC):
     @abstractmethod
     def resolve(self, path: str, import_str: str) -> Optional[str]:
         """
-        인포트 문자열을 실제 파일 경로로 변환합니다.
-        :param path: 현재 소스 파일의 전체 경로
-        :param import_str: 파싱된 임포트 원문 또는 정제된 식별자
-        :return: 매칭되는 파일의 전체 경로 또는 None
+        Resolve an import string to an actual file path.
+        :param path: Full path of the current source file
+        :param import_str: Raw parsed import string or refined identifier
+        :return: Full path of the matched file, or None
         """
         pass

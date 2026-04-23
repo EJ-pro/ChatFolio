@@ -3,8 +3,8 @@ from typing import Dict, Any, List
 
 class BaseTreeSitterParser(ABC):
     """
-    모든 Tree-sitter 기반 파서와 특수 설정 파서가 상속받는 기본 클래스.
-    공통된 메타데이터 형식을 정의하고, 추상 메서드 구현을 강제합니다.
+    Base class inherited by all Tree-sitter-based parsers and special config parsers.
+    Defines the common metadata format and enforces implementation of abstract methods.
     """
     
     def __init__(self, content: str, file_path: str = ""):
@@ -15,7 +15,7 @@ class BaseTreeSitterParser(ABC):
         self.root_node = None
         
     def extract_base_metadata(self) -> Dict[str, Any]:
-        """추출된 공통 메타데이터 기본 형태 반환"""
+        """Return the default common metadata structure."""
         return {
             "file_path": self.file_path,
             "line_count": self.line_count,
@@ -26,7 +26,7 @@ class BaseTreeSitterParser(ABC):
     @abstractmethod
     def parse(self) -> Dict[str, Any]:
         """
-        각 언어별 파서가 반드시 구현해야 하는 핵심 메서드.
-        AST 구문을 분석한 뒤 완성된 메타데이터 사전을 반환해야 합니다.
+        Core method that must be implemented by each language-specific parser.
+        Must analyze the AST and return a completed metadata dictionary.
         """
         pass

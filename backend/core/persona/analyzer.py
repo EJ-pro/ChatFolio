@@ -8,13 +8,13 @@ class PersonaAnalyzer:
         self.engine = engine # ChatFolioEngine instance for LLM
 
     def analyze_metrics(self, files_data: Dict[str, str], commit_hours: List[int]):
-        # 1. 언어 비율 (Language Ratio)
+        # 1. Language ratio
         extensions = {}
         for path in files_data.keys():
             ext = path.split('.')[-1].lower() if '.' in path else 'others'
             extensions[ext] = extensions.get(ext, 0) + 1
         
-        # 2. 주석 밀도 (Comment Density)
+        # 2. Comment density
         total_lines = 0
         comment_lines = 0
         for content in files_data.values():
@@ -27,12 +27,12 @@ class PersonaAnalyzer:
         
         comment_ratio = (comment_lines / total_lines * 100) if total_lines > 0 else 0
         
-        # 3. 모듈화 정도 (Modularization)
-        # 파일당 평균 라인 수 (낮을수록 모듈화가 잘 된 것으로 간주)
+        # 3. Modularization level
+        # Average lines per file (lower = better modularization)
         avg_lines_per_file = (total_lines / len(files_data)) if files_data else 0
         
-        # 4. 커밋 시간대 (Commit Time Type)
-        # 0-6: 새벽(Vampire), 6-12: 오전(Early Bird), 12-18: 오후(Active), 18-24: 저녁(Night Owl)
+        # 4. Commit time slot
+        # 0-6: Dawn (Vampire), 6-12: Morning (Early Bird), 12-18: Afternoon (Active), 18-24: Evening (Night Owl)
         time_slots = {"Vampire": 0, "EarlyBird": 0, "Active": 0, "NightOwl": 0}
         for h in commit_hours:
             if 0 <= h < 6: time_slots["Vampire"] += 1
@@ -66,11 +66,11 @@ class PersonaAnalyzer:
         IMPORTANT: Your output (title, description, traits) MUST be in {language}.
         """)
         
-        user_prompt = HumanMessage(content=f"다음 데이터를 분석해줘: {json.dumps(metrics)}")
+        user_prompt = HumanMessage(content=f"Analyze the following data: {json.dumps(metrics)}")
         
         try:
             response = self.engine.llm.invoke([system_prompt, user_prompt])
-            # JSON만 추출 (마크다운 코드 블록 제거)
+            # Extract JSON only (strip markdown code block)
             clean_content = response.content.replace("```json", "").replace("```", "").strip()
             return json.loads(clean_content)
         except Exception as e:

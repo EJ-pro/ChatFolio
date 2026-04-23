@@ -10,14 +10,14 @@ function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // URL state에서 가져오거나 sessionStorage에서 복구
+  // Retrieve from URL state or restore from sessionStorage
   const sessionId = location.state?.sessionId || sessionStorage.getItem('last_session_id');
 
   const [projects, setProjects] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   
-  // 외부 클릭 시 드롭다운 닫기
+  // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -53,7 +53,7 @@ function DashboardLayout() {
     }
   }, [location.state?.sessionId]);
 
-  // 세션이 없으면 홈으로 (Analysis)
+  // Redirect to analysis page if no session found
   useEffect(() => {
     if (!sessionId) {
       alert("No valid session found. Please perform an analysis first.");
@@ -87,7 +87,7 @@ function DashboardLayout() {
             <NavLink
               key={item.path}
               to={item.path}
-              state={{ sessionId }} // 세션 ID 유지
+              state={{ sessionId }} // Preserve session ID
               className={({ isActive }) =>
                 `flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-300 group ${
                   isActive

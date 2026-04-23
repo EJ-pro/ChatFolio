@@ -37,7 +37,7 @@ class PythonParser(BaseTreeSitterParser):
                     class_info = self._process_class(node)
                     parsed_data["classes"].append(class_info)
 
-                # --- 3. Functions (모듈 레벨) ---
+                # --- 3. Functions (module level) ---
                 elif isinstance(node, ast.FunctionDef) or isinstance(node, ast.AsyncFunctionDef):
                     # For simplicity, if it's walked directly under module it's module level,
                     # but simple `ast.walk` throws all functions. To filter out methods, check `isinstance` on proper node tree.
@@ -45,7 +45,7 @@ class PythonParser(BaseTreeSitterParser):
                     func_info = self._process_function(node)
                     parsed_data["functions"].append(func_info)
 
-            # 생태계 추론 로직
+            # Ecosystem inference logic
             all_imports = " ".join(parsed_data["imports"]).lower()
             if any(pkg in all_imports for pkg in ["torch", "tensorflow", "pandas", "numpy", "scikit"]):
                 parsed_data["is_ai_or_data_project"] = True

@@ -17,5 +17,5 @@ class ResolverFactory:
         elif lang in ["java", "kotlin"]:
             return JavaKotlinResolver(full_path_map, basename_map, entity_map)
         
-        # 기본 리졸버 (기타 언어용)
+        # Default resolver (for other languages)
         return GenericResolver(full_path_map, basename_map, entity_map) 

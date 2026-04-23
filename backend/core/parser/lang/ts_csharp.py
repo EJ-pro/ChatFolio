@@ -8,25 +8,25 @@ class CSharpParser(BaseTreeSitterParser):
         parsed_data = {
             "file_path": meta.get("file_path", ""),
             "language": "csharp",
-            "usings": [],              # using System.Linq; 등
-            "namespaces": [],          # namespace 정의
-            "classes": [],             # 클래스 (상속, 메서드 포함)
-            "interfaces": [],          # 인터페이스 선언
-            "linq_query_count": 0,     # LINQ 문법 사용 횟수
-            "is_unity_script": False   # Unity 환경 파일 여부 플래그
+            "usings": [],              # e.g., using System.Linq;
+            "namespaces": [],          # namespace definitions
+            "classes": [],             # classes (including inheritance and methods)
+            "interfaces": [],          # interface declarations
+            "linq_query_count": 0,     # Number of LINQ usages
+            "is_unity_script": False   # Flag for Unity environment file
         }
 
-        # 1. 최상위 구조 및 LINQ 식별을 위한 Tree-sitter Query
+        # 1. Tree-sitter Query for top-level structure and LINQ identification
         query_source = """
-        ;; Using 구문의 이름 영역 캡처
+        ;; Capture name area of using statement
         (using_directive name: (_) @using_name)
 
-        ;; 클래스, 인터페이스, 네임스페이스 선언부 캡처
+        ;; Capture class, interface, and namespace declarations
         (namespace_declaration name: (_) @namespace_name)
         (class_declaration) @class_node
         (interface_declaration) @interface_node
 
-        ;; LINQ 쿼리 표현식 (from ... select ...) 캡처
+        ;; Capture LINQ query expressions (from ... select ...)
         (query_expression) @linq_expr
         """
 
@@ -51,7 +51,7 @@ class CSharpParser(BaseTreeSitterParser):
                     class_info = self._process_class_or_interface(node, node_type="class")
                     parsed_data["classes"].append(class_info)
                     
-                    # MonoBehaviour 상속 감지 시 Unity 스크립트로 확정
+                    # Mark as Unity script when MonoBehaviour inheritance is detected
                     if "MonoBehaviour" in class_info["inherits"]:
                         parsed_data["is_unity_script"] = True
 
@@ -65,42 +65,42 @@ class CSharpParser(BaseTreeSitterParser):
                     parsed_data["linq_query_count"] += 1
 
         except Exception as e:
-            meta["error"] = f"C# 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during C# parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta
 
     def _process_class_or_interface(self, node, node_type: str) -> Dict[str, Any]:
         """
-        클래스나 인터페이스 노드를 받아 내부의 상속 관계와 메서드를 계층적으로 추출합니다.
-        이렇게 해야 중첩 클래스(Nested Class)나 스코프 밖의 함수가 섞이는 것을 방지할 수 있습니다.
+        Extract inheritance relationships and methods hierarchically from a class or interface node.
+        This prevents nested classes or out-of-scope functions from mixing in.
         """
-        # 1. 이름 추출
+        # 1. Extract name
         name_node = node.child_by_field_name("name")
         name = name_node.text.decode('utf8', errors='ignore') if name_node else "Unknown"
 
-        # 2. 상속/구현 (bases) 추출
+        # 2. Extract inheritance/implementation (bases)
         inherits = []
         bases_node = node.child_by_field_name("bases")
         if bases_node:
-            # base_list 내부에 있는 타입 식별자들을 추출 (ex: MonoBehaviour, IDisposable)
+            # Extract type identifiers inside base_list (e.g., MonoBehaviour, IDisposable)
             for child in bases_node.children:
-                # ':' 기호 등은 제외하고 실제 타입 이름만 추출
+                # Exclude ':' and extract actual type names only
                 if child.type not in [":", ","]:
                     inherits.append(child.text.decode('utf8', errors='ignore').strip())
 
-        # 3. 내부 메서드 추출 (body 내부 탐색)
+        # 3. Extract internal methods (traverse body)
         methods = []
         body_node = node.child_by_field_name("body")
         if body_node:
             for child in body_node.children:
-                # C#은 메서드 선언(method_declaration) 외에 생성자(constructor_declaration)도 존재
+                # C# has constructor_declaration in addition to method_declaration
                 if child.type in ["method_declaration", "constructor_declaration"]:
                     m_name_node = child.child_by_field_name("name")
                     if m_name_node:
                         methods.append(m_name_node.text.decode('utf8', errors='ignore'))
 
-        # 4. Docstring (XML 주석 ///) 추출
+        # 4. Extract Docstring (XML comment ///)
         docstring = self._extract_docstring(node)
 
         return {
@@ -112,7 +112,7 @@ class CSharpParser(BaseTreeSitterParser):
 
     def _extract_docstring(self, node) -> str:
         """
-        C#의 전통적인 XML 주석(///) 또는 일반 주석(//, /* */)을 추출합니다.
+        Extract traditional C# XML comments (///) or regular comments (//, /* */).
         """
         if not node or not node.prev_sibling:
             return ""
@@ -121,7 +121,7 @@ class CSharpParser(BaseTreeSitterParser):
         current = node.prev_sibling
         
         while current and current.type == "comment":
-            # C# XML 주석의 경우 '/// <summary>' 형태를 띠므로, 보기 좋게 태그를 클리닝해줄 수도 있습니다.
+            # For C# XML comments in '/// <summary>' format, tags can optionally be cleaned.
             text = current.text.decode('utf8', errors='ignore').strip()
             comments.append(text)
             current = current.prev_sibling

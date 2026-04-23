@@ -49,7 +49,7 @@ class JavaScriptParser(BaseTreeSitterParser):
                 })
 
         except Exception as e:
-            meta["error"] = f"JS 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during JS parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta

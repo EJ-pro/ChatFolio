@@ -10,7 +10,7 @@ import os
 class ReadmeState(TypedDict, total=False):
     project_context: str
     user_inputs: Dict[str, Any]
-    archetype: str  # BE, FE, ML, Library 등
+    archetype: str  # BE, FE, ML, Library, etc.
     analysis_report: str
     draft: str
     feedback: str
@@ -42,13 +42,13 @@ class ReadmeAgent:
         # 4. Reviewer Node
         workflow.add_node("reviewer", self.reviewer_node)
 
-        # 엣지 연결
+        # Connect edges
         workflow.set_entry_point("analyzer")
         workflow.add_edge("analyzer", "router")
         workflow.add_edge("router", "writer")
         workflow.add_edge("writer", "reviewer")
 
-        # 조건부 엣지 (Reviewer -> Writer or END)
+        # Conditional edge (Reviewer -> Writer or END)
         workflow.add_conditional_edges(
             "reviewer",
             self.should_continue,
@@ -61,7 +61,7 @@ class ReadmeAgent:
         return workflow.compile()
 
     def _safe_invoke(self, messages: List[Union[SystemMessage, HumanMessage]]):
-        """에러 발생 시 폴백 모델을 시도하는 안전한 호출 메서드"""
+        """Safe invocation method that tries a fallback model on error."""
         try:
             return self.llm.invoke(messages)
         except Exception as e:
@@ -71,7 +71,7 @@ class ReadmeAgent:
             # Fallback strategy
             fallback_models = []
             if self.provider == "groq":
-                # 최신 Groq 모델 명칭 반영
+                # Use up-to-date Groq model names
                 fallback_models = ["llama-3.3-70b-versatile", "llama-3.1-70b-versatile", "llama-3.1-8b-instant"]
             elif self.provider == "openai":
                 fallback_models = ["gpt-4o-mini", "gpt-3.5-turbo"]
@@ -92,7 +92,7 @@ class ReadmeAgent:
             raise e
 
     def _get_cheap_llm(self):
-        """단순 분석 작업을 위한 저비용 모델 반환"""
+        """Return a low-cost model for simple analysis tasks."""
         if self.provider == "groq":
             return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
         elif self.provider == "openai":
@@ -131,19 +131,19 @@ class ReadmeAgent:
 
             return {
                 "archetype": res.get("archetype", "General"),
-                "analysis_report": res.get("summary", "분석 완료"),
+                "analysis_report": res.get("summary", "Analysis complete"),
                 "iteration_count": 0,
                 "usage": current_usage
             }
         except Exception as e:
-            print(f"❌ [Analyzer] 오류 발생: {e}")
+            print(f"❌ [Analyzer] Error: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(f"--- [Analyzer Error] ---\n{str(e)}\n{traceback.format_exc()}\n")
-            return {"archetype": "General", "analysis_report": "분석 중 오류 발생", "iteration_count": 0}
+            return {"archetype": "General", "analysis_report": "An error occurred during analysis", "iteration_count": 0}
 
     def router_node(self, state: ReadmeState) -> Dict[str, Any]:
-        """분석 결과에 따른 프롬프트 전략 수립"""
-        print(f"🔀 [Router] 분기 처리 중... ({state.get('archetype', 'Unknown')})")
+        """Determine prompt strategy based on analysis results."""
+        print(f"🔀 [Router] Routing... ({state.get("archetype", "Unknown")})")
         return {"iteration_count": state.get("iteration_count", 0)}
 
     def writer_node(self, state: ReadmeState) -> Dict[str, Any]:
@@ -154,7 +154,7 @@ class ReadmeAgent:
         try:
             # Context Truncation to stay within Ratelimits
             truncated_context = state.get('project_context', '')
-            if len(truncated_context) > 12000: # 조금 더 보수적으로 12k로 제한
+            if len(truncated_context) > 12000: # Conservative 12k limit for stability
                 truncated_context = truncated_context[:12000] + "\n... (Long context truncated for stability)"
             
             feedback_context = f"\n[Reviewer Feedback]: {state.get('feedback', '')}" if state.get('feedback') else ""
@@ -189,12 +189,12 @@ class ReadmeAgent:
 
             return {"draft": response.content, "iteration_count": curr_iter + 1, "usage": current_usage}
         except Exception as e:
-            print(f"❌ [Writer] 오류 발생: {e}")
+            print(f"❌ [Writer] Error: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(f"--- [Writer Error] ---\n{str(e)}\n{traceback.format_exc()}\n")
             
             # Fallback README Generation (Simple)
-            fallback_readme = f"# {state.get('archetype', 'Project')} README\n\nAI가 분석 중 오류가 발생하여 기본 정보를 출력합니다.\n\n## 분석 요약\n{state.get('analysis_report', '분석 정보가 없습니다.')}\n\n## 기술 스택\n{state.get('archetype', 'General')}"
+            fallback_readme = f"# {state.get('archetype', 'Project')} README\n\nAn error occurred during AI analysis. Displaying basic information.\n\n## Analysis Summary\n{state.get('analysis_report', 'No analysis info available.')}\n\n## Tech Stack\n{state.get('archetype', 'General')}"
             return {"draft": fallback_readme, "iteration_count": curr_iter + 1}
 
     def reviewer_node(self, state: ReadmeState) -> Dict[str, Any]:
@@ -238,13 +238,13 @@ class ReadmeAgent:
                 "usage": current_usage
             }
         except Exception as e:
-            print(f"❌ [Reviewer] 오류 발생: {e}")
+            print(f"❌ [Reviewer] Error: {e}")
             with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(f"--- [Reviewer Error] ---\n{str(e)}\n{traceback.format_exc()}\n")
             return {"decision": "APPROVE", "final_readme": state.get('draft', '')}
 
     def should_continue(self, state: ReadmeState):
-        """조건부 엣지 로직"""
+        """Conditional edge logic."""
         if state.get("decision") == "APPROVE" or state.get("iteration_count", 0) >= 3:
             return "approve"
         return "revise"

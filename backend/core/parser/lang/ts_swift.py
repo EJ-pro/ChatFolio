@@ -8,30 +8,30 @@ class SwiftParser(BaseTreeSitterParser):
         parsed_data = {
             "file_path": self.file_path,
             "language": "swift",
-            "imports": [],             # import UIKit, SwiftUI 등
-            "protocols": [],           # protocol 선언
-            "classes": [],             # class 선언
-            "structs": [],             # struct 선언
-            "enums": [],               # enum 선언
-            "is_swiftui": False        # SwiftUI View 여부
+            "imports": [],             # e.g., import UIKit, SwiftUI
+            "protocols": [],           # protocol declarations
+            "classes": [],             # class declarations
+            "structs": [],             # struct declarations
+            "enums": [],               # enum declarations
+            "is_swiftui": False        # Whether this is a SwiftUI View
         }
 
-        # 1. Swift 문법에 맞춘 Tree-sitter Query
+        # 1. Tree-sitter Query for Swift syntax
         query_source = """
-        ;; 1. Import 추출
+        ;; 1. Extract imports
         (import_declaration (type_identifier) @import_name)
         (import_declaration (path_component (identifier) @import_name))
 
-        ;; 2. Protocol, Class, Struct, Enum 선언 추출
+        ;; 2. Extract Protocol, Class, Struct, Enum declarations
         (protocol_declaration (type_identifier) @protocol_name) @protocol_node
         (class_declaration (type_identifier) @class_name) @class_node
         (struct_declaration (type_identifier) @struct_name) @struct_node
         (enum_declaration (type_identifier) @enum_name) @enum_node
 
-        ;; 3. 상속 및 프로토콜 채택 추출
+        ;; 3. Extract inheritance and protocol adoption
         (type_inheritance_clause (type_identifier) @inherited_type)
 
-        ;; 4. 함수 및 메서드 선언 추출
+        ;; 4. Extract function and method declarations
         (function_declaration (simple_identifier) @func_name) @func_node
         """
 
@@ -54,27 +54,27 @@ class SwiftParser(BaseTreeSitterParser):
                     category = capture_name.split('_')[0] + "s" # e.g., classes, structs
                     parsed_data[category].append(self._process_swift_node(node.parent, category[:-1]))
 
-                # --- 3. SwiftUI Detection (View 프로토콜 채택 여부) ---
+                # --- 3. SwiftUI Detection (whether View protocol is adopted) ---
                 elif capture_name == "inherited_type":
                     if node_text == "View":
                         parsed_data["is_swiftui"] = True
 
         except Exception as e:
-            meta["error"] = f"Swift 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"Error during Swift parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta
 
     def _process_swift_node(self, node, node_type: str) -> Dict[str, Any]:
-        """Swift의 타입(Class, Struct 등) 내부 구조를 분석합니다."""
-        # 이름 추출
+        """Analyze the internal structure of a Swift type (Class, Struct, etc.)."""
+        # Extract name
         name = "Unknown"
         for child in node.children:
             if child.type == "type_identifier":
                 name = child.text.decode('utf8', errors='ignore')
                 break
 
-        # 상속/채택 추출
+        # Extract inheritance/adoption
         inherits = []
         inheritance_clause = None
         for child in node.children:
@@ -87,9 +87,9 @@ class SwiftParser(BaseTreeSitterParser):
                 if child.type == "type_identifier":
                     inherits.append(child.text.decode('utf8', errors='ignore'))
 
-        # 내부 메서드 추출
+        # Extract internal methods
         methods = []
-        # Swift는 중첩 구조가 복잡하므로 단순 children 순회로 메서드 선언을 찾음
+        # Swift has complex nesting, so find method declarations by simple children traversal
         body = None
         for child in node.children:
             if child.type in ["class_body", "struct_body", "enum_body", "protocol_body"]:
@@ -99,7 +99,7 @@ class SwiftParser(BaseTreeSitterParser):
         if body:
             for child in body.children:
                 if child.type == "function_declaration":
-                    # 함수 이름 노드 찾기
+                    # Find function name node
                     for sub in child.children:
                         if sub.type == "simple_identifier":
                             methods.append(sub.text.decode('utf8', errors='ignore'))
@@ -113,7 +113,7 @@ class SwiftParser(BaseTreeSitterParser):
         }
 
     def _extract_docstring(self, node) -> str:
-        """Swift의 문서화 주석 (/// 또는 /** */) 추출"""
+        """Extract Swift doc comments (/// or /** */)."""
         if not node or not node.prev_sibling:
             return ""
         comments = []

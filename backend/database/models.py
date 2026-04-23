@@ -15,9 +15,9 @@ class User(Base):
     github_username = Column(String, unique=True, index=True, nullable=True)
     github_token = Column(String, nullable=True)
     avatar_url = Column(String, nullable=True)
-    country = Column(String, nullable=True) # 사용자 국가
-    job = Column(String, nullable=True) # 사용자 직업
-    persona_data = Column(JSONB, nullable=True) # 개발자 MBTI (Persona) 데이터 저장
+    country = Column(String, nullable=True) # User country
+    job = Column(String, nullable=True) # User occupation
+    persona_data = Column(JSONB, nullable=True) # Developer MBTI (Persona) data
     created_at = Column(DateTime, default=datetime.utcnow)
 
     projects = relationship("Project", back_populates="user", cascade="all, delete")
@@ -28,15 +28,15 @@ class Project(Base):
     __tablename__ = "projects"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # 기존 데이터 호환을 위해 nullable=True
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=True) # nullable=True for backward compatibility
     repo_url = Column(String, index=True)
     file_count = Column(Integer)
     node_count = Column(Integer)
     edge_count = Column(Integer)
-    graph_data = Column(JSONB, nullable=True) # 직렬화된 NetworkX 그래프 저장
-    mermaid_code = Column(Text, nullable=True) # 생성된 Mermaid 다이어그램 캐싱
-    status = Column(String, default="COMPLETED") # 분석 상태
-    languages = Column(JSONB, nullable=True) # GitHub 언어 통계 데이터 저장 (Bytes)
+    graph_data = Column(JSONB, nullable=True) # Serialized NetworkX graph
+    mermaid_code = Column(Text, nullable=True) # Cached generated Mermaid diagram
+    status = Column(String, default="COMPLETED") # Analysis status
+    languages = Column(JSONB, nullable=True) # GitHub language statistics (bytes)
     last_commit_hash = Column(String, nullable=True)
     last_commit_message = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -54,8 +54,8 @@ class ProjectFile(Base):
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"))
     file_path = Column(String, index=True)
     content = Column(Text)
-    content_summary = Column(Text, nullable=True) # 요약본
-    importance_score = Column(Integer, default=0) # 참조 횟수 기반
+    content_summary = Column(Text, nullable=True) # Summary
+    importance_score = Column(Integer, default=0) # Based on reference count
     keywords = Column(JSONB, nullable=True)
     line_count = Column(Integer, default=0)
     file_size = Column(Integer, default=0)
@@ -108,7 +108,7 @@ class ChatMessage(Base):
     session_id = Column(String, ForeignKey("chat_sessions.id", ondelete="CASCADE"))
     role = Column(String) # 'user' or 'assistant'
     content = Column(Text)
-    sources = Column(JSONB, nullable=True) # AI가 참고한 출처 (JSON)
+    sources = Column(JSONB, nullable=True) # Sources referenced by AI (JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
@@ -139,13 +139,13 @@ class TokenUsage(Base):
 import time
 from sqlalchemy.exc import OperationalError
 
-# 테이블 생성 함수
+# Table initialization function
 def init_db():
     retries = 5
     while retries > 0:
         try:
             Base.metadata.create_all(bind=engine)
-            # [Migration Hack] persona_data 컬럼이 없는 경우 수동 추가
+            # [Migration Hack] Manually add columns if they do not exist
             from sqlalchemy import text
             with engine.connect() as conn:
                 try:
@@ -155,12 +155,12 @@ def init_db():
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS languages JSONB"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
-                    # ProjectFile 컬럼 추가
+                    # Add ProjectFile columns
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS keywords JSONB"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS line_count INTEGER DEFAULT 0"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS file_size INTEGER DEFAULT 0"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS metadata_json JSONB"))
-                    # ChatSession 컬럼 추가
+                    # Add ChatSession columns
                     conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title VARCHAR DEFAULT 'New Chat'"))
                     conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)

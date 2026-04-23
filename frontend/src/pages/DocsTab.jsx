@@ -4,7 +4,7 @@ import { FileText, Loader2, Copy, Sparkles, CheckCircle2, Eye, Code, Clock, Chev
 import ReactMarkdown from 'react-markdown';
 import { docsService, chatService } from '../api';
 
-const DEFAULT_EXAMPLE = `# 🚀 AwesomeProject\n> "개발자를 위한 최고의 생산성 도구" <br/>\n> 업무 효율을 200% 끌어올려주는 실시간 협업 플랫폼입니다.\n\n![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)\n![React](https://img.shields.io/badge/React-18.0-61DAFB.svg?logo=react)\n![FastAPI](https://img.shields.io/badge/FastAPI-0.95-009688.svg?logo=fastapi)\n![License](https://img.shields.io/badge/license-MIT-green.svg)\n\n<br/>\n\n## 📝 목차\n1. [프로젝트 소개](#-프로젝트-소개)\n2. [주요 기능](#-주요-기능-key-features)\n3. [기술 스택](#-기술-스택-tech-stack)\n4. [화면 구성 및 사용법](#-화면-구성-및-사용법-usage)\n5. [시작하기](#-시작하기-getting-started)\n6. [폴더 구조](#-폴더-구조-directory-structure)\n\n<br/>\n\n## 💡 프로젝트 소개\n기존의 협업 툴들이 가진 [어떤 문제점/불편함]을 해결하기 위해 기획되었습니다. \n단순한 텍스트 공유를 넘어, 실시간 동기화와 직관적인 UX를 통해 팀의 커뮤니케이션 비용을 최소화하는 것이 목표입니다.\n\n<br/>\n\n## ✨ 주요 기능 (Key Features)\n- ⚡ **0.1초 실시간 동기화:** WebSocket(Socket.io)을 활용한 지연 없는 데이터 통신 및 상태 공유\n- 🎨 **완벽한 다크모드 지원:** TailwindCSS 기반의 테마 시스템으로 사용자의 눈 피로도 최소화\n- 🔒 **안전한 인증 시스템:** JWT 기반의 토큰 발급 및 OAuth 2.0 (Google, Github) 소셜 로그인 지원\n- 📊 **대시보드 통계:** 사용자 활동 데이터를 차트(Chart.js)로 시각화하여 제공\n\n<br/>\n\n## 🛠 기술 스택 (Tech Stack)\n### Frontend\n- **Framework:** React 18\n- **Styling:** TailwindCSS, Framer Motion (애니메이션)\n- **State Management:** Zustand / React Query\n\n### Backend\n- **Framework:** FastAPI (Python 3.10+)\n- **Database:** PostgreSQL, SQLAlchemy (ORM)\n- **Real-time:** WebSockets\n\n### Infra & Tools\n- **Deployment:** Docker, AWS EC2, Vercel\n- **Version Control:** Git, Github Actions (CI/CD)\n\n<br/>\n\n## 📱 화면 구성 및 사용법 (Usage)\n> 💡 실제 구현된 화면 캡처나 GIF(움짤)를 추가하면 신뢰도가 대폭 상승합니다.\n\n| 메인 대시보드 | 실시간 채팅 화면 |\n| :---: | :---: |\n| <img src="https://via.placeholder.com/400x250.png?text=Dashboard+Screenshot" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Chat+Screenshot" width="400"/> |\n| 대시보드에서 프로젝트 전체 진행률을 확인합니다. | 웹소켓을 통한 실시간 채팅 및 파일 공유 화면입니다. |\n\n<br/>\n\n## 🚀 시작하기 (Getting Started)\n프로젝트를 로컬에서 직접 실행해보기 위한 가이드입니다.\n\n### 1. 요구 사항 (Prerequisites)\n- Node.js 18.0 이상\n- Python 3.10 이상\n- PostgreSQL 14 이상\n\n### 2. 설치 및 실행 (Installation)\n\`\`\`bash\n# 1. 저장소 클론\n$ git clone [https://github.com/username/AwesomeProject.git](https://github.com/username/AwesomeProject.git)\n\n# 2. 프론트엔드 종속성 설치 및 실행\n$ cd frontend\n$ npm install\n$ npm run dev\n\n# 3. 백엔드 환경 설정 및 실행 (새 터미널)\n$ cd backend\n$ pip install -r requirements.txt\n$ uvicorn main:app --reload\n\`\`\`\n\n<br/>\n\n## 📂 폴더 구조 (Directory Structure)\n\`\`\`text\n📦 AwesomeProject\n ┣ 📂 frontend\n ┃ ┣ 📂 src\n ┃ ┃ ┣ 📂 components   # 공통으로 사용되는 UI 컴포넌트\n ┃ ┃ ┣ 📂 pages        # 라우팅되는 페이지 단위 컴포넌트\n ┃ ┃ ┣ 📂 hooks        # 커스텀 훅 모음\n ┃ ┃ ┗ 📂 utils        # 유틸리티 함수 (날짜 변환, 포맷팅 등)\n ┃ ┗ 📜 package.json\n ┣ 📂 backend\n ┃ ┣ 📂 api            # 라우터 및 엔드포인트 정의\n ┃ ┣ 📂 core           # 인증, 설정 등 핵심 로직\n ┃ ┣ 📂 models         # DB 모델 (SQLAlchemy)\n ┃ ┗ 📜 main.py\n ┗ 📜 README.md\n\`\`\`\n\n<br/>\n\n## 👨‍💻 팀원 및 기여 (Contact)\n홍길동 - Frontend & UI/UX - Github 링크\n김개발 - Backend & Infra - Github 링크\n`;
+const DEFAULT_EXAMPLE = `# 🚀 AwesomeProject\n> "The ultimate productivity tool for developers" <br/>\n> A real-time collaboration platform that boosts work efficiency by 200%.\n\n![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)\n![React](https://img.shields.io/badge/React-18.0-61DAFB.svg?logo=react)\n![FastAPI](https://img.shields.io/badge/FastAPI-0.95-009688.svg?logo=fastapi)\n![License](https://img.shields.io/badge/license-MIT-green.svg)\n\n<br/>\n\n## 📝 Table of Contents\n1. [Project Overview](#-project-overview)\n2. [Key Features](#-key-features)\n3. [Tech Stack](#-tech-stack)\n4. [Screenshots & Usage](#-screenshots--usage)\n5. [Getting Started](#-getting-started)\n6. [Folder Structure](#-folder-structure)\n\n<br/>\n\n## 💡 Project Overview\nThis project was designed to solve [a specific problem/inconvenience] found in existing collaboration tools.\nThe goal is to minimize team communication overhead through real-time synchronization and intuitive UX, going beyond simple text sharing.\n\n<br/>\n\n## ✨ Key Features\n- ⚡ **0.1s Real-time Sync:** Low-latency data communication and state sharing via WebSocket (Socket.io)\n- 🎨 **Full Dark Mode Support:** Theme system based on TailwindCSS to reduce eye strain\n- 🔒 **Secure Auth System:** JWT-based token issuance with OAuth 2.0 (Google, GitHub) social login\n- 📊 **Dashboard Stats:** User activity data visualized with charts (Chart.js)\n\n<br/>\n\n## 🛠 Tech Stack\n### Frontend\n- **Framework:** React 18\n- **Styling:** TailwindCSS, Framer Motion (animations)\n- **State Management:** Zustand / React Query\n\n### Backend\n- **Framework:** FastAPI (Python 3.10+)\n- **Database:** PostgreSQL, SQLAlchemy (ORM)\n- **Real-time:** WebSockets\n\n### Infra & Tools\n- **Deployment:** Docker, AWS EC2, Vercel\n- **Version Control:** Git, Github Actions (CI/CD)\n\n<br/>\n\n## 📱 Screenshots & Usage\n> 💡 Adding actual screenshots or GIFs greatly increases credibility.\n\n| Main Dashboard | Real-time Chat |\n| :---: | :---: |\n| <img src="https://via.placeholder.com/400x250.png?text=Dashboard+Screenshot" width="400"/> | <img src="https://via.placeholder.com/400x250.png?text=Chat+Screenshot" width="400"/> |\n| View overall project progress on the dashboard. | Real-time chat and file sharing via WebSocket. |\n\n<br/>\n\n## 🚀 Getting Started\nA guide to running the project locally.\n\n### 1. Prerequisites\n- Node.js 18.0 or higher\n- Python 3.10 or higher\n- PostgreSQL 14 or higher\n\n### 2. Installation\n\`\`\`bash\n# 1. Clone the repository\n$ git clone [https://github.com/username/AwesomeProject.git](https://github.com/username/AwesomeProject.git)\n\n# 2. Install and run frontend dependencies\n$ cd frontend\n$ npm install\n$ npm run dev\n\n# 3. Set up and run the backend (new terminal)\n$ cd backend\n$ pip install -r requirements.txt\n$ uvicorn main:app --reload\n\`\`\`\n\n<br/>\n\n## 📂 Folder Structure\n\`\`\`text\n📦 AwesomeProject\n ┣ 📂 frontend\n ┃ ┣ 📂 src\n ┃ ┃ ┣ 📂 components   # Shared UI components\n ┃ ┃ ┣ 📂 pages        # Page-level routed components\n ┃ ┃ ┣ 📂 hooks        # Custom hooks\n ┃ ┃ ┗ 📂 utils        # Utility functions (date formatting, etc.)\n ┃ ┗ 📜 package.json\n ┣ 📂 backend\n ┃ ┣ 📂 api            # Routers and endpoint definitions\n ┃ ┣ 📂 core           # Core logic (auth, config, etc.)\n ┃ ┣ 📂 models         # DB models (SQLAlchemy)\n ┃ ┗ 📜 main.py\n ┗ 📜 README.md\n\`\`\`\n\n<br/>\n\n## 👨‍💻 Team & Contact\nJohn Doe - Frontend & UI/UX - GitHub link\nJane Dev - Backend & Infra - GitHub link\n`;
 
 function DocsTab() {
   const location = useLocation();
@@ -57,12 +57,12 @@ function DocsTab() {
   };
 
 
-  // location.state.sessionId가 변경되면 상태 동기화 및 데이터 재요청
+  // Sync state and re-request data when location.state.sessionId changes
   useEffect(() => {
     const newSessionId = location.state?.sessionId || sessionStorage.getItem('last_session_id');
     if (newSessionId && newSessionId !== sessionId) {
       setSessionId(newSessionId);
-      // 데이터 초기화 후 재요청
+      // Reset data then re-request
       setReadmeContent('');
       setReadmes([]);
       setCurrentProjectId(null);
@@ -88,7 +88,7 @@ function DocsTab() {
       // 3. Fetch latest generated readme content (if any)
       const data = await docsService.generateReadme({ 
         session_id: sid,
-        force_regenerate: false // 기존 거 있으면 가져오기
+        force_regenerate: false // Use existing if available
       });
 
       if (data.readme_content) {
@@ -141,7 +141,7 @@ function DocsTab() {
       setReadmeContent(data.readme_content);
       setActiveReadmeId(data.id || 'latest');
       
-      // 새로 생성되었으므로 히스토리 갱신
+      // Newly generated, so refresh history
       if (currentProjectId) {
         fetchReadmesHistory(currentProjectId);
       }
@@ -210,7 +210,7 @@ function DocsTab() {
                 {Object.keys(userInputs).map((field) => (
                   <div key={field} className="space-y-1.5">
                     <label className="block text-xs font-bold text-slate-400">{field}</label>
-                    {field.includes("URL") || field.includes("이름") || field.includes("소개") ? (
+                    {field.includes("URL") || field.includes("Name") || field.includes("Intro") ? (
                       <input 
                         type="text" 
                         value={userInputs[field]}

@@ -9,8 +9,8 @@ class SqlParser(BaseTreeSitterParser):
         parsed_data = {
             "file_path": self.file_path,
             "type": "sql",
-            "tables": [],              # CREATE TABLE 대상
-            "operations": {             # 주요 명령 빈도
+            "tables": [],              # CREATE TABLE targets
+            "operations": {             # Frequency of key commands
                 "select": 0,
                 "insert": 0,
                 "update": 0,
@@ -20,13 +20,13 @@ class SqlParser(BaseTreeSitterParser):
         }
 
         try:
-            # 1. 테이블 생성문 추출 (CREATE TABLE `name`)
-            # 패턴: CREATE TABLE [IF NOT EXISTS] 'table_name'
+            # 1. Extract table creation statements (CREATE TABLE `name`)
+            # Pattern: CREATE TABLE [IF NOT EXISTS] 'table_name'
             table_pattern = r"(?i)CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:[\"`'\[])?([a-zA-Z0-9_]+)(?:[\"`'\]])?"
             tables = re.findall(table_pattern, self.content)
             parsed_data["tables"] = list(set(tables))
 
-            # 2. 주요 연산 키워드 빈도 분석
+            # 2. Analyze frequency of key operation keywords
             content_lower = self.content.lower()
             parsed_data["operations"]["select"] = content_lower.count("select ")
             parsed_data["operations"]["insert"] = content_lower.count("insert into")
@@ -35,7 +35,7 @@ class SqlParser(BaseTreeSitterParser):
             parsed_data["operations"]["create"] = content_lower.count("create ")
 
         except Exception as e:
-            meta["error"] = f"SQL 파싱 중 오류 발생: {str(e)}"
+            meta["error"] = f"SQL Error during parsing: {str(e)}"
 
         meta["metadata_json"]["parsed"] = parsed_data
         return meta
