@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import './Analysis.css';
+import { authService, projectService, dashboardService } from '../api';
 
 function Analysis() {
   const { username } = useParams();
@@ -38,36 +39,28 @@ function Analysis() {
   };
 
   useEffect(() => {
-    fetchUser();
-    fetchProjects();
+    fetchUserData();
+    fetchProjectsData();
     fetchGlobalStats();
     const repoUrl = searchParams.get('repo_url');
     const forceUpdate = searchParams.get('force_update') === 'true';
     if (repoUrl) {
       setUrl(repoUrl);
       if (forceUpdate) {
-        // use setTimeout to ensure setUrl is processed or just pass it directly
         handleAnalyze(null, repoUrl, forceUpdate);
       }
     }
   }, [searchParams]);
 
-  const fetchUser = async () => {
+  const fetchUserData = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        setUser(userData);
-        if (!userData.country || !userData.job) {
-          setShowSurvey(true);
-        }
-        // 기본 언어 설정 (국가 기반 자동 매핑)
-        if (userData.country === 'South Korea') setSelectedLanguage('Korean');
-        else setSelectedLanguage('English');
+      const userData = await authService.me();
+      setUser(userData);
+      if (!userData.country || !userData.job) {
+        setShowSurvey(true);
       }
+      if (userData.country === 'South Korea') setSelectedLanguage('Korean');
+      else setSelectedLanguage('English');
     } catch (err) {
       console.error('Failed to fetch user:', err);
     }
@@ -75,32 +68,19 @@ function Analysis() {
 
   const handleSurveySubmit = async (skipped = false) => {
     try {
-      const token = localStorage.getItem('token');
       const body = skipped ? { country: 'Other', job: 'Other' } : surveyData;
-      
-      const response = await fetch('http://localhost:8000/user/profile', {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(body)
-      });
-      
-      if (response.ok) {
-        setShowSurvey(false);
-        fetchUser(); // 최신 정보로 갱신
-      }
+      await authService.updateProfile(body);
+      setShowSurvey(false);
+      fetchUserData(); 
     } catch (err) {
       console.error('Failed to update profile:', err);
     }
   };
 
-  const fetchProjects = async () => {
+  const fetchProjectsData = async () => {
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/projects', {
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
       if (response.ok) {
         const data = await response.json();
@@ -113,11 +93,8 @@ function Analysis() {
 
   const fetchGlobalStats = async () => {
     try {
-      const response = await fetch('http://localhost:8000/stats/global');
-      if (response.ok) {
-        const data = await response.json();
-        setPlatformStats(data);
-      }
+      const data = await dashboardService.getGlobalStats();
+      setPlatformStats(data);
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
@@ -135,14 +112,12 @@ function Analysis() {
     setCurrentLog('Initializing analysis...');
     setProgress(0);
 
-
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch('http://localhost:8000/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
           repo_url: targetUrl,
@@ -186,7 +161,7 @@ function Analysis() {
               setProgress(parseInt(msg.replace('PROGRESS:', '')));
             } else {
               setCurrentLog(msg);
-              setLogs(prev => [...prev.slice(-4), msg]); // 최근 5개 로그 유지
+              setLogs(prev => [...prev.slice(-4), msg]); 
             }
           }
         }
@@ -212,7 +187,7 @@ function Analysis() {
       if (targetPhase > bufferedPhase) {
         const timer = setTimeout(() => {
           setBufferedPhase(prev => prev + 1);
-        }, 800); // 0.8초마다 한 단계씩 상승 (속도감 조절)
+        }, 800); 
         return () => clearTimeout(timer);
       }
     } else {
@@ -230,23 +205,18 @@ function Analysis() {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col relative overflow-hidden font-sans">
-      {/* === Animated Mesh Background === */}
       <div className="mesh-background">
         <div className="mesh-blob mesh-blob-blue animate-pulse-slow"></div>
         <div className="mesh-blob mesh-blob-purple animate-pulse-slow" style={{ animationDelay: '2s' }}></div>
-        
-        {/* Floating Code Particles */}
         <div className="absolute inset-0 opacity-[0.15]">
           {[ '{ }', '( )', '[ ]', ';', '=>', 'import', 'const' ].map((token, i) => (
             <div key={i} className="token-particle animate-float-slow" 
               style={{ top: `${Math.random() * 100}%`, left: `${Math.random() * 100}%`, animationDelay: `${i * 2}s` }}>{token}</div>
           ))}
         </div>
-        
         <div className="dot-grid"></div>
       </div>
 
-      {/* Top Header */}
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
         <div className="flex items-center gap-2 text-slate-400 select-none group">
           <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
@@ -255,10 +225,7 @@ function Analysis() {
         <UserProfile />
       </header>
 
-      {/* Main Content */}
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full max-w-5xl mx-auto mt-10">
-
-        {/* Hero Section */}
         <div className="text-center mb-12 animate-fade-in-up">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/50 border border-slate-700/50 text-blue-400 text-sm font-medium mb-6">
             <Sparkles className="w-4 h-4" />
@@ -272,7 +239,6 @@ function Analysis() {
           </p>
         </div>
 
-        {/* Model Selector */}
         <div className="flex items-center justify-center gap-4 mb-10 animate-fade-in-up delay-100">
           <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-white/10 backdrop-blur-md shadow-inner">
             <button
@@ -290,7 +256,6 @@ function Analysis() {
           </div>
         </div>
 
-        {/* Search Section */}
         <div className="w-full max-w-3xl animate-fade-in-up delay-100">
           <form onSubmit={handleAnalyze} className="relative group">
             <div className="absolute -inset-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-2xl blur opacity-25 group-hover:opacity-50 transition duration-500"></div>
@@ -322,10 +287,8 @@ function Analysis() {
             </div>
           </form>
 
-          {/* Supported Languages */}
           {!result && !error && !isLoading && (
             <div className="mt-8 mb-6 w-full animate-fade-in space-y-6">
-              {/* Languages */}
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="h-px flex-1 bg-slate-700/50"></div>
@@ -357,7 +320,6 @@ function Analysis() {
                 </div>
               </div>
 
-              {/* Config Formats */}
               <div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="h-px flex-1 bg-slate-700/50"></div>
@@ -382,7 +344,6 @@ function Analysis() {
             </div>
           )}
 
-          {/* Integrated Recent Projects */}
           {projects.length > 0 && !result && !error && !isLoading && (
             <div className="mt-6 animate-fade-in">
               <div className="flex items-center gap-2 mb-3 px-1">
@@ -392,10 +353,7 @@ function Analysis() {
                 {projects.slice(0, 5).map((project) => (
                   <button
                     key={project.id}
-                    onClick={() => {
-                      setUrl(project.repo_url);
-                      // 즉시 분석 시작 효과를 위해 폼 제출 시뮬레이션
-                    }}
+                    onClick={() => { setUrl(project.repo_url); }}
                     className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/50 border border-white/5 rounded-xl hover:border-blue-500/50 hover:bg-blue-500/5 transition-all group"
                   >
                     <Github className="w-3.5 h-3.5 text-slate-500 group-hover:text-blue-400" />
@@ -414,29 +372,21 @@ function Analysis() {
             </div>
           )}
 
-          {/* Analysis Progress Logs */}
           {isLoading && (
             <div className="mt-8 w-full animate-fade-in-up space-y-6">
-              {/* Horizontal Phase Animation */}
               <div className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative flex items-center justify-between">
                   {phases.map((phase, idx) => {
                     const isCompleted = bufferedPhase > phase.id;
                     const isActive = bufferedPhase === phase.id;
-
                     return (
                       <div key={phase.id} className="flex-1 flex flex-col items-center relative">
-                        {/* Connecting Line */}
                         {idx < phases.length - 1 && (
                           <div className="absolute top-5 left-1/2 w-full h-[2px] bg-slate-800">
-                            <div 
-                              className={`h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${isCompleted ? 'w-full' : 'w-0'}`}
-                            ></div>
+                            <div className={`h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${isCompleted ? 'w-full' : 'w-0'}`}></div>
                           </div>
                         )}
-
-                        {/* Step Circle */}
                         <div className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-500 border-2 ${
                           isCompleted ? 'bg-emerald-500 border-emerald-400 text-white' : 
                           isActive ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] animate-pulse' : 
@@ -456,15 +406,10 @@ function Analysis() {
               </div>
 
               <div className="bg-slate-950/80 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl backdrop-blur-xl">
-                {/* Progress Bar */}
                 <div className="h-1 w-full bg-slate-800">
-                  <div
-                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_10px_rgba(37,99,235,0.5)] transition-all duration-500 ease-out"
-                    style={{ width: `${progress}%` }}
-                  ></div>
+                  <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 shadow-[0_0_10px_rgba(37,99,235,0.5)] transition-all duration-500 ease-out" style={{ width: `${progress}%` }}></div>
                 </div>
                 <div className="px-4 py-2 bg-slate-900/50 border-b border-slate-800 flex items-center justify-between">
-
                   <div className="flex gap-1.5">
                     <div className="w-3 h-3 rounded-full bg-red-500/50"></div>
                     <div className="w-3 h-3 rounded-full bg-yellow-500/50"></div>
@@ -493,8 +438,6 @@ function Analysis() {
             </div>
           )}
 
-
-          {/* Quick Try Buttons */}
           {!result && !error && !isLoading && (
             <div className="flex items-center justify-center gap-3 mt-6 text-sm text-slate-300 font-medium animate-fade-in delay-300">
               <span>Try with:</span>
@@ -504,18 +447,15 @@ function Analysis() {
           )}
         </div>
 
-        {/* Error Message */}
         {error && (
           <div className="mt-8 p-4 bg-red-900/40 border border-red-500/50 text-red-100 rounded-xl max-w-2xl w-full text-center animate-fade-in font-medium">
             {error}
           </div>
         )}
 
-        {/* Result Card */}
         {result && (
           <div className="mt-12 w-full max-w-3xl glass-panel rounded-3xl p-8 animate-fade-in-up shadow-2xl border border-white/10 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-400 to-blue-500"></div>
-
             <div className="text-center mb-10">
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-emerald-500/10 text-emerald-400 mb-6 border border-emerald-500/20">
                 <Sparkles className="w-10 h-10" />
@@ -523,7 +463,6 @@ function Analysis() {
               <h3 className="text-3xl font-bold text-white mb-3 tracking-tight">{result.message}</h3>
               <p className="text-slate-300 text-lg">Successfully understood the repository structure.</p>
             </div>
-
             <div className="grid grid-cols-3 gap-6 mb-10">
               <div className="bg-slate-900/50 p-6 rounded-2xl border border-white/5 flex flex-col items-center justify-center text-center group hover:bg-slate-800 transition-all duration-300 hover:border-white/10 shadow-inner">
                 <FileCode2 className="w-10 h-10 text-blue-400 mb-4 group-hover:scale-110 transition-transform" />
@@ -541,7 +480,6 @@ function Analysis() {
                 <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Dependencies</span>
               </div>
             </div>
-
             <button
               className="w-full py-5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-2xl font-black text-xl shadow-[0_0_30px_rgba(79,70,229,0.4)] transition-all transform hover:-translate-y-1 hover:shadow-[0_0_40px_rgba(79,70,229,0.5)] active:scale-95"
               onClick={() => navigate(`/${username}/dashboard/chat`, { state: { sessionId: result.session_id } })}
@@ -551,7 +489,6 @@ function Analysis() {
           </div>
         )}
 
-        {/* Features Section (Only show when not loading and no result) */}
         {!isLoading && !result && !error && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mt-24 animate-fade-in-up delay-400">
             <div className="p-6 rounded-2xl bg-slate-800/30 border border-slate-700/30 hover:bg-slate-800/50 transition-colors">
@@ -578,14 +515,11 @@ function Analysis() {
           </div>
         )}
 
-        {/* === Global Impact Hub (Redesigned: Premium Stat Strip) === */}
         {!isLoading && !result && !error && (
           <div className="w-full max-w-5xl mt-32 mb-32 animate-fade-in-up" style={{ animationDelay: '0.6s' }}>
             <div className="stats-banner-glass rounded-[2.5rem] p-4 md:p-1 w-full relative overflow-hidden group">
               <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              
               <div className="flex flex-col md:flex-row items-center justify-between px-8 py-6 gap-8 md:gap-0">
-                {/* Status Indicator */}
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="live-pulse-dot"></div>
                   <div className="flex flex-col">
@@ -593,10 +527,7 @@ function Analysis() {
                     <span className="text-[8px] font-bold text-emerald-500 uppercase tracking-tight">Active & Syncing</span>
                   </div>
                 </div>
-
                 <div className="hidden md:block stat-divider mx-8"></div>
-
-                {/* Metrics */}
                 <div className="flex flex-1 flex-col md:flex-row items-center justify-around w-full gap-8 md:gap-4">
                   {[
                     { label: "Analyzed Repos", value: formatStat(platformStats.total_projects), icon: <Layers className="w-4 h-4 text-blue-400" />, unit: "Repos" },
@@ -604,21 +535,19 @@ function Analysis() {
                     { label: "Synthesized Lines", value: formatStat(platformStats.total_lines), icon: <Cpu className="w-4 h-4 text-emerald-400" />, unit: "Lines" },
                     { label: "System Fidelity", value: platformStats.ai_health + "%", icon: <Zap className="w-4 h-4 text-amber-400" />, unit: "Sync" }
                   ].map((stat, idx) => (
-                    <>
+                    <div key={idx} className="flex flex-col md:flex-row items-center">
                       <div className="flex flex-col items-center md:items-start group/stat">
                         <div className="flex items-center gap-2 mb-1">
                           {stat.icon}
                           <span className="stat-label-premium group-hover/stat:text-white transition-colors">{stat.label}</span>
                         </div>
                         <div className="flex items-baseline gap-1.5 group-hover/stat:translate-x-1 transition-transform">
-                          <span className="text-3xl font-black text-white tracking-tighter glow-text origin-left">
-                            {stat.value}
-                          </span>
+                          <span className="text-3xl font-black text-white tracking-tighter glow-text origin-left">{stat.value}</span>
                           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{stat.unit}</span>
                         </div>
                       </div>
                       {idx < 3 && <div className="hidden md:block stat-divider mx-4"></div>}
-                    </>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -628,10 +557,8 @@ function Analysis() {
             </div>
           </div>
         )}
-
       </main>
 
-      {/* Survey Modal */}
       {showSurvey && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-xl bg-slate-950/60 transition-all animate-fade-in">
           <div className="glass-panel w-full max-w-lg rounded-[2.5rem] p-10 border border-white/10 shadow-2xl relative overflow-hidden animate-scale-in">
@@ -642,7 +569,6 @@ function Analysis() {
               </div>
               <h2 className="text-3xl font-black text-white text-center mb-2 tracking-tight">Welcome to ChatFolio!</h2>
               <p className="text-slate-400 text-center mb-8">Short survey to enhance your analysis experience.</p>
-              
               <div className="space-y-6">
                 <div>
                   <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Country</label>
@@ -658,7 +584,6 @@ function Analysis() {
                     <option value="Other">Other</option>
                   </select>
                 </div>
-                
                 <div>
                   <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1 mb-2 block">Your Occupation</label>
                   <div className="grid grid-cols-2 gap-3">
@@ -674,21 +599,9 @@ function Analysis() {
                     ))}
                   </div>
                 </div>
-                
                 <div className="flex gap-4 pt-4">
-                  <button 
-                    onClick={() => handleSurveySubmit(true)}
-                    className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-slate-400 font-bold rounded-2xl transition-all"
-                  >
-                    Maybe Later
-                  </button>
-                  <button 
-                    onClick={() => handleSurveySubmit(false)}
-                    disabled={!surveyData.country || !surveyData.job}
-                    className="flex-[2] py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none"
-                  >
-                    Get Started
-                  </button>
+                  <button onClick={() => handleSurveySubmit(true)} className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-slate-400 font-bold rounded-2xl transition-all">Maybe Later</button>
+                  <button onClick={() => handleSurveySubmit(false)} disabled={!surveyData.country || !surveyData.job} className="flex-[2] py-4 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 text-white font-black rounded-2xl shadow-xl shadow-blue-500/20 transition-all transform hover:-translate-y-1 active:scale-95 disabled:opacity-50 disabled:transform-none">Get Started</button>
                 </div>
               </div>
             </div>

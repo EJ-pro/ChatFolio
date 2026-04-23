@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Loader2, RefreshCw, GitBranch, Sparkles, Layout, Activity, ChevronRight } from 'lucide-react';
 import ForceGraph2D from 'react-force-graph-2d';
 import ReactMarkdown from 'react-markdown';
+import { projectService } from '../api';
 
 function ArchitectureTab() {
   const location = useLocation();
@@ -45,21 +46,7 @@ function ArchitectureTab() {
     setError('');
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/generate/network', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ session_id: sessionId })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch graph data.');
-      }
-
-      const data = await response.json();
+      const data = await projectService.getNetwork(sessionId);
       setGraphData(data);
     } catch (err) {
       setError(err.message);
@@ -72,19 +59,8 @@ function ArchitectureTab() {
     if (!sessionId) return;
     setIsAnalyzing(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/generate/architecture-analysis', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ session_id: sessionId })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setAnalysis(data.analysis);
-      }
+      const data = await projectService.getArchitectureAnalysis(sessionId);
+      setAnalysis(data.analysis);
     } catch (err) {
       console.error('Analysis failed:', err);
     } finally {

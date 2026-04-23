@@ -8,6 +8,7 @@ import {
   ArrowLeft, RefreshCw
 } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
+import { authService, projectService } from '../api';
 
 function MyPage() {
   const { username } = useParams();
@@ -24,11 +25,8 @@ function MyPage() {
 
   const fetchProfileData = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/auth/profile/${username}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProfile(data);
-      }
+      const data = await authService.getProfile(username);
+      setProfile(data);
     } catch (err) {
       console.error('Failed to fetch profile:', err);
     } finally {
@@ -38,15 +36,10 @@ function MyPage() {
 
   const fetchGithubRepos = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/auth/github/repos', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setGithubRepos(data);
-      }
+      const data = await authService.getGithubRepos();
+      setGithubRepos(data);
     } catch (err) {
+      console.error('Failed to fetch github repos:', err);
     }
   };
 
@@ -66,27 +59,17 @@ function MyPage() {
   const handleUpdateProject = async (projectId, repoUrl) => {
     setUpdatingProjectId(projectId);
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:8000/projects/${projectId}/check-update`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.is_updated) {
-          if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
-            navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
-          }
-        } else {
-          alert('Already up to date.');
+      const data = await projectService.checkUpdate(projectId);
+      if (data.is_updated) {
+        if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
+          navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
         }
       } else {
-        alert('An error occurred while checking for updates.');
+        alert('Already up to date.');
       }
     } catch (err) {
       console.error('Failed to update project:', err);
-      alert('An error occurred while communicating with the server.');
+      alert('An error occurred: ' + err.message);
     } finally {
       setUpdatingProjectId(null);
     }
@@ -168,8 +151,6 @@ function MyPage() {
 
             <h1 className="text-3xl font-black text-white mb-2 tracking-tight">{profile.user.name}</h1>
             <p className="text-blue-400 font-mono text-sm mb-6">@{profile.user.github_username}</p>
-
-
 
             <div className="w-full space-y-3 pt-6 border-t border-white/5">
               <div className="flex items-center gap-3 text-slate-400 text-sm">
@@ -253,8 +234,6 @@ function MyPage() {
             </div>
           </div>
         </section>
-
-
 
         {/* Navigation Tabs */}
         <div className="flex items-center gap-6 border-b border-white/5 pb-4">

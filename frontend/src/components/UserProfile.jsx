@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogOut, Github, Mail, ShieldCheck, ChevronDown, LayoutDashboard } from 'lucide-react';
+import { authService } from '../api';
 
 function UserProfile() {
   const [user, setUser] = useState(null);
@@ -23,24 +24,12 @@ function UserProfile() {
 
   const fetchUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('http://localhost:8000/auth/me', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data);
-      } else if (response.status === 401) {
-        localStorage.removeItem('token');
-        navigate('/login');
-      }
+      const data = await authService.me();
+      setUser(data);
     } catch (err) {
       console.error('Failed to fetch user:', err);
+      // Let the api service or App.jsx handle the 401 redirect if needed
+      // Though here we just hide the profile if no user
     }
   };
 

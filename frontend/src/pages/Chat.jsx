@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { chatService, authService } from '../api';
 
 function Chat() {
   const location = useLocation();
@@ -52,33 +53,22 @@ function Chat() {
 
   const loadSessionData = async (sid) => {
     try {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-
       // 1. Get session info
-      const infoRes = await fetch(`http://localhost:8000/chat/session/${sid}/info`, { headers });
-      if (!infoRes.ok) throw new Error('Failed to load session information.');
-      const infoData = await infoRes.json();
+      const infoData = await chatService.getSessionInfo(sid);
       setCurrentProjectId(infoData.project_id);
 
       // 2. Get history
-      const histRes = await fetch(`http://localhost:8000/chat/history/${sid}`, { headers });
-      if (histRes.ok) {
-        const histData = await histRes.json();
-        if (histData.length > 0) {
-          setMessages(histData);
-        } else {
-          setMessages([{ role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }]);
-        }
+      const histData = await chatService.getHistory(sid);
+      if (histData.length > 0) {
+        setMessages(histData);
+      } else {
+        setMessages([{ role: 'assistant', content: 'Hello! Feel free to ask anything about the analyzed code.' }]);
       }
 
       // 3. Get sibling sessions
       if (infoData.project_id) {
-        const siblingRes = await fetch(`http://localhost:8000/chat/sessions/${infoData.project_id}`, { headers });
-        if (siblingRes.ok) {
-          const siblingData = await siblingRes.json();
-          setSessions(siblingData);
-        }
+        const siblingData = await chatService.getProjectSessions(infoData.project_id);
+        setSessions(siblingData);
       }
     } catch (err) {
       console.error(err);
@@ -94,16 +84,10 @@ function Chat() {
 
   const fetchUser = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch('http://localhost:8000/auth/me', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (response.ok) {
-        const userData = await response.json();
-        // 기본 언어 설정 (국가 기반 자동 매핑)
-        if (userData.country === 'South Korea') setSelectedLanguage('Korean');
-        else setSelectedLanguage('English');
-      }
+      const userData = await authService.me();
+      // 기본 언어 설정 (국가 기반 자동 매핑)
+      if (userData.country === 'South Korea') setSelectedLanguage('Korean');
+      else setSelectedLanguage('English');
     } catch (err) {
       console.error('Failed to fetch user:', err);
     }
@@ -121,13 +105,11 @@ function Chat() {
     if (!currentProjectId) return;
     setIsLoading(true);
     try {
-      const token = localStorage.getItem('token');
-
       const response = await fetch('http://localhost:8000/chat/session/new', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${localStorage.getItem('token')}` 
         },
         body: JSON.stringify({
           project_id: currentProjectId,
@@ -152,10 +134,9 @@ function Chat() {
     if (!window.confirm("Do you want to delete this chat from the list?")) return;
 
     try {
-      const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:8000/chat/session/${sid}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
       });
 
       if (response.ok) {
@@ -168,13 +149,8 @@ function Chat() {
         }
         // 리스트 새로고침
         if (currentProjectId) {
-          const siblingRes = await fetch(`http://localhost:8000/chat/sessions/${currentProjectId}`, { 
-            headers: { 'Authorization': `Bearer ${token}` } 
-          });
-          if (siblingRes.ok) {
-            const siblingData = await siblingRes.json();
-            setSessions(siblingData);
-          }
+          const siblingData = await chatService.getProjectSessions(currentProjectId);
+          setSessions(siblingData);
         }
       }
     } catch (err) {
@@ -193,29 +169,14 @@ function Chat() {
     setIsLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      // FastAPI 백엔드 호출
-      const response = await fetch('http://localhost:8000/chat', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ 
-          session_id: sessionId, 
-          query: input,
-          provider: provider,
-          model_name: modelName,
-          language: selectedLanguage
-        })
+      const data = await chatService.ask({ 
+        session_id: sessionId, 
+        query: input,
+        provider: provider,
+        model_name: modelName,
+        language: selectedLanguage
       });
 
-      if (!response.ok) {
-        throw new Error('An error occurred during the conversation.');
-      }
-
-
-      const data = await response.json();
       setMessages(prev => [...prev, { 
         role: 'assistant', 
         content: data.answer,
@@ -424,32 +385,31 @@ function Chat() {
           </div>
         )}
         <div ref={messagesEndRef} />
-      </main>
+        </main>
 
-      {/* 입력 영역 */}
-      <footer className="bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-4 pb-8 relative z-10">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto relative">
-          <input
-            type="text"
-            className="w-full p-4 pr-14 border border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-800 text-slate-100 placeholder-slate-500"
-            placeholder="Ask about code structure or features..."
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="absolute right-2 top-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
-          >
-            <Send className="w-5 h-5" />
-          </button>
-        </form>
-      </footer>
+        {/* 입력 영역 */}
+        <footer className="bg-slate-900/80 backdrop-blur-md border-t border-slate-800 p-4 pb-8 relative z-10">
+          <form onSubmit={handleSend} className="max-w-4xl mx-auto relative">
+            <input
+              type="text"
+              className="w-full p-4 pr-14 border border-slate-700 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-slate-800 text-slate-100 placeholder-slate-500"
+              placeholder="Ask about code structure or features..."
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="absolute right-2 top-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
+            >
+              <Send className="w-5 h-5" />
+            </button>
+          </form>
+        </footer>
       </div>
     </div>
   );
 }
-
 
 export default Chat;
