@@ -361,10 +361,17 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 # --- [자동 README 생성 및 저장] ---
                 q.put("📝 Generating professional README based on analyzed code...")
                 try:
-                    generated_content = engine.generate_readme(languages=[request.language or "English"])
+                    readme_result = engine.generate_readme(languages=[request.language or "English"])
+                    readme_text = readme_result.get("readme_content", "")
+                    usage_map = readme_result.get("usage", {})
+                    
+                    # 기록용 토큰 사용량
+                    for model, tokens in usage_map.items():
+                        record_token_usage(db=db_session, user_id=current_user.id, model_name=model, feature_name="Analyze_Readme", token_count=tokens)
+
                     new_readme = GeneratedReadme(
                         project_id=project.id,
-                        content=generated_content,
+                        content=readme_text,
                         template_type="initial_auto"
                     )
                     db_session.add(new_readme)
@@ -372,6 +379,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     q.put("✅ README generation complete.")
                 except Exception as readme_err:
                     print(f"Failed to auto-generate README: {readme_err}")
+                    db_session.rollback()
                     q.put("⚠️ README generation skipped due to error.")
 
                 result = {

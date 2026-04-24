@@ -15,6 +15,7 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import FAQ from './pages/FAQ';
 import DocDeepPipeline from './pages/DocDeepPipeline/DocDeepPipeline.jsx';
+import Doc from './pages/Doc';
 
 // 인증 가드 컴포넌트
 function ProtectedRoute({ children }) {
@@ -103,7 +104,8 @@ function App() {
         <Route path="/faq" element={<FAQ />} />
         
         {/* 문서 페이지 */}
-        <Route path="/doc" element={<DocDeepPipeline />} />
+        <Route path="/doc" element={<Doc />} />
+        <Route path="/doc/pipeline" element={<DocDeepPipeline />} />
       </Routes>
     </Router>
   );

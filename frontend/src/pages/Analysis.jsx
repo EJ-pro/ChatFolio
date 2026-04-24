@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users, Crown } from 'lucide-react';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users, Crown, Database, Trophy } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import './Analysis.css';
 import { authService, projectService, dashboardService } from '../api';
@@ -174,10 +174,13 @@ function Analysis() {
 
   const getActivePhase = () => {
     const log = currentLog.toLowerCase();
-    if (log.includes('indexing') || log.includes('final') || log.includes('success') || log.includes('complete')) return 5;
-    if (log.includes('graph') || log.includes('dependency') || log.includes('mapping')) return 4;
-    if (log.includes('parsing') || log.includes('analyzing') || log.includes('ast') || log.includes('identifying')) return 3;
-    if (log.includes('clone') || log.includes('repository') || log.includes('collect') || log.includes('fetch')) return 2;
+    if (log.includes('final') || log.includes('success') || log.includes('complete')) return 7;
+    if (log.includes('review') || log.includes('verify') || log.includes('validate')) return 6;
+    if (log.includes('readme') || log.includes('generating') || log.includes('architecture') || log.includes('summary')) return 5;
+    if (log.includes('database') || log.includes('postgresql') || log.includes('storing') || log.includes('saving')) return 4;
+    if (log.includes('vector') || log.includes('embedding') || log.includes('chunking') || log.includes('indexing')) return 3;
+    if (log.includes('parsing') || log.includes('analyzing') || log.includes('ast') || log.includes('extracting')) return 2;
+    if (log.includes('clone') || log.includes('repository') || log.includes('collect') || log.includes('fetch') || log.includes('initializing')) return 1;
     return 1;
   };
 
@@ -196,11 +199,13 @@ function Analysis() {
   }, [isLoading, currentLog, bufferedPhase]);
 
   const phases = [
-    { id: 1, name: "Fetching", icon: <Github size={16} /> },
-    { id: 2, name: "Cloning", icon: <Share2 size={16} /> },
-    { id: 3, name: "Parsing", icon: <FileCode2 size={16} /> },
-    { id: 4, name: "Mapping", icon: <GitBranch size={16} /> },
-    { id: 5, name: "Indexing", icon: <Layers size={16} /> }
+    { id: 1, name: "Collection", icon: <Github size={16} /> },
+    { id: 2, name: "Parsing", icon: <FileCode2 size={16} /> },
+    { id: 3, name: "Vectorize", icon: <Cpu size={16} /> },
+    { id: 4, name: "Storage", icon: <Database size={16} /> },
+    { id: 5, name: "Generation", icon: <Sparkles size={16} /> },
+    { id: 6, name: "Review", icon: <Search size={16} /> },
+    { id: 7, name: "Finalize", icon: <Trophy size={16} /> }
   ];
 
   return (
@@ -222,7 +227,15 @@ function Analysis() {
           <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
           <span className="font-black tracking-tighter text-xl text-white">ChatFolio</span>
         </div>
-        <UserProfile />
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={() => navigate('/doc')}
+            className="text-slate-400 hover:text-white text-sm font-bold transition-colors hidden md:block"
+          >
+            Documentation
+          </button>
+          <UserProfile />
+        </div>
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center p-6 relative z-10 w-full max-w-5xl mx-auto mt-10">
@@ -250,7 +263,7 @@ function Analysis() {
             <button
               onClick={() => { 
                 if (user?.tier !== 'pro') {
-                  alert('Standard AI (Fast)는 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
+                  alert('Standard AI (Fast) is exclusive to Pro members. Please upgrade using the button at the top.');
                   return;
                 }
                 setProvider('groq'); 
@@ -389,31 +402,47 @@ function Analysis() {
 
           {isLoading && (
             <div className="mt-8 w-full animate-fade-in-up space-y-6">
-              <div className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl p-6 shadow-2xl relative overflow-hidden group">
+              <div className="bg-slate-900/50 backdrop-blur-xl border border-white/5 rounded-3xl p-8 shadow-2xl relative overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-600/5 to-purple-600/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 <div className="relative flex items-center justify-between">
                   {phases.map((phase, idx) => {
                     const isCompleted = bufferedPhase > phase.id;
                     const isActive = bufferedPhase === phase.id;
+                    const isUpcoming = bufferedPhase < phase.id;
+                    
                     return (
-                      <div key={phase.id} className="flex-1 flex flex-col items-center relative">
+                      <div key={phase.id} className="flex-1 flex flex-col items-center relative group/phase">
+                        {/* Connecting Line */}
                         {idx < phases.length - 1 && (
-                          <div className="absolute top-5 left-1/2 w-full h-[2px] bg-slate-800">
-                            <div className={`h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ${isCompleted ? 'w-full' : 'w-0'}`}></div>
+                          <div className="absolute top-6 left-1/2 w-full h-[3px] bg-slate-800">
+                            <div className={`h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-1000 ease-in-out ${isCompleted ? 'w-full' : 'w-0'}`}></div>
                           </div>
                         )}
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all duration-500 border-2 ${
-                          isCompleted ? 'bg-emerald-500 border-emerald-400 text-white' : 
-                          isActive ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_15px_rgba(37,99,235,0.5)] animate-pulse' : 
-                          'bg-slate-900 border-slate-700 text-slate-500'
+                        
+                        {/* Phase Icon Node */}
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center z-10 transition-all duration-700 border-2 ${
+                          isCompleted ? 'bg-emerald-500 border-emerald-400 text-white shadow-lg shadow-emerald-500/20 rotate-[360deg]' : 
+                          isActive ? 'bg-blue-600 border-blue-400 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)] scale-110' : 
+                          'bg-slate-900 border-slate-700 text-slate-500 group-hover/phase:border-slate-500'
                         }`}>
-                          {isCompleted ? <CheckCircle2 size={18} /> : phase.icon}
+                          {isCompleted ? <CheckCircle2 size={20} /> : phase.icon}
                         </div>
-                        <span className={`mt-3 text-[10px] font-black uppercase tracking-widest transition-colors duration-500 ${
-                          isActive ? 'text-blue-400' : isCompleted ? 'text-emerald-400' : 'text-slate-500'
-                        }`}>
-                          {phase.name}
-                        </span>
+                        
+                        {/* Phase Label */}
+                        <div className="mt-4 flex flex-col items-center gap-1">
+                          <span className={`text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 ${
+                            isActive ? 'text-blue-400 scale-105' : isCompleted ? 'text-emerald-400' : 'text-slate-500'
+                          }`}>
+                            {phase.name}
+                          </span>
+                          {isActive && (
+                            <div className="flex gap-1">
+                              <span className="w-1 h-1 rounded-full bg-blue-400 animate-bounce"></span>
+                              <span className="w-1 h-1 rounded-full bg-blue-400 animate-bounce [animation-delay:0.2s]"></span>
+                              <span className="w-1 h-1 rounded-full bg-blue-400 animate-bounce [animation-delay:0.4s]"></span>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     );
                   })}

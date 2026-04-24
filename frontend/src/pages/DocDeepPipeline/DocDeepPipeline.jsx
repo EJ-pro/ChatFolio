@@ -412,31 +412,31 @@ export default function DocDeepPipeline() {
               onClick={() => setViewType("pipeline")}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "pipeline" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
-              Main Pipeline
+              메인 파이프라인
             </button>
             <button 
               onClick={() => setViewType("agent")}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "agent" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
-              README Agent
+              README 에이전트
             </button>
             <button 
               onClick={() => setViewType("sequence")}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "sequence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
-              Analysis
+              분석 시퀀스
             </button>
             <button 
               onClick={() => setViewType("dashboard")}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "dashboard" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
-              Dashboard
+              대시보드 RAG
             </button>
             <button 
               onClick={() => setViewType("intelligence")}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "intelligence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
-              AI Decision
+              AI 의사결정
             </button>
           </div>
 
@@ -446,7 +446,7 @@ export default function DocDeepPipeline() {
                 {viewType === "pipeline" ? "분석 단계" : viewType === "agent" ? "에이전트 수" : viewType === "sequence" ? "핵심 모듈" : viewType === "dashboard" ? "RAG Flow" : "판단 포인트"}
               </div>
               <div className="text-2xl font-black text-slate-100">
-                {viewType === "pipeline" ? "10 Steps" : viewType === "agent" ? "4 Agents" : viewType === "sequence" ? "6 Modules" : viewType === "dashboard" ? "RAG Flow" : "5 Points"}
+                {viewType === "pipeline" ? "10 단계" : viewType === "agent" ? "4개 에이전트" : viewType === "sequence" ? "6개 모듈" : viewType === "dashboard" ? "RAG 흐름" : "5개 포인트"}
               </div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 min-w-[140px] shadow-lg">

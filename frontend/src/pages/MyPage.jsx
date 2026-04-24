@@ -61,7 +61,7 @@ function MyPage() {
     try {
       const data = await projectService.checkUpdate(projectId);
       if (data.is_updated) {
-        if (confirm(`새로운 커밋이 발견되었습니다!\n\n"${data.latest_commit.message}"\n\n지금 업데이트하시겠습니까?`)) {
+        if (confirm(`New commits discovered!\n\n"${data.latest_commit.message}"\n\nWould you like to update now?`)) {
           navigate(`/?repo_url=${encodeURIComponent(repoUrl)}&force_update=true`);
         }
       } else {

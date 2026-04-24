@@ -24,7 +24,7 @@ function AuthCallback() {
         navigate('/');
       });
     } else {
-      alert("인증에 실패했습니다. 다시 시도해주세요.");
+      alert("Authentication failed. Please try again.");
       navigate('/login');
     }
   }, [searchParams, navigate]);
@@ -32,8 +32,8 @@ function AuthCallback() {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
       <Loader2 className="w-10 h-10 animate-spin text-blue-600 mb-4" />
-      <h2 className="text-xl font-bold text-slate-800">로그인 중입니다...</h2>
-      <p className="text-slate-500 mt-2">잠시만 기다려주세요.</p>
+      <h2 className="text-xl font-bold text-slate-800">Signing in...</h2>
+      <p className="text-slate-500 mt-2">Please wait a moment.</p>
     </div>
   );
 }
