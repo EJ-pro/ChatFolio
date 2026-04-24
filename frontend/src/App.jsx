@@ -14,7 +14,7 @@ import DashboardLayout from './components/DashboardLayout';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import FAQ from './pages/FAQ';
-import DocDeepPipeline from './pages/DocDeepPipeline';
+import DocDeepPipeline from './pages/DocDeepPipeline/DocDeepPipeline.jsx';
 
 // 인증 가드 컴포넌트
 function ProtectedRoute({ children }) {
