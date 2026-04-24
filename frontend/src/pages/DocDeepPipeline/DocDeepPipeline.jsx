@@ -270,8 +270,18 @@ sequenceDiagram
     participant DB as Vector Store
     participant AI as AI Assistant
 
+    rect rgb(15, 23, 42)
+    Note over U, G: 1. 사용자 인증 및 보안
+    U->>B: 로그인 요청 (GitHub/Google)
+    B->>G: OAuth 권한 요청
+    G-->>U: 사용자 승인 페이지
+    U->>G: 승인 및 콜백
+    G-->>B: 인증 코드 및 토큰 교환
+    B-->>U: JWT 발행 및 세션 시작
+    end
+
     rect rgb(30, 41, 59)
-    Note over U, AI: 1. 데이터 수집 및 전처리
+    Note over U, AI: 2. 데이터 수집 및 전처리
     U->>B: 분석 요청 (Repo URL)
     B->>G: 코드 데이터 스트리밍 수집
     G-->>B: 원본 소스 코드 (Generator)
@@ -279,14 +289,14 @@ sequenceDiagram
     end
     
     rect rgb(15, 23, 42)
-    Note over V, DB: 2. 벡터화 및 인덱싱
+    Note over V, DB: 3. 벡터화 및 인덱싱
     V->>V: 고차원 임베딩 생성 (Embedding)
     V->>DB: 벡터 및 메타데이터 저장 (Upsert)
     DB-->>V: 인덱싱 완료
     end
 
     rect rgb(15, 23, 42)
-    Note over U, AI: 3. 지능형 검색 및 응답
+    Note over U, AI: 4. 지능형 검색 및 응답
     U->>B: 사용자 질문 입력
     B->>V: 질문 벡터 변환
     V->>DB: 유사도 검색 (Similarity Search)
@@ -302,7 +312,7 @@ sequenceDiagram
     participant U as User
     participant F as Frontend (Dashboard)
     participant B as Backend (FastAPI)
-    participant R as RAG Engine (Vector/Elastic)
+    participant V as Vector Store (Chroma/FAISS)
     participant AI as Intelligence (LLM)
 
     rect rgb(30, 41, 59)
@@ -314,20 +324,20 @@ sequenceDiagram
     end
 
     rect rgb(15, 23, 42)
-    Note over B, R: 2. 지능형 컨텍스트 검색
-    B->>R: 키워드 간 상관관계 기반 하이브리드 검색
-    R-->>B: 관련 코드 조각 및 아키텍처 메타데이터
+    Note over B, V: 2. 벡터 유사도 검색 (Similarity Search)
+    B->>V: 질문 벡터와 가장 유사한 코드 청크 검색
+    V-->>B: 상위 K개의 관련 코드 조각 반환
     end
 
     rect rgb(15, 23, 42)
-    Note over B, AI: 3. 응답 생성 및 상관관계 도출
-    B->>AI: 검색된 컨텍스트 + 키워드 상관관계 분석 요청
-    Note right of AI: 아키텍처 노드와의 매핑 및 기술적 인과관계 분석
+    Note over B, AI: 3. 응답 생성 및 컨텍스트 주입
+    B->>AI: 검색된 코드 컨텍스트 + 시스템 프롬프트 전달
+    Note right of AI: 소스 코드 기반 기술 답변 생성
     AI-->>B: 심층 분석 답변 (Markdown)
     end
 
     B-->>F: 최종 응답 스트리밍
-    F-->>U: 답변 표시 및 관련 코드/아키텍처 하이라이트
+    F-->>U: 답변 표시 및 관련 소스 코드 하이라이트
   `;
 
 const vectorFlowChart = `
@@ -593,10 +603,10 @@ export default function DocDeepPipeline() {
                 <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5"><h4 className="text-blue-400 font-bold mb-2 flex items-center gap-2"><Search size={16} /> 의도 기반 키워드</h4><p className="text-xs text-slate-400 leading-relaxed">단순 키워드 매칭을 넘어 LLM을 통해 질문의 기술적 의도를 파악하고 핵심 키워드 간의 상관관계를 분석합니다.</p></div>
                 <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5">
                   <h4 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
-                    <Layers size={16} /> 지능형 컨텍스트 검색
+                    <Layers size={16} /> 벡터 유사도 검색
                   </h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    <b>구현:</b> <code className="text-purple-300">similarity_search</code>를 통한 벡터 검색 후, <code className="text-purple-300">networkx</code> 그래프의 이웃 노드(<code className="text-purple-300">neighbors</code>)를 추적하여 관련 의존성 파일을 함께 수집합니다.
+                    <b>구현:</b> <code className="text-purple-300">similarity_search</code>를 통해 질문 벡터와 거리가 가장 가까운 코드 청크를 검색하여 정밀한 컨텍스트를 확보합니다.
                   </p>
                 </div>
                 <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5">
@@ -604,7 +614,7 @@ export default function DocDeepPipeline() {
                     <Sparkles size={16} /> 응답 생성 및 상관관계 도출
                   </h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    <b>구현:</b> 수집된 코드 청크와 그래프 추적 데이터를 <code className="text-emerald-300">SystemPrompt</code>에 주입하며, <b>Code-First Analysis</b> 전략을 통해 문서보다 실제 소스 코드의 로직을 우선하여 답변을 생성합니다.
+                    <b>구현:</b> 수집된 코드 청크 데이터를 <code className="text-emerald-300">SystemPrompt</code>에 주입하며, <b>Code-First Analysis</b> 전략을 통해 실제 소스 코드 로직을 우선하여 답변을 생성합니다.
                   </p>
                 </div>
               </div>
