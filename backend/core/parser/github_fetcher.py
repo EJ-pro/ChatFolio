@@ -12,7 +12,7 @@ class GitHubFetcher:
             '.kt', '.kts', '.java', '.py', '.js', '.ts', '.tsx', '.jsx', 
             '.cpp', '.h', '.c', '.go', '.rs', '.swift', '.svelte', '.html', '.css',
             '.json', '.yaml', '.yml', '.toml', '.xml', '.properties', '.gradle',
-            '.md', '.txt', '.sh', '.dockerfile', 'dockerfile'
+            '.sh', '.dockerfile', 'dockerfile'
         )
 
     def _is_valid_file(self, file_path: str) -> bool:

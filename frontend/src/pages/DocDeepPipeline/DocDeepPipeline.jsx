@@ -103,8 +103,8 @@ const steps = [
       payload: { total_files: 142, targets: 89 },
       actions: [
         "디렉토리 재귀 순회 및 전체 파일 트리 구성",
-        "타겟 확장자(code, config, docs) 기반 분석 대상 선별",
-        ".gitignore 및 불필요한 바이너리 파일 분석 제외"
+        "타겟 확장자(code, config) 기반 분석 대상 선별",
+        "기존 .md, .txt 등 문서 파일을 배제하여 코드 본연의 로직에 집중"
       ]
     }
   },
@@ -212,17 +212,17 @@ const steps = [
   },
   {
     id: "inference",
-    title: "지능형 응답 생성",
+    title: "지능형 응답 및 문서 생성",
     icon: <Cpu size={22} />,
     color: "#ec4899",
     file: "core/rag/engine.py",
-    desc: "최종 아키텍처 기반 답변 도출",
+    desc: "최종 아키텍처 기반 답변 및 README 생성",
     tech: ["LLM", "RAG Prompting"],
     details: {
       payload: { model: "gpt-4o-mini", stream: true },
       actions: [
         "정제된 코드 컨텍스트를 LLM 프롬프트에 동적 주입",
-        "아키텍처 인과관계를 고려한 논리적인 기술 답변 생성",
+        "분석된 소스 코드를 바탕으로 새로운 README.md 자동 생성 및 저장",
         "사용자 질문에 최적화된 마크다운 기반 최종 응답 스트리밍"
       ]
     }
@@ -330,9 +330,65 @@ sequenceDiagram
     F-->>U: 답변 표시 및 관련 코드/아키텍처 하이라이트
   `;
 
+const vectorFlowChart = `
+sequenceDiagram
+    autonumber
+    participant S as Source Code
+    participant C as Chunker
+    participant E as Embedder (OpenAI)
+    participant V as Vector Store (Chroma)
+
+    S->>C: 원본 코드 스트림 주입
+    loop Recursive Splitting
+        C->>C: 논리적 단위(Class/Function) 분할
+        C->>C: Overlap 계산 및 컨텍스트 유지
+    end
+    C->>E: 정제된 텍스트 청크 전달
+    E->>E: 고차원 벡터 변환 (1536 dim)
+    E->>V: 벡터 + 메타데이터 인덱싱
+    V-->>S: 인덱싱 완료 및 검색 가능 상태
+`;
+
+const agentLoopChart = `
+sequenceDiagram
+    autonumber
+    participant A as Analyzer
+    participant R as Router
+    participant W as Writer
+    participant C as Critic (Reviewer)
+
+    A->>R: 프로젝트 아키타입 보고
+    R->>W: 맞춤형 작성 전략 하달
+    W->>C: README 초안 전달
+    Note over C: 품질 검사 (정확도/가독성)
+    alt 기준 미달
+        C->>W: 수정 요구 사항 (Feedback Loop)
+        W->>C: 보완된 초안 제출
+    else 승인
+        C->>A: 최종본 컨펌
+    end
+`;
+
+const streamingRAGChart = `
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant Q as Query Engine
+    participant R as Retriever
+    participant L as LLM (GPT-4o/Llama)
+
+    U->>Q: 질문 입력
+    Q->>R: 질문 벡터화 및 유사도 검색
+    R-->>Q: 상위 K개 코드 청크 반환
+    Q->>Q: 메타데이터 기반 리랭킹
+    Q->>L: 컨텍스트 + 시스템 프롬프트 주입
+    L-->>U: 실시간 스트리밍 답변 (SSE)
+`;
+
 export default function DocDeepPipeline() {
   const [activeNode, setActiveNode] = useState(0);
-  const [viewType, setViewType] = useState("pipeline"); // "pipeline", "agent", "sequence", or "dashboard"
+  const [viewType, setViewType] = useState("pipeline"); // "pipeline", "agent", "sequence", "dashboard", "intelligence"
+  const [activeChart, setActiveChart] = useState("full"); // "full", "vector", "agent", "rag"
 
   const active = steps[activeNode];
 
@@ -495,12 +551,24 @@ export default function DocDeepPipeline() {
             <div className="relative z-10">
               <div className="flex items-center justify-between mb-12">
                 <div>
-                  <h2 className="text-3xl font-black text-white mb-2 tracking-tighter flex items-center gap-3"><RefreshCw className="text-emerald-500" />전체 시스템 시퀀스 (Full System Sequence)</h2>
-                  <p className="text-slate-400 text-sm">사용자 요청부터 최종 결과물 출력까지의 시간순 실행 흐름</p>
+                  <h2 className="text-3xl font-black text-white mb-2 tracking-tighter flex items-center gap-3"><RefreshCw className="text-emerald-500" />시스템 아키텍처 (System Blueprints)</h2>
+                  <p className="text-slate-400 text-sm">핵심 모듈별 세부 실행 시퀀스 및 데이터 흐름</p>
                 </div>
-                <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-xl border border-white/5"><div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div><span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Live Flow Logic</span></div>
+                <div className="flex bg-slate-950/80 p-1 rounded-xl border border-slate-800">
+                  <button onClick={() => setActiveChart("full")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeChart === "full" ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>Full</button>
+                  <button onClick={() => setActiveChart("vector")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeChart === "vector" ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>Vector</button>
+                  <button onClick={() => setActiveChart("agent")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeChart === "agent" ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>Agent</button>
+                  <button onClick={() => setActiveChart("rag")} className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${activeChart === "rag" ? "bg-emerald-500 text-black" : "text-slate-500 hover:text-slate-300"}`}>RAG</button>
+                </div>
               </div>
-              <div className="bg-slate-950/80 rounded-3xl p-8 border border-white/5 shadow-2xl overflow-x-auto custom-scrollbar"><MermaidDiagram chart={sequenceChart} /></div>
+              <div className="bg-slate-950/80 rounded-3xl p-8 border border-white/5 shadow-2xl overflow-x-auto custom-scrollbar">
+                <MermaidDiagram chart={
+                  activeChart === "full" ? sequenceChart : 
+                  activeChart === "vector" ? vectorFlowChart : 
+                  activeChart === "agent" ? agentLoopChart : 
+                  streamingRAGChart
+                } />
+              </div>
               <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5"><h4 className="text-emerald-400 font-bold mb-2 flex items-center gap-2"><Search size={16} /> 캐싱 최적화</h4><p className="text-xs text-slate-400 leading-relaxed">동일한 커밋 SHA에 대해서는 파싱 과정을 생략하고 즉시 응답하여 서버 리소스를 보존합니다.</p></div>
                 <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5"><h4 className="text-blue-400 font-bold mb-2 flex items-center gap-2"><Cpu size={16} /> 스트리밍 분석</h4><p className="text-xs text-slate-400 leading-relaxed">대규모 레포지토리도 Generator 패턴을 통해 메모리 부하 없이 실시간으로 파싱합니다.</p></div>

@@ -16,7 +16,7 @@ from core.parser.github_fetcher import GitHubFetcher
 from core.parser.factory import get_parser_result
 from core.graph.graph_builder import DependencyGraphBuilder
 from core.rag.engine import ChatFolioEngine
-from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry, ProjectInsight, TokenUsage
+from database.models import init_db, Project, ProjectFile, ChatSession, ChatMessage, User, Inquiry, ProjectInsight, TokenUsage, GeneratedReadme
 from database.database import get_db, SessionLocal
 from api.auth import router as auth_router, get_current_user
 
@@ -354,13 +354,29 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 engine = ChatFolioEngine(all_files, graph, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name)
                 engine_cache[chat_session.id] = engine
                 
+                # --- [자동 README 생성 및 저장] ---
+                q.put("📝 Generating professional README based on analyzed code...")
+                try:
+                    generated_content = engine.generate_readme(languages=[request.language or "English"])
+                    new_readme = GeneratedReadme(
+                        project_id=project.id,
+                        content=generated_content,
+                        template_type="initial_auto"
+                    )
+                    db_session.add(new_readme)
+                    db_session.commit()
+                    q.put("✅ README generation complete.")
+                except Exception as readme_err:
+                    print(f"Failed to auto-generate README: {readme_err}")
+                    q.put("⚠️ README generation skipped due to error.")
+
                 result = {
                     "status": "success",
                     "session_id": chat_session.id,
                     "file_count": project.file_count,
                     "node_count": project.node_count,
                     "edge_count": project.edge_count,
-                    "message": "Analysis completed."
+                    "message": "Analysis and README generation completed."
                 }
                 q.put(f"RESULT:{json.dumps(result)}")
                 q.put(None)

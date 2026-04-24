@@ -136,21 +136,21 @@ GitHub URL이 입력되는 순간부터 RAG 엔진이 준비될 때까지, 총 1
     ↓
  Step 02  🔍 Cache Check     GitHub API로 최신 커밋 SHA 확인 → 캐시 재사용 or 재분석 결정
     ↓
- Step 03  📡 Scan            재귀 디렉토리 순회, .gitignore 및 바이너리 파일 필터링
+Step 03  📡 Scan            재귀 디렉토리 순회, .md/.txt 등 기존 문서 배제 및 코드 위주 필터링
     ↓
  Step 04  📥 Fetch           Python Generator 스트리밍으로 대용량 파일 OOM 없이 로드
     ↓
- Step 05  🏭 Parser Factory  확장자 기반으로 최적 언어 파서 동적 매칭 (Polyglot 지원)
+ Step 05  ✂️ Chunking        RecursiveCharacterTextSplitter를 이용한 의미 단위 코드 분할
     ↓
- Step 06  🌳 AST Parse       언어별 파서로 클래스·함수·Import 구문 추출 및 정규화
+ Step 06  🔢 Embedding       OpenAI text-embedding-3-small 기반 고차원 벡터 변환
     ↓
- Step 07  💾 Persist         파싱 결과 + 원본 코드 PostgreSQL 트랜잭션 저장
+ Step 07  🗄️ Indexing        Chroma / Elasticsearch 벡터 스토어 최적화 인덱싱 및 저장
     ↓
- Step 08  🕸 Graph Build     Resolver Factory로 Import 경로를 실제 파일로 매핑, NetworkX DiGraph 구성
+ Step 08  🔍 Retrieval       사용자 질문 벡터와의 코사인 유사도 기반 최적 컨텍스트 추출
     ↓
- Step 09  📊 Metrics         노드 Degree 계산으로 핵심 파일 식별, 프론트엔드용 JSON 변환
+ Step 09  📊 Re-ranking      메타데이터 및 파일 중요도 기반 검색 결과 재정렬 및 필터링
     ↓
- Step 10  🤖 RAG Engine      분석 데이터를 ChatFolioEngine에 로드, 벡터 임베딩 완료 → 채팅 준비
+ Step 10  🤖 RAG & Gen       최종 컨텍스트 주입, 지능형 기술 답변 및 새로운 README 자동 생성
 ```
 
 <br/>
