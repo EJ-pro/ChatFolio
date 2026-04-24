@@ -17,6 +17,8 @@ class User(Base):
     avatar_url = Column(String, nullable=True)
     country = Column(String, nullable=True) # 사용자 국가
     job = Column(String, nullable=True) # 사용자 직업
+    tier = Column(String, default="free") # 'free', 'pro'
+    pro_expires_at = Column(DateTime, nullable=True) # Pro 등급 만료일
     persona_data = Column(JSONB, nullable=True) # 개발자 MBTI (Persona) 데이터 저장
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -152,6 +154,8 @@ def init_db():
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS persona_data JSONB"))
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS country VARCHAR"))
                     conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS job VARCHAR"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS tier VARCHAR DEFAULT 'free'"))
+                    conn.execute(text("ALTER TABLE users ADD COLUMN IF NOT EXISTS pro_expires_at TIMESTAMP"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS languages JSONB"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))

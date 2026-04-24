@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users } from 'lucide-react';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users, Crown } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import './Analysis.css';
 import { authService, projectService, dashboardService } from '../api';
@@ -239,19 +239,26 @@ function Analysis() {
           </p>
         </div>
 
-        <div className="flex items-center justify-center gap-4 mb-10 animate-fade-in-up delay-100">
-          <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-white/10 backdrop-blur-md shadow-inner">
+        <div className="flex flex-col items-center gap-6 mb-10 animate-fade-in-up delay-100">
+          <div className="flex bg-slate-900/50 p-1.5 rounded-2xl border border-white/10 backdrop-blur-md shadow-inner">
+            <button
+              onClick={() => { setProvider('huggingface'); setModelName('mistralai/Mistral-7B-Instruct-v0.2'); }}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'huggingface' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+            >
+              HuggingFace (Free)
+            </button>
             <button
               onClick={() => { setProvider('groq'); setModelName('llama-3.3-70b-versatile'); }}
-              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${provider === 'groq' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'groq' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Groq (Free)
+              Groq (Verify)
             </button>
             <button
               onClick={() => { setProvider('openai'); setModelName('gpt-4o-mini'); }}
-              className={`px-6 py-2 rounded-xl text-sm font-bold transition-all duration-300 ${provider === 'openai' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
+              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'openai' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              OpenAI (Paid)
+              OpenAI (Pro)
+              <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
             </button>
           </div>
         </div>

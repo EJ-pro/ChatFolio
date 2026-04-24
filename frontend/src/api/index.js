@@ -57,6 +57,7 @@ export const authService = {
   updateProfile: (data) => api.patch('/user/profile', data),
   getProfile: (username) => api.get(`/auth/profile/${username}`),
   getGithubRepos: () => api.get('/auth/github/repos'),
+  upgradeTier: () => api.post('/auth/upgrade'),
 };
 
 export const projectService = {

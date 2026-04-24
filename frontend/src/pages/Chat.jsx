@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles } from 'lucide-react';
+import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles, Crown } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { chatService, authService } from '../api';
 
@@ -21,19 +21,23 @@ function Chat() {
   const [provider, setProvider] = useState('groq');
   const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
+  const [user, setUser] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const availableLanguages = ['English', 'Korean'];
   const messagesEndRef = useRef(null);
 
   const models = {
+    huggingface: [
+      { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B', desc: 'HF Free Model' },
+      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Llama 3 8B', desc: 'Open Source' }
+    ],
     groq: [
       { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', desc: 'Fast & Versatile' },
-      { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', desc: 'Large Context' },
       { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', desc: 'Ultra Fast' }
     ],
     openai: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise' },
-      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality AI' }
+      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise', pro: true },
+      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality AI', pro: true }
     ]
   };
 
@@ -85,6 +89,7 @@ function Chat() {
   const fetchUser = async () => {
     try {
       const userData = await authService.me();
+      setUser(userData);
       // 기본 언어 설정 (국가 기반 자동 매핑)
       if (userData.country === 'South Korea') setSelectedLanguage('Korean');
       else setSelectedLanguage('English');
@@ -231,13 +236,13 @@ function Chat() {
             {isModelMenuOpen && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-2 border-b border-slate-800 flex gap-1">
-                  {['groq', 'openai'].map(p => (
+                  {['huggingface', 'groq', 'openai'].map(p => (
                     <button
                       key={p}
                       onClick={(e) => { e.stopPropagation(); setProvider(p); setModelName(models[p][0].id); }}
                       className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${provider === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
                     >
-                      {p}
+                      {p === 'huggingface' ? 'HF' : p}
                     </button>
                   ))}
                 </div>
@@ -245,11 +250,22 @@ function Chat() {
                   {models[provider].map(m => (
                     <button
                       key={m.id}
-                      onClick={(e) => { e.stopPropagation(); setModelName(m.id); setIsModelMenuOpen(false); }}
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (m.pro && user?.tier !== 'pro') {
+                          alert('OpenAI 모델은 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
+                          return;
+                        }
+                        setModelName(m.id); 
+                        setIsModelMenuOpen(false); 
+                      }}
                       className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between group ${modelName === m.id ? 'bg-blue-600/10' : 'hover:bg-slate-800'}`}
                     >
                       <div>
-                        <div className={`text-xs font-bold ${modelName === m.id ? 'text-blue-400' : 'text-slate-300'}`}>{m.name}</div>
+                        <div className={`text-xs font-bold flex items-center gap-2 ${modelName === m.id ? 'text-blue-400' : 'text-slate-300'}`}>
+                          {m.name}
+                          {m.pro && <Crown className={`w-3 h-3 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-500'}`} />}
+                        </div>
                         <div className="text-[10px] text-slate-500">{m.desc}</div>
                       </div>
                       {modelName === m.id && <Check size={12} className="text-blue-400" />}

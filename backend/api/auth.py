@@ -104,6 +104,13 @@ async def process_sso_login(sso_user, provider: str, db: Session, github_usernam
 # 현재 사용자 정보 조회
 @router.get("/me")
 async def get_me(current_user: User = Depends(get_current_user)):
+    # 만료 여부 체크 및 처리
+    current_tier = current_user.tier
+    if current_user.tier == "pro" and current_user.pro_expires_at:
+        if datetime.utcnow() > current_user.pro_expires_at:
+            current_tier = "free"
+            # DB에도 반영 (선택 사항, 여기서는 응답에서만 처리하거나 추후 배치를 돌릴 수 있음)
+
     return {
         "id": current_user.id,
         "email": current_user.email,
@@ -112,7 +119,25 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "avatar_url": current_user.avatar_url,
         "provider": current_user.provider,
         "country": current_user.country,
-        "job": current_user.job
+        "job": current_user.job,
+        "tier": current_tier,
+        "pro_expires_at": current_user.pro_expires_at
+    }
+
+# 등급 업그레이드 (결제 시뮬레이션)
+@router.post("/upgrade")
+async def upgrade_tier(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    current_user.tier = "pro"
+    # 현재 시간으로부터 30일 뒤 만료
+    current_user.pro_expires_at = datetime.utcnow() + timedelta(days=30)
+    db.commit()
+    db.refresh(current_user)
+    
+    return {
+        "status": "success",
+        "message": "Successfully upgraded to Pro tier for 30 days.",
+        "tier": current_user.tier,
+        "expires_at": current_user.pro_expires_at
     }
 
 # 유저 마이페이지 프로필 정보 조회
@@ -184,6 +209,8 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
             "github_username": user.github_username,
             "country": user.country,
             "job": user.job,
+            "tier": user.tier,
+            "pro_expires_at": user.pro_expires_at,
             "created_at": user.created_at
         },
         "skills": skills,

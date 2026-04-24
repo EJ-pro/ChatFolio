@@ -5,7 +5,7 @@ import {
   ExternalLink, MessageSquare, Share2, FileText,
   Sparkles, ShieldCheck, Trophy, GitBranch,
   Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight,
-  ArrowLeft, RefreshCw
+  ArrowLeft, RefreshCw, Crown
 } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import { authService, projectService } from '../api';
@@ -73,6 +73,11 @@ function MyPage() {
     } finally {
       setUpdatingProjectId(null);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    navigate('/login');
   };
 
   if (isLoading) {
@@ -154,14 +159,18 @@ function MyPage() {
 
             <div className="w-full space-y-3 pt-6 border-t border-white/5">
               <div className="flex items-center gap-3 text-slate-400 text-sm">
-                <Calendar className="w-4 h-4" />
-                <span>Joined: {new Date(profile.user.created_at).toLocaleDateString()}</span>
+                <Crown className={`w-4 h-4 ${profile.user.tier === 'pro' ? 'text-yellow-500' : 'text-slate-600'}`} />
+                <span className="flex items-center gap-2">
+                  Plan: <b className={`uppercase ${profile.user.tier === 'pro' ? 'text-yellow-500' : 'text-slate-300'}`}>{profile.user.tier}</b>
+                </span>
               </div>
-              <div className="flex items-center gap-3 text-slate-400 text-sm">
-                <Trophy className="w-4 h-4" />
-                <span>Analyzed Projects: {profile.projects.length}</span>
-              </div>
+              {profile.user.tier === 'pro' && profile.user.pro_expires_at && (
+                <div className="text-[10px] text-slate-500 font-mono mt-1">
+                  Expires: {new Date(profile.user.pro_expires_at).toLocaleDateString()}
+                </div>
+              )}
             </div>
+
           </div>
 
           {/* Right: Skill Track (Radar Chart) */}

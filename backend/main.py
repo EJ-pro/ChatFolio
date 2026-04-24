@@ -114,6 +114,10 @@ engine_cache = {}
 
 @app.post("/analyze")
 async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Pro 등급 체크
+    if request.provider == "openai" and current_user.tier != "pro":
+        raise HTTPException(status_code=402, detail="OpenAI 모델은 Pro 등급 전용입니다. 업그레이드 후 이용해주세요.")
+
     # 1. 이미 분석된 프로젝트가 있는지 확인
     existing_project = db.query(Project).filter(
         Project.repo_url == request.repo_url,
@@ -600,6 +604,11 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         engine_cache[session_id] = engine
     
     try:
+        # Pro 등급 체크 (엔진 생성 전)
+        provider_to_check = request.provider or chat_session.provider
+        if provider_to_check == "openai" and current_user.tier != "pro":
+            raise HTTPException(status_code=402, detail="OpenAI 모델은 Pro 등급 전용입니다. 업그레이드 후 이용해주세요.")
+
         # 2. 질문 저장
         user_message = ChatMessage(
             session_id=session_id,

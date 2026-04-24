@@ -389,7 +389,6 @@ export default function DocDeepPipeline() {
   const [activeNode, setActiveNode] = useState(0);
   const [viewType, setViewType] = useState("pipeline"); // "pipeline", "agent", "sequence", "dashboard", "intelligence"
   const [activeChart, setActiveChart] = useState("full"); // "full", "vector", "agent", "rag"
-
   const active = steps[activeNode];
 
   return (
