@@ -28,16 +28,16 @@ function Chat() {
 
   const models = {
     huggingface: [
-      { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Mistral 7B', desc: 'HF Free Model' },
-      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Llama 3 8B', desc: 'Open Source' }
+      { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Standard AI (Type A)', desc: 'Efficient basic analysis' },
+      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Standard AI (Type B)', desc: 'Balanced open-source engine' }
     ],
     groq: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', desc: 'Fast & Versatile' },
-      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', desc: 'Ultra Fast' }
+      { id: 'llama-3.3-70b-versatile', name: 'Standard AI (Fast)', desc: 'High-speed processing (Pro Lite)', pro: true },
+      { id: 'llama-3.1-8b-instant', name: 'Standard AI (Instant)', desc: 'Real-time response engine (Pro Lite)', pro: true }
     ],
     openai: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise', pro: true },
-      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality AI', pro: true }
+      { id: 'gpt-4o-mini', name: 'Premium AI (Lite)', desc: 'High precision analysis (Pro Pro)', pro: true },
+      { id: 'gpt-4o', name: 'Premium AI (Pro)', desc: 'Maximum intelligence engine (Pro Pro)', pro: true }
     ]
   };
 

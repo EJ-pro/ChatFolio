@@ -245,19 +245,27 @@ function Analysis() {
               onClick={() => { setProvider('huggingface'); setModelName('mistralai/Mistral-7B-Instruct-v0.2'); }}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'huggingface' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              HuggingFace (Free)
+              Standard AI (Eco)
             </button>
             <button
-              onClick={() => { setProvider('groq'); setModelName('llama-3.3-70b-versatile'); }}
+              onClick={() => { 
+                if (user?.tier !== 'pro') {
+                  alert('Standard AI (Fast)는 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
+                  return;
+                }
+                setProvider('groq'); 
+                setModelName('llama-3.3-70b-versatile'); 
+              }}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'groq' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Groq (Verify)
+              Standard AI (Fast)
+              <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
             </button>
             <button
               onClick={() => { setProvider('openai'); setModelName('gpt-4o-mini'); }}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'openai' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              OpenAI (Pro)
+              Premium AI
               <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
             </button>
           </div>
