@@ -149,9 +149,9 @@ const steps = [
     color: "#84cc16",
     file: "core/rag/engine.py",
     desc: "코드를 수학적 벡터 공간으로 변환",
-    tech: ["OpenAI Embeddings", "text-embedding-3-small"],
+    tech: ["HuggingFace Embeddings", "all-MiniLM-L6-v2"],
     details: {
-      payload: { dimensions: 1536, model: "ada-002" },
+      payload: { dimensions: 384, model: "sentence-transformers" },
       actions: [
         "분할된 코드 텍스트를 고차원 숫자 배열(Vector)로 수치화",
         "코드의 의미론적(Semantic) 특징을 고도로 함축된 데이터로 보존",
@@ -219,7 +219,7 @@ const steps = [
     desc: "최종 아키텍처 기반 답변 및 README 생성",
     tech: ["LLM", "RAG Prompting"],
     details: {
-      payload: { model: "gpt-4o-mini", stream: true },
+      payload: { model: "llama-3.3-70b", stream: true },
       actions: [
         "정제된 코드 컨텍스트를 LLM 프롬프트에 동적 주입",
         "분석된 소스 코드를 바탕으로 새로운 README.md 자동 생성 및 저장",
@@ -266,7 +266,7 @@ sequenceDiagram
     participant U as User
     participant B as Backend (FastAPI)
     participant G as GitHub API
-    participant V as Vector Engine (Chroma/OpenAI)
+    participant V as Vector Engine (Chroma/HF)
     participant DB as Vector Store
     participant AI as AI Assistant
 
@@ -345,7 +345,7 @@ sequenceDiagram
     autonumber
     participant S as Source Code
     participant C as Chunker
-    participant E as Embedder (OpenAI)
+    participant E as Embedder (HuggingFace)
     participant V as Vector Store (Chroma)
 
     S->>C: 원본 코드 스트림 주입
@@ -385,7 +385,7 @@ sequenceDiagram
     participant U as User
     participant Q as Query Engine
     participant R as Retriever
-    participant L as LLM (GPT-4o/Llama)
+    participant L as LLM (Groq/Llama)
 
     U->>Q: 질문 입력
     Q->>R: 질문 벡터화 및 유사도 검색

@@ -77,6 +77,7 @@ const Doc = () => {
     { id: "userflow", label: "유저 플로우", icon: <Share2 size={18} />, color: "#8b5cf6" },
     { id: "erd", label: "ERD (데이터 구조)", icon: <Database size={18} />, color: "#f59e0b" },
     { id: "api", label: "API 명세서", icon: <Braces size={18} />, color: "#ec4899" },
+    { id: "models", label: "모델 분석 전략", icon: <Brain size={18} />, color: "#6366f1" },
   ];
 
   const renderContent = () => {
@@ -158,7 +159,7 @@ const Doc = () => {
                   title: "3. 커뮤니케이션 (Chat)", 
                   items: [
                     { name: "컨텍스트 기반 Q&A", desc: "검색된 코드 조각을 LLM에 주입하여 정확한 기술 답변 제공." },
-                    { name: "멀티 티어 모델 선택", desc: "Eco(HF), Fast(Groq), Premium(OpenAI) 모델 선택 지원." }
+                    { name: "멀티 티어 모델 선택", desc: "Eco(HF), Fast(Groq) 모델 선택 지원." }
                   ],
                   icon: <MessageSquare className="text-purple-400" />
                 }
@@ -313,7 +314,122 @@ const Doc = () => {
           </div>
         );
 
-      case "api":
+      case "models":
+        return (
+          <div className="animate-fade-in space-y-12">
+            <SectionHeader icon={Brain} title="모델 분석 및 AI 전략" subtitle="각 파이프라인 단계별 최적화된 LLM 활용 전략을 정의합니다." color="#6366f1" />
+            
+            <div className="glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/40 relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-8 opacity-10"><Fingerprint size={120} /></div>
+              <h3 className="text-2xl font-black text-white mb-8 flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400"><Fingerprint size={20} /></div>
+                1. 벡터 임베딩 (Embedding)
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="space-y-4">
+                  <div className="p-6 bg-black/40 rounded-3xl border border-white/5">
+                    <div className="text-xs font-bold text-blue-400 mb-2">USED MODEL</div>
+                    <div className="text-xl font-black text-white">HuggingFace all-MiniLM-L6-v2</div>
+                    <p className="mt-3 text-sm text-slate-400 leading-relaxed">
+                      서버 리소스를 효율적으로 사용하기 위해 로컬에서 동작하는 경량 임베딩 모델을 사용합니다. 384차원의 벡터 공간에서 코드의 의미론적 유사성을 계산합니다.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 text-center">
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-1">Dimensions</div>
+                    <div className="text-lg font-black text-white">384 dim</div>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 text-center">
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-1">Context</div>
+                    <div className="text-lg font-black text-white">512 Tokens</div>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 text-center">
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-1">Execution</div>
+                    <div className="text-lg font-black text-emerald-400">Local (CPU/GPU)</div>
+                  </div>
+                  <div className="p-4 bg-slate-800/30 rounded-2xl border border-white/5 text-center">
+                    <div className="text-[10px] text-slate-500 font-bold uppercase mb-1">Cost</div>
+                    <div className="text-lg font-black text-blue-400">Free</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/40">
+                <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center text-purple-400"><Search size={20} /></div>
+                  2. 분석 및 리랭킹 (Cheap LLM)
+                </h3>
+                <div className="p-6 bg-black/40 rounded-3xl border border-white/5 mb-6">
+                  <div className="text-xs font-bold text-purple-400 mb-2">MODEL: Groq Llama-3.1-8B-Instant</div>
+                  <p className="text-sm text-slate-400">
+                    빠른 추론 속도가 필요한 단계에 투입됩니다. 검색된 코드 청크 중 실제 질문과 가장 밀접한 것을 골라내거나(Re-ranking), 프로젝트의 아키타입을 분류하는 역할을 수행합니다.
+                  </p>
+                </div>
+                <ul className="space-y-3">
+                  {["벡터 검색 결과 재정렬 (Re-ranking)", "프로젝트 언어 및 아키타입 식별", "간단한 코드 요약 및 설명"].map(t => (
+                    <li key={t} className="flex items-center gap-3 text-sm text-slate-300">
+                      <CheckCircle2 size={14} className="text-emerald-500" /> {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="glass-panel p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/40">
+                <h3 className="text-xl font-bold text-white mb-8 flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center text-amber-400"><Bot size={20} /></div>
+                  3. 문서 생성 및 추론 (Pro LLM)
+                </h3>
+                <div className="p-6 bg-black/40 rounded-3xl border border-white/5 mb-6">
+                  <div className="text-xs font-bold text-amber-400 mb-2">MODEL: Groq Llama-3.3-70B-Versatile</div>
+                  <p className="text-sm text-slate-400">
+                    최고 사양의 오픈소스 모델을 사용하여 복잡한 코드 관계를 추론합니다. 고품질의 README 작성, 심층 기술 답변 생성 등 높은 지능이 필요한 과업을 담당합니다.
+                  </p>
+                </div>
+                <ul className="space-y-3">
+                  {["멀티 에이전트 기반 README 자동 생성", "복잡한 아키텍처 질문 답변 (RAG)", "디자인 패턴 및 코드 개선 제안"].map(t => (
+                    <li key={t} className="flex items-center gap-3 text-sm text-slate-300">
+                      <CheckCircle2 size={14} className="text-emerald-500" /> {t}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="glass-panel p-8 rounded-[2rem] border border-white/5 bg-slate-900/40">
+              <h3 className="text-xl font-bold text-white mb-6 px-2">기능별 모델 매핑 요약</h3>
+              <div className="overflow-hidden rounded-2xl border border-white/5">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-white/5 text-slate-400 font-black uppercase tracking-widest text-[10px]">
+                    <tr>
+                      <th className="px-6 py-4">Task Area</th>
+                      <th className="px-6 py-4">Selected Model</th>
+                      <th className="px-6 py-4">Key Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {[
+                      { area: "Vector Embedding", model: "HF all-MiniLM-L6", reason: "Zero Cost, Local Execution" },
+                      { area: "Initial Scan / Classifier", model: "Llama-3.1-8B (Groq)", reason: "Ultra-low Latency" },
+                      { area: "Search Result Re-ranking", model: "Llama-3.1-8B (Groq)", reason: "Cost Efficiency" },
+                      { area: "Main Q&A (Standard Fast)", model: "Llama-3.3-70B (Groq)", reason: "High Reasoning Performance" },
+                      { area: "README Writer / Reviewer", model: "Llama-3.3-70B (Groq)", reason: "Instruction Following" },
+                      { area: "Main Q&A (Standard Eco)", model: "Mistral-7B (HF)", reason: "Open Source Standard" },
+                    ].map((m, i) => (
+                      <tr key={i} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="px-6 py-4 font-bold text-white">{m.area}</td>
+                        <td className="px-6 py-4 text-blue-400 font-mono">{m.model}</td>
+                        <td className="px-6 py-4 text-slate-400">{m.reason}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        );
         return (
           <div className="animate-fade-in space-y-12">
             <SectionHeader icon={Braces} title="API 명세서" subtitle="FastAPI 엔드포인트 문서 및 연동 가이드를 제공합니다." color="#ec4899" />

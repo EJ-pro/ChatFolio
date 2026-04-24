@@ -32,12 +32,8 @@ function Chat() {
       { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Standard AI (Type B)', desc: 'Balanced open-source engine' }
     ],
     groq: [
-      { id: 'llama-3.3-70b-versatile', name: 'Standard AI (Fast)', desc: 'High-speed processing (Pro Lite)', pro: true },
-      { id: 'llama-3.1-8b-instant', name: 'Standard AI (Instant)', desc: 'Real-time response engine (Pro Lite)', pro: true }
-    ],
-    openai: [
-      { id: 'gpt-4o-mini', name: 'Premium AI (Lite)', desc: 'High precision analysis (Pro Pro)', pro: true },
-      { id: 'gpt-4o', name: 'Premium AI (Pro)', desc: 'Maximum intelligence engine (Pro Pro)', pro: true }
+      { id: 'llama-3.3-70b-versatile', name: 'Standard AI (Fast)', desc: 'High-speed processing (Pro)', pro: true },
+      { id: 'llama-3.1-8b-instant', name: 'Standard AI (Instant)', desc: 'Real-time response engine (Pro)', pro: true }
     ]
   };
 

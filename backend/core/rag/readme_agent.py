@@ -2,7 +2,6 @@ from typing import Annotated, TypedDict, List, Dict, Any, Union
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import SystemMessage, HumanMessage
 from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
 import json
 import traceback
 import os
@@ -80,10 +79,7 @@ class ReadmeAgent:
                 if f_model == self.model_name: continue
                 try:
                     print(f"🔄 Trying fallback model: {f_model}")
-                    if self.provider == "openai":
-                        alt_llm = ChatOpenAI(model=f_model, temperature=0)
-                    else:
-                        alt_llm = ChatGroq(model=f_model, temperature=0)
+                    alt_llm = ChatGroq(model=f_model, temperature=0)
                     return alt_llm.invoke(messages)
                 except Exception as ex:
                     print(f"❌ Fallback {f_model} failed: {str(ex)[:100]}")
@@ -95,8 +91,6 @@ class ReadmeAgent:
         """단순 분석 작업을 위한 저비용 모델 반환"""
         if self.provider == "groq":
             return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
-        elif self.provider == "openai":
-            return ChatOpenAI(model="gpt-4o-mini", temperature=0)
         return self.llm
 
     def analyzer_node(self, state: ReadmeState) -> Dict[str, Any]:

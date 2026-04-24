@@ -274,13 +274,6 @@ function Analysis() {
               Standard AI (Fast)
               <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
             </button>
-            <button
-              onClick={() => { setProvider('openai'); setModelName('gpt-4o-mini'); }}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'openai' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
-            >
-              Premium AI
-              <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
-            </button>
           </div>
         </div>
 

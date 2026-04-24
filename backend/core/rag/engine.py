@@ -1,6 +1,5 @@
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEndpoint
+from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 # Chroma 대신 순수 파이썬 인메모리 스토어 사용
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -19,9 +18,7 @@ class ChatFolioEngine:
         self.model_name = model_name
         
         # LLM 초기화
-        if provider == "openai":
-            self.llm = ChatOpenAI(model=model_name or "gpt-4o-mini", temperature=0)
-        elif provider == "huggingface":
+        if provider == "huggingface":
             # HuggingFace 무료 모델 (예: Mistral-7B, Llama-3-8B-Instruct)
             # HUGGINGFACEHUB_API_TOKEN 환경 변수 필요
             repo_id = model_name or "mistralai/Mistral-7B-Instruct-v0.2"
@@ -37,7 +34,10 @@ class ChatFolioEngine:
         # 검증용 모델 (항상 GROQ 사용)
         self.verifier_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
             
-        self.embeddings = OpenAIEmbeddings()
+        # OpenAI 대신 무료 임베딩 모델 사용 (all-MiniLM-L6-v2)
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
+        )
         
         # 1. 벡터 스토어 구축
         self.vector_db = self._prepare_vector_db()
@@ -67,25 +67,39 @@ class ChatFolioEngine:
         return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
 
     def ask(self, query: str, language: str = "English"):
-        # 1. k값을 늘려 더 풍부한 후보군을 확보 (8 -> 12)
-        related_docs = self.vector_db.similarity_search(query, k=12)
+        # 1. 동적 k 설정 (프로젝트 규모에 비례)
+        file_count = len(self.files_data)
+        # 작은 프로젝트는 꼼꼼하게(15개), 큰 프로젝트는 노이즈 최소화(8개)
+        base_k = 15 if file_count < 50 else (10 if file_count < 200 else 8)
+        
+        # 2. 유사도 기반 후보군 검색 (2배수 추출)
+        # similarity_search_with_score는 (Document, Score) 튜플을 반환
+        docs_with_scores = self.vector_db.similarity_search_with_score(query, k=base_k * 2)
+        
+        # 3. 임계값(Threshold) 필터링 (너무 동떨어진 문맥 제거)
+        # OpenAI/Chroma 기준 거리가 너무 멀면(유사도가 낮으면) 제외
+        # 참고: 사용 모델/엔진에 따라 스코어 임계값 조정 필요
+        filtered_docs = [doc for doc, score in docs_with_scores if score < 0.6] # 0.0에 가까울수록 유사함 (L2 distance)
+        
+        # 4. LLM 기반 지능형 리랭킹 (Self-Reranking)
+        # 단순 검색 결과 중 질문에 진짜 답할 수 있는 것만 골라냄
+        final_docs = self._rerank_with_llm(query, filtered_docs, top_n=base_k)
         
         sources = []
         visited_nodes = []
         
-        # 2. 토큰 예산 관리 (최대 8,000자)
-        CONTEXT_BUDGET = 8000
+        # 5. 토큰 예산 관리 (최대 10,000자)
+        CONTEXT_BUDGET = 10000
         current_usage = 0
         
-        # 2-1. 문서(README)와 코드(Implementation) 분리 및 제한
+        # 5-1. 문서(README)와 코드(Implementation) 분리 및 제한
         readme_chunks = []
         code_chunks = []
         seen_paths = set()
         
-        # 실제 파일 데이터(neighbor 등)를 위한 추가 경로 저장
         neighbor_paths = []
 
-        for doc in related_docs:
+        for doc in final_docs:
             path = doc.metadata.get('path', 'unknown')
             filename = os.path.basename(path).lower()
             
@@ -97,7 +111,7 @@ class ChatFolioEngine:
             
             if path not in seen_paths:
                 seen_paths.add(path)
-                sources.append({"path": path, "reason": "Vector Similarity"})
+                sources.append({"path": path, "reason": "AI Ranked Context"})
                 if path in self.graph:
                     neighbors = list(self.graph.neighbors(path))
                     for n in neighbors[:2]: 
@@ -107,10 +121,9 @@ class ChatFolioEngine:
                             sources.append({"path": n, "reason": f"Dependency (from {file_name_short})"})
                         visited_nodes.append({"from": path, "to": n})
 
-        # 3. 계층형 컨텍스트 구성 (예산 내에서)
+        # 6. 계층형 컨텍스트 구성
         context_text = ""
         
-        # 3-1. 핵심 코드 청크 먼저 배치 (가장 중요)
         if code_chunks:
             context_text += "\n### [SECTION: TECHNICAL IMPLEMENTATION (Source Code)]\n"
             for doc in code_chunks:
@@ -119,7 +132,6 @@ class ChatFolioEngine:
                 context_text += snippet
                 current_usage += len(snippet)
 
-        # 3-2. README 내용 배치 (예산 남을 때만)
         if readme_chunks and current_usage < CONTEXT_BUDGET:
             context_text += "\n### [SECTION: PROJECT OVERVIEW (Documentation)]\n"
             for doc in readme_chunks:
@@ -128,13 +140,11 @@ class ChatFolioEngine:
                 context_text += snippet
                 current_usage += len(snippet)
 
-        # 3-3. 연관 파일(Neighbor) 배치 - 최소 정보만 (예산 남을 때만)
         if neighbor_paths and current_usage < CONTEXT_BUDGET:
             context_text += "\n### [SECTION: RELATED CONTEXT (Dependencies)]\n"
             for path in neighbor_paths:
                 if current_usage >= CONTEXT_BUDGET: break
                 if path in self.files_data:
-                    # 주변 파일은 아주 짧게 (500자)
                     content = self.files_data[path][:500]
                     snippet = f"\n--- File (Partial): {path} ---\n{content}\n"
                     context_text += snippet
@@ -142,18 +152,17 @@ class ChatFolioEngine:
 
         tech_context = ""
         if self.tech_stack:
-            tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n- Used Parsers: {', '.join(self.tech_stack.get('used_parsers', []))}\n"
+            tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n"
 
-        # 4. 소스 코드 중심의 강력한 시스템 프롬프트
+        # 7. 소스 코드 중심의 시스템 프롬프트
         system_prompt = f"""
         You are an experienced full-stack software engineer and code architecture expert.
-        When answering user questions, strictly adhere to the following guidelines:
+        Analyze the 'TECHNICAL IMPLEMENTATION' section carefully to answer the user's question.
         
-        1. **Code-First Analysis**: The 'DOCUMENTATION' section is for reference only. All technical questions must be answered by analyzing the actual code in the 'SOURCE CODE' section.
-        2. **Provide Specific Evidence**: Mention specific function names, class names, or code patterns that contain the core logic in your answer.
-        3. **Critical Analysis**: If the documentation differs from the actual code, consider the code implementation as the truth and point out the discrepancy.
-        4. **Readability**: Explain complex logic step-by-step while maintaining technical accuracy.
-        5. **Language**: You must answer in {language}.
+        1. **Code-First**: Prioritize actual code implementation over general documentation.
+        2. **Evidence**: Quote specific class names, function names, or file paths.
+        3. **Clarity**: Explain logic step-by-step.
+        4. **Language**: Answer in {language}.
         
         {tech_context}
         """
@@ -166,19 +175,10 @@ class ChatFolioEngine:
         
         final_answer = response.content
         
-        # HuggingFace 모델인 경우 GROQ로 검증 및 정제
         if self.provider == "huggingface":
-            verification_prompt = f"""
-            Below is a technical answer generated by a free model. 
-            Please review it for accuracy and technical correctness based on the context. 
-            If it's correct, polish it for better readability in {language}. 
-            If it contains hallucination or errors, correct it.
-            
-            Original Answer:
-            {final_answer}
-            """
+            verification_prompt = f"Review and polish this technical answer in {language} for accuracy and readability.\n\nAnswer: {final_answer}"
             verified_response = self.verifier_llm.invoke([
-                SystemMessage(content="You are a Technical Verifier. Validate and polish the following answer."),
+                SystemMessage(content="You are a Technical Verifier."),
                 HumanMessage(content=verification_prompt)
             ])
             final_answer = verified_response.content
@@ -189,6 +189,46 @@ class ChatFolioEngine:
             "graph_trace": visited_nodes,
             "usage": response.response_metadata.get("token_usage", {})
         }
+
+    def _rerank_with_llm(self, query: str, docs: list, top_n: int) -> list:
+        """가벼운 LLM을 사용하여 검색된 후보군 중 질문과 가장 관련 있는 문서를 선별합니다."""
+        if not docs: return []
+        if len(docs) <= top_n: return docs
+        
+        cheap_llm = self._get_cheap_llm()
+        
+        # 각 문서의 관련성을 평가하기 위한 콤팩트한 리스트 작성
+        doc_list_str = ""
+        for i, doc in enumerate(docs):
+            content_preview = doc.page_content[:300].replace("\n", " ")
+            doc_list_str += f"[{i}] Path: {doc.metadata.get('path')}\nContent: {content_preview}\n\n"
+            
+        rerank_prompt = f"""
+        Analyze the following code snippets and select the top {top_n} most relevant snippets that can help answer the question: "{query}".
+        
+        [Candidates]
+        {doc_list_str}
+        
+        [Instruction]
+        Respond with only a JSON list of indices. Example: [0, 2, 5]
+        """
+        
+        try:
+            response = cheap_llm.invoke([
+                SystemMessage(content="You are a Technical Re-ranker. Select only the most relevant code indices."),
+                HumanMessage(content=rerank_prompt)
+            ])
+            
+            # JSON 리스트 추출
+            import json, re
+            match = re.search(r'\[.*\]', response.content)
+            if match:
+                indices = json.loads(match.group())
+                return [docs[i] for i in indices if i < len(docs)][:top_n]
+        except Exception as e:
+            print(f"Re-ranking failed: {e}")
+            
+        return docs[:top_n]
 
     def analyze_architecture(self, language: str = "English"):
         """프로젝트 그래프와 테크 스택을 기반으로 아키텍처 분석 리포트 생성"""
@@ -244,11 +284,9 @@ class ChatFolioEngine:
         }
 
     def _get_cheap_llm(self):
-        """가벼운 작업을 위한 보조 모델 (Llama 8B / GPT-4o-mini)을 반환합니다."""
+        """가벼운 작업을 위한 보조 모델 (Llama 8B)을 반환합니다."""
         if self.provider == "groq":
             return ChatGroq(model="llama-3.1-8b-instant", temperature=0)
-        elif self.provider == "openai":
-            return ChatOpenAI(model="gpt-4o-mini", temperature=0)
         return self.llm
 
     def summarize_title(self, query: str) -> str:

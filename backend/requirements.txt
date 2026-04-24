@@ -11,14 +11,12 @@ sqlalchemy
 psycopg2-binary
 
 langchain
-langchain-openai
 langchain-groq
-chromadb
-tiktoken
+langchain-huggingface
 langchain-community
 langchain-text-splitters
+sentence-transformers
 
 fastapi-sso>=0.15.0
 PyJWT>=2.8.0
 langgraph
-langchain-huggingface
