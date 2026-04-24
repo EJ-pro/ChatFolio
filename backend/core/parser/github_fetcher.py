@@ -10,7 +10,7 @@ class GitHubFetcher:
         # 분석 대상 확장자 정의 (텍스트 기반의 소스코드, 설정, 문서)
         self.target_extensions = (
             '.kt', '.kts', '.java', '.py', '.js', '.ts', '.tsx', '.jsx', 
-            '.cpp', '.h', '.c', '.go', '.rs', '.swift', '.svelte', '.html', '.css',
+            '.cpp', '.h', '.c', '.go', '.rs', '.swift', '.svelte',
             '.json', '.yaml', '.yml', '.toml', '.xml', '.properties', '.gradle',
             '.sh', '.dockerfile', 'dockerfile'
         )
