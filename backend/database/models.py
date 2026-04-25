@@ -111,6 +111,7 @@ class ChatMessage(Base):
     role = Column(String) # 'user' or 'assistant'
     content = Column(Text)
     sources = Column(JSONB, nullable=True) # AI가 참고한 출처 (JSON)
+    evaluation = Column(JSONB, nullable=True) # AI 자가 검증 결과 (JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
 
     session = relationship("ChatSession", back_populates="messages")
@@ -167,6 +168,7 @@ def init_db():
                     # ChatSession 컬럼 추가
                     conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS title VARCHAR DEFAULT 'New Chat'"))
                     conn.execute(text("ALTER TABLE chat_sessions ADD COLUMN IF NOT EXISTS is_deleted INTEGER DEFAULT 0"))
+                    conn.execute(text("ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS evaluation JSONB"))
                     # Drop unique constraint on generated_readmes if exists (for migration to multi-readme history)
                     conn.execute(text("ALTER TABLE generated_readmes DROP CONSTRAINT IF EXISTS generated_readmes_project_id_key"))
                     conn.commit()

@@ -29,6 +29,8 @@ services:
       - db
     ports:
       - "8000:8000"
+    volumes:
+      - ./vector_storage:/app/storage/vectors
 
   frontend:
     build:
@@ -41,3 +43,4 @@ services:
 
 volumes:
   postgres_data:
+  vector_storage:

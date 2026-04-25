@@ -147,6 +147,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                         engine = ChatFolioEngine(
                             all_project_files, 
                             graph, 
+                            project_id=existing_project.id,
                             provider=existing_session.provider, 
                             model_name=existing_session.model_name
                         )
@@ -181,6 +182,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                     engine = ChatFolioEngine(
                         all_project_files, 
                         graph, 
+                        project_id=existing_project.id,
                         provider=request.provider, 
                         model_name=request.model_name
                     )
@@ -355,7 +357,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.refresh(chat_session)
 
                 
-                engine = ChatFolioEngine(all_files, graph, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name)
+                engine = ChatFolioEngine(all_files, graph, project_id=project.id, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name)
                 engine_cache[chat_session.id] = engine
                 
                 # --- [자동 README 생성 및 저장] ---
@@ -434,6 +436,7 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            project_id=project.id,
             tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
@@ -444,13 +447,14 @@ async def chat_with_code(request: ChatRequest, db: Session = Depends(get_db), cu
         user_msg = ChatMessage(session_id=session_id, role="user", content=request.query)
         db.add(user_msg)
         
-        result = engine.ask(request.query)
+        result = engine.ask(request.query, language=request.language)
         
         ai_msg = ChatMessage(
             session_id=session_id, 
             role="assistant", 
             content=result["answer"],
-            sources=result["sources"]
+            sources=result["sources"],
+            evaluation=result.get("evaluation")
         )
         db.add(ai_msg)
         db.commit()
@@ -529,6 +533,7 @@ async def get_chat_history(session_id: str, db: Session = Depends(get_db), curre
             "role": msg.role,
             "content": msg.content,
             "sources": msg.sources,
+            "evaluation": msg.evaluation,
             "created_at": msg.created_at
         } for msg in messages
     ]
@@ -558,6 +563,7 @@ async def create_new_chat_session(request: NewSessionRequest, db: Session = Depe
     engine = ChatFolioEngine(
         all_project_files, 
         graph, 
+        project_id=project.id,
         tech_stack=tech_stack,
         provider=request.provider, 
         model_name=request.model_name
@@ -605,6 +611,7 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            project_id=project.id,
             tech_stack=tech_stack,
             provider=request.provider or chat_session.provider, 
             model_name=request.model_name or chat_session.model_name
@@ -635,7 +642,8 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
             session_id=session_id,
             role="assistant",
             content=answer,
-            sources=sources
+            sources=sources,
+            evaluation=result.get("evaluation")
         )
         db.add(assistant_message)
 
@@ -674,6 +682,7 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         return {
             "answer": answer,
             "sources": sources,
+            "evaluation": result.get("evaluation"),
             "graph_trace": result.get("graph_trace", [])
         }
     except Exception as e:
@@ -711,6 +720,7 @@ async def generate_architecture_diagram(request: DiagramRequest, db: Session = D
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            project_id=project.id,
             tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
@@ -844,6 +854,7 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            project_id=project.id,
             tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name
@@ -935,6 +946,7 @@ async def generate_architecture_analysis(request: DiagramRequest, db: Session = 
         engine = ChatFolioEngine(
             all_project_files, 
             graph, 
+            project_id=project.id,
             tech_stack=tech_stack,
             provider=chat_session.provider, 
             model_name=chat_session.model_name

@@ -1,7 +1,7 @@
 from langchain_groq import ChatGroq
 from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
-# Chroma 대신 순수 파이썬 인메모리 스토어 사용
-from langchain_core.vectorstores import InMemoryVectorStore
+# ChromaDB 영구 저장소 사용
+from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage
 from .readme_agent import ReadmeAgent
@@ -10,9 +10,10 @@ import networkx as nx
 import os
 
 class ChatFolioEngine:
-    def __init__(self, files_data, graph, tech_stack=None, provider="groq", model_name=None):
+    def __init__(self, files_data, graph, project_id=None, tech_stack=None, provider="groq", model_name=None):
         self.files_data = files_data
         self.graph = graph
+        self.project_id = project_id
         self.tech_stack = tech_stack # {main_language, frameworks, used_parsers, language_distribution}
         self.provider = provider
         self.model_name = model_name
@@ -43,7 +44,24 @@ class ChatFolioEngine:
         self.vector_db = self._prepare_vector_db()
 
     def _prepare_vector_db(self):
-        # 코드를 의미 있는 단위로 쪼개기
+        # 1. 영구 저장 경로 설정
+        persist_dir = None
+        if self.project_id:
+            persist_dir = f"storage/vectors/{self.project_id}"
+            
+        # 2. 이미 저장된 데이터가 있는지 확인
+        if persist_dir and os.path.exists(persist_dir):
+            try:
+                print(f"📦 [Chroma] Loading persistent vector DB from {persist_dir}")
+                return Chroma(
+                    persist_directory=persist_dir,
+                    embedding_function=self.embeddings
+                )
+            except Exception as e:
+                print(f"⚠️ [Chroma] Failed to load persistent DB: {e}. Recreating...")
+
+        # 3. 데이터가 없으면 새로 생성
+        print("🔨 [Chroma] Creating new vector DB...")
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000, 
             chunk_overlap=100,
@@ -59,12 +77,20 @@ class ChatFolioEngine:
                 docs.append({"page_content": chunk, "metadata": {"path": path}})
         
         if not docs:
-            return InMemoryVectorStore.from_texts([" "], self.embeddings, metadatas=[{"path": "none"}])
+            # 빈 결과 방지
+            return Chroma.from_texts([" "], self.embeddings, metadatas=[{"path": "none"}], persist_directory=persist_dir)
 
         texts = [d["page_content"] for d in docs]
         metadatas = [d["metadata"] for d in docs]
         
-        return InMemoryVectorStore.from_texts(texts, self.embeddings, metadatas=metadatas)
+        vector_db = Chroma.from_texts(
+            texts=texts, 
+            embedding=self.embeddings, 
+            metadatas=metadatas,
+            persist_directory=persist_dir
+        )
+        
+        return vector_db
 
     def ask(self, query: str, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
@@ -159,10 +185,26 @@ class ChatFolioEngine:
         You are an experienced full-stack software engineer and code architecture expert.
         Analyze the 'TECHNICAL IMPLEMENTATION' section carefully to answer the user's question.
         
-        1. **Code-First**: Prioritize actual code implementation over general documentation.
-        2. **Evidence**: Quote specific class names, function names, or file paths.
-        3. **Clarity**: Explain logic step-by-step.
-        4. **Language**: Answer in {language}.
+        [Strict Formatting Rules]
+        - **Language**: You MUST answer in {language}.
+        - **Structure**: Use Markdown headers (###), bullet points (-), and bold text (**bold**).
+        - **Spacing**: Use double newlines (\n\n) between EVERY section and EVERY bullet point.
+        - **Clarity**: Explain logic step-by-step.
+        
+        [Example Template]
+        ### 1. Section Title
+        Brief explanation...
+        
+        - **Point 1**: Detail...
+        
+        - **Point 2**: Detail...
+        
+        ### 2. Another Section
+        Summary...
+        
+        [Content Rules]
+        1. **Code-First**: Prioritize actual code implementation.
+        2. **Evidence**: Quote specific class names or file paths.
         
         {tech_context}
         """
@@ -183,11 +225,66 @@ class ChatFolioEngine:
             ])
             final_answer = verified_response.content
 
+        # 8. 자가 검증 (Self-Evaluation)
+        evaluation = self._evaluate_answer(query, final_answer, context_text)
+
         return {
             "answer": final_answer,
             "sources": sources,
+            "evaluation": evaluation,
             "graph_trace": visited_nodes,
             "usage": response.response_metadata.get("token_usage", {})
+        }
+
+    def _evaluate_answer(self, query: str, answer: str, context: str) -> dict:
+        """LLM을 사용하여 생성된 답변의 정확성과 신뢰도를 검증합니다."""
+        eval_prompt = f"""
+        You are a Technical Quality Auditor. Evaluate the 'Answer' based on the 'Context' provided.
+        
+        [Query]
+        {query}
+        
+        [Context]
+        {context}
+        
+        [Answer]
+        {answer}
+        
+        [Criteria]
+        1. **Faithfulness**: Is the answer derived ONLY from the context? (0-100)
+        2. **Technical Accuracy**: Are class/function names and logic correct according to the code? (0-100)
+        3. **Completeness**: Does it fully answer the user's query? (0-100)
+        
+        [Output Format - JSON only]
+        {{
+            "score": average_score,
+            "verdict": "High Trust" | "Medium Trust" | "Low Trust",
+            "reason": "summary of evaluation (in Korean)",
+            "checks": {{
+                "faithfulness": 100,
+                "accuracy": 100,
+                "hallucination_detected": false
+            }}
+        }}
+        """
+        try:
+            response = self.verifier_llm.invoke([
+                SystemMessage(content="You are a strict technical evaluator. Output JSON only."),
+                HumanMessage(content=eval_prompt)
+            ])
+            # JSON 리스트 추출
+            import json, re
+            match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except Exception as e:
+            print(f"Evaluation failed: {e}")
+            
+        return {
+            "score": 0, 
+            "verdict": "Evaluation Failed", 
+            "reason": "검증 도중 오류가 발생했습니다.",
+            "checks": {"faithfulness": 0, "accuracy": 0, "hallucination_detected": True}
         }
 
     def _rerank_with_llm(self, query: str, docs: list, top_n: int) -> list:
@@ -251,7 +348,15 @@ class ChatFolioEngine:
                 # 첫 1000자 정도
                 important_snippets += f"\n- File: {path}\n```\n{content[:1000]}\n```\n"
         
-        system_prompt = f"You are a Senior Software Architect. Analyze the project structure and tech stack to provide a professional architecture review in {language}."
+        system_prompt = f"""
+        You are a Senior Software Architect. 
+        Analyze the project structure and tech stack to provide a professional architecture review in {language}.
+        
+        [Strict Formatting Rules]
+        1. **Markdown**: Use clear Markdown headers (###), bullet points (-), and dividers (---).
+        2. **Spacing**: Ensure double newlines between paragraphs and sections for maximum readability.
+        3. **Sections**: Explicitly label sections like "Overall Design", "Data Flow", etc.
+        """
         user_prompt = f"""
         [Project Statistics]
         - Total Files: {node_count}

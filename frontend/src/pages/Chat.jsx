@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles, Crown } from 'lucide-react';
+import { Send, Bot, User, Loader2, Plus, MessageSquare, Menu, X, FileText, Link, Check, ExternalLink, ChevronDown, Zap, Sparkles, Crown, ShieldCheck, AlertCircle, ShieldAlert } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { chatService, authService } from '../api';
+import ReactMarkdown from 'react-markdown';
 
 function Chat() {
   const location = useLocation();
@@ -182,6 +183,7 @@ function Chat() {
         role: 'assistant', 
         content: data.answer,
         sources: data.sources,
+        evaluation: data.evaluation,
         graph_trace: data.graph_trace
       }]);
     } catch (err) {
@@ -359,7 +361,11 @@ function Chat() {
                   ? 'bg-blue-600 text-white rounded-tr-none' 
                   : 'bg-slate-800/80 backdrop-blur-sm text-slate-200 border border-slate-700/50 rounded-tl-none'
               }`}>
-                {msg.content}
+                <ReactMarkdown 
+                  className="markdown-content text-slate-200"
+                >
+                  {msg.content}
+                </ReactMarkdown>
                 
                 {msg.sources && msg.sources.length > 0 && (
                   <div className="mt-4 pt-4 border-t border-slate-700/50">
@@ -378,6 +384,26 @@ function Chat() {
                         </div>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* AI Verification Section */}
+                {msg.role === 'assistant' && msg.evaluation && (
+                  <div className="mt-4 pt-3 border-t border-slate-700/50">
+                    <div className={`flex items-center justify-between text-[10px] font-black uppercase tracking-widest ${
+                      msg.evaluation.score >= 80 ? 'text-emerald-500' : 
+                      msg.evaluation.score >= 50 ? 'text-amber-500' : 'text-rose-500'
+                    }`}>
+                      <div className="flex items-center gap-1.5">
+                        {msg.evaluation.score >= 80 ? <ShieldCheck size={12} /> : 
+                         msg.evaluation.score >= 50 ? <AlertCircle size={12} /> : <ShieldAlert size={12} />}
+                        AI Confidence: {msg.evaluation.score}%
+                      </div>
+                      <span className="opacity-70">{msg.evaluation.verdict}</span>
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-slate-500 italic leading-relaxed">
+                      &quot;{msg.evaluation.reason}&quot;
+                    </p>
                   </div>
                 )}
               </div>
