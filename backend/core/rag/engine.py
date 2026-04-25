@@ -388,6 +388,70 @@ class ChatFolioEngine:
             "usage": response.response_metadata.get("token_usage", {})
         }
 
+    def generate_pipeline(self, language: str = "English"):
+        """프로젝트의 소스 코드를 분석하여 실행 흐름(Pipeline)을 동적으로 생성합니다."""
+        # 중요 파일 추출 (중심성 기반)
+        try:
+            centrality = nx.degree_centrality(self.graph)
+            top_nodes = sorted(centrality.items(), key=lambda x: x[1], reverse=True)[:10]
+            top_files = [node[0] for node in top_nodes]
+        except:
+            top_files = list(self.files_data.keys())[:5]
+            
+        important_snippets = ""
+        for path in top_files:
+            content = self.files_data.get(path, "")
+            if content:
+                important_snippets += f"\n- File: {path}\n```\n{content[:800]}\n```\n"
+
+        system_prompt = f"""
+        You are a Senior System Architect. 
+        Analyze the provided source code snippets to identify the core "Execution Pipeline" (Data/Logic Flow) of this project.
+        You must summarize how data flows through this specific system.
+        Respond in {language}.
+        
+        [Output Format - JSON only]
+        {{
+            "steps": [
+                {{
+                    "id": "step_id",
+                    "title": "Short Step Title",
+                    "desc": "Brief description of this stage",
+                    "file": "main_file_path.ext",
+                    "tech": ["Tech1", "Tech2"],
+                    "color": "#HEX_COLOR",
+                    "details": {{
+                        "actions": ["Action 1", "Action 2", "Action 3"],
+                        "payload": {{ "key": "example_data_structure" }}
+                    }}
+                }}
+            ]
+        }}
+        
+        [Rules]
+        1. Identify 5 to 8 logical steps representing the core life cycle (e.g., Request -> Auth -> Validation -> Business Logic -> Persistence).
+        2. Assign a unique vibrant color to each step (Tailwind-like hex colors).
+        3. 'payload' should show a realistic example of the data structure processed at that step.
+        4. OUTPUT ONLY RAW JSON.
+        """
+        
+        user_prompt = f"Tech Stack: {json.dumps(self.tech_stack)}\n\nImportant Files Context:\n{important_snippets}"
+        
+        try:
+            response = self.llm.invoke([
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ])
+            
+            import re
+            match = re.search(r'\{.*\}', response.content, re.DOTALL)
+            if match:
+                return json.loads(match.group())
+        except Exception as e:
+            print(f"Pipeline generation failed: {e}")
+            
+        return {"steps": []}
+
     def _get_cheap_llm(self):
         """가벼운 작업을 위한 보조 모델 (Llama 8B)을 반환합니다."""
         if self.provider == "groq":

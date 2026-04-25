@@ -64,6 +64,7 @@ function DashboardLayout() {
   const navItems = [
     { path: `/${username}/dashboard/chat`, icon: MessageSquare, label: 'General Chat' },
     { path: `/${username}/dashboard/architecture`, icon: Share2, label: 'Architecture' },
+    { path: `/${username}/dashboard/pipeline`, icon: GitBranch, label: 'Pipeline' },
     { path: `/${username}/dashboard/docs`, icon: FileText, label: 'Documentation' },
     { path: `/${username}/dashboard/interview`, icon: Target, label: 'Mock Interview' },
   ];

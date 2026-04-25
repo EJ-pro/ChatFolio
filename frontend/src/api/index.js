@@ -66,6 +66,7 @@ export const projectService = {
   getOverview: (username) => api.get(`/overview/${username}`),
   getNetwork: (sessionId) => api.post('/generate/network', { session_id: sessionId }),
   getArchitectureAnalysis: (sessionId) => api.post('/generate/architecture-analysis', { session_id: sessionId }),
+  getProjectPipeline: (sessionId) => api.post('/generate/pipeline', { session_id: sessionId }),
   checkUpdate: (projectId) => api.post(`/projects/${projectId}/check-update`),
 };
 

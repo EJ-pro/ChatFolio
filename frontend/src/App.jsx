@@ -15,6 +15,7 @@ import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import FAQ from './pages/FAQ';
 import DocDeepPipeline from './pages/DocDeepPipeline/DocDeepPipeline.jsx';
+import PipelineTab from './pages/PipelineTab';
 import Doc from './pages/Doc';
 
 // 인증 가드 컴포넌트
@@ -91,6 +92,7 @@ function App() {
         }>
           <Route path="chat" element={<Chat />} />
           <Route path="architecture" element={<ArchitectureTab />} />
+          <Route path="pipeline" element={<PipelineTab />} />
           <Route path="docs" element={<DocsTab />} />
           <Route path="interview" element={<InterviewTab />} />
         </Route>
