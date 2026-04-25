@@ -65,8 +65,8 @@ export const projectService = {
   getStatus: (taskId) => api.get(`/status/${taskId}`),
   getOverview: (username) => api.get(`/overview/${username}`),
   getNetwork: (sessionId) => api.post('/generate/network', { session_id: sessionId }),
-  getArchitectureAnalysis: (sessionId) => api.post('/generate/architecture-analysis', { session_id: sessionId }),
-  getProjectPipeline: (sessionId) => api.post('/generate/pipeline', { session_id: sessionId }),
+  getArchitectureAnalysis: (sessionId, data = {}) => api.post('/generate/architecture-analysis', { session_id: sessionId, ...data }),
+  getProjectPipeline: (sessionId, data = {}) => api.post('/generate/pipeline', { session_id: sessionId, ...data }),
   checkUpdate: (projectId) => api.post(`/projects/${projectId}/check-update`),
 };
 

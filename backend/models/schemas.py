@@ -30,6 +30,7 @@ class AnalysisResponse(BaseModel):
 class DiagramRequest(BaseModel):
     session_id: str
     force_regenerate: Optional[bool] = False
+    generate_if_missing: Optional[bool] = True
 
 class DiagramResponse(BaseModel):
     mermaid_code: str
@@ -38,6 +39,7 @@ class DiagramResponse(BaseModel):
 class ReadmeRequest(BaseModel):
     session_id: str
     force_regenerate: Optional[bool] = False
+    generate_if_missing: Optional[bool] = True
     user_inputs: Optional[Dict[str, str]] = None
     provider: Optional[str] = "groq"
     model_name: Optional[str] = None

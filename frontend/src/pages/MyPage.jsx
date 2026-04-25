@@ -462,50 +462,6 @@ function MyPage() {
                 ))}
               </div>
             </div>
-
-            {/* Diagram Gallery */}
-            <div>
-              <div className="flex items-center gap-3 mb-8">
-                <div className="w-1.5 h-6 bg-blue-500 rounded-full"></div>
-                <h3 className="text-2xl font-bold text-white tracking-tight">Architecture Diagram Gallery</h3>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {profile.assets.diagrams.map(diag => (
-                  <div key={diag.id} className="glass-panel rounded-3xl p-6 border border-white/5 hover:border-blue-500/30 transition-all group overflow-hidden">
-                    <div className="flex justify-between items-center mb-6">
-                      <h4 className="font-bold text-white flex items-center gap-2">
-                        <GitBranch className="w-4 h-4 text-blue-400" />
-                        {diag.repo_url.split('/').slice(-2).join('/')}
-                      </h4>
-                      <button
-                        onClick={() => navigate(`/${username}/dashboard/architecture`, { state: { sessionId: diag.latest_session_id || diag.id } })}
-                        className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="aspect-video bg-slate-950/50 rounded-2xl border border-white/5 flex flex-col p-4 relative overflow-hidden">
-                      <div className="text-[10px] text-blue-400/50 font-mono whitespace-pre-wrap overflow-hidden line-clamp-6 opacity-40">
-                        {diag.mermaid_code || "graph TD\n  A[App] --> B[Module]\n  B --> C[Data]"}
-                      </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex items-end p-4">
-                        <div className="w-full flex justify-between items-center">
-                          <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Mermaid Architecture</p>
-                          <div className="flex gap-2">
-                            <button 
-                              onClick={() => handleCopy(diag.mermaid_code, diag.id)}
-                              className="p-1.5 rounded-md bg-slate-900/80 text-slate-500 hover:text-blue-400 transition-all"
-                            >
-                              {copiedId === diag.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </section>
         )}
       </main>

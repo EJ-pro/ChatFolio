@@ -11,7 +11,8 @@ function DocsTab() {
   const [sessionId, setSessionId] = useState(location.state?.sessionId || sessionStorage.getItem('last_session_id'));
   
   const [readmeContent, setReadmeContent] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const [viewMode, setViewMode] = useState('code'); // 'code' or 'md'
@@ -76,28 +77,29 @@ function DocsTab() {
   }, [sessionId]);
 
   const fetchInitialData = async (sid) => {
-    setIsLoading(true);
+    setIsInitialLoading(true);
     try {
       // 1. Get Session Info to get project_id
       const infoData = await chatService.getSessionInfo(sid);
       setCurrentProjectId(infoData.project_id);
 
-      // 2. Fetch all readmes for this project
-      fetchReadmesHistory(infoData.project_id);
+      // 2. Fetch all readmes for this project and get history
+      const history = await docsService.getProjectReadmes(infoData.project_id);
+      setReadmes(history);
 
-      // 3. Fetch latest generated readme content (if any)
-      const data = await docsService.generateReadme({ 
-        session_id: sid,
-        force_regenerate: false // 기존 거 있으면 가져오기
-      });
-
-      if (data.readme_content) {
-        setReadmeContent(data.readme_content);
+      if (history.length > 0) {
+        // 3. If history exists, use the latest one immediately
+        setReadmeContent(history[0].content);
+        setActiveReadmeId(history[0].id);
+      } else {
+        // 4. No history? Reset content so UI shows empty/initial state
+        setReadmeContent('');
+        setActiveReadmeId(null);
       }
     } catch (err) {
       console.error('Failed to fetch initial data:', err);
     } finally {
-      setIsLoading(false);
+      setIsInitialLoading(false);
     }
   };
 
@@ -117,7 +119,7 @@ function DocsTab() {
   const handleGenerateReadme = async () => {
     if (!sessionId) return;
     
-    setIsLoading(true);
+    setIsGenerating(true);
     setAgentStep(1); // Start with Analyzer
     setError('');
     setReadmeContent('');
@@ -149,7 +151,7 @@ function DocsTab() {
       setError(err.message);
     } finally {
       clearInterval(timer);
-      setIsLoading(false);
+      setIsGenerating(false);
       setAgentStep(0);
     }
   };
@@ -171,6 +173,14 @@ function DocsTab() {
 
   return (
     <div className="flex h-full bg-slate-950 overflow-hidden">
+      {/* Initial Loading Overlay */}
+      {isInitialLoading && (
+        <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md">
+          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mb-4" />
+          <p className="text-slate-400 font-bold animate-pulse">Loading Document Library...</p>
+        </div>
+      )}
+
       {/* Left Panel: Controls */}
       <div className="w-1/3 min-w-[350px] p-8 bg-slate-900/30 border-r border-white/5 overflow-y-auto">
         <header className="mb-10">
@@ -330,10 +340,10 @@ function DocsTab() {
           
           <button
             onClick={handleGenerateReadme}
-            disabled={isLoading || !sessionId}
+            disabled={isGenerating || isInitialLoading || !sessionId}
             className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-bold shadow-md transition-all disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isLoading ? (
+            {isGenerating ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 <span>Generating README...</span>
@@ -396,7 +406,7 @@ function DocsTab() {
         <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/5 blur-[100px] rounded-full pointer-events-none"></div>
         <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/5 blur-[100px] rounded-full pointer-events-none"></div>
 
-        {isLoading ? (
+        {isGenerating ? (
           <div className="flex-1 flex flex-col items-center justify-center p-8 z-10">
             <div className="max-w-md w-full">
               <div className="flex flex-col items-center mb-12">

@@ -16,15 +16,20 @@ export default function PipelineTab() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (sessionId) fetchPipeline();
+    if (sessionId) fetchPipeline(false, false); // Check only
   }, [sessionId]);
 
-  const fetchPipeline = async () => {
+  const fetchPipeline = async (force = false, generateIfMissing = true) => {
     try {
       setIsLoading(true);
-      const data = await projectService.getProjectPipeline(sessionId);
-      if (data && data.steps) {
+      const data = await projectService.getProjectPipeline(sessionId, { 
+        force_regenerate: force,
+        generate_if_missing: generateIfMissing
+      });
+      if (data && data.steps && data.steps.length > 0) {
         setPipeline(data);
+      } else {
+        setPipeline(null);
       }
     } catch (err) {
       console.error("Pipeline fetch failed:", err);
@@ -53,8 +58,9 @@ export default function PipelineTab() {
         <Activity className="w-16 h-16 text-slate-700 mb-6" />
         <h2 className="text-2xl font-bold text-white mb-2">No Pipeline Data</h2>
         <p className="text-slate-500">Could not infer a clear execution pipeline for this project.</p>
-        <button onClick={fetchPipeline} className="mt-6 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-500 transition-all">
-          Retry Analysis
+        <button onClick={() => fetchPipeline(true)} className="mt-8 flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-500 transition-all shadow-xl shadow-emerald-500/20">
+          <Sparkles className="w-4 h-4" />
+          Generate Pipeline Analysis
         </button>
       </div>
     );
@@ -85,13 +91,25 @@ export default function PipelineTab() {
     <div className="flex-1 bg-[#030712] text-[#e2e8f0] p-6 md:p-10 flex flex-col items-center overflow-y-auto custom-scrollbar" style={{ fontFamily: "Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif" }}>
       {/* Header Area */}
       <div className="w-full max-w-6xl mb-12 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-4">
-            <Activity size={12} /> Dynamic Execution Pipeline
+        <div className="flex-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-[10px] text-emerald-400 font-black uppercase tracking-widest mb-4">
+                <Activity size={12} /> Dynamic Execution Pipeline
+              </div>
+              <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white mb-2 leading-tight">
+                Project<span className="text-emerald-400">Flow</span>
+              </h1>
+            </div>
+            <button 
+              onClick={() => fetchPipeline(true)}
+              disabled={isLoading}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-slate-400 hover:text-emerald-400 transition-all text-xs font-bold disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+              Regenerate
+            </button>
           </div>
-          <h1 className="text-3xl md:text-5xl font-black tracking-tight text-white mb-2 leading-tight">
-            Project<span className="text-emerald-400">Flow</span>
-          </h1>
           <p className="text-slate-400 text-lg">Inferred business logic and data lifecycle from analyzed source code</p>
         </div>
         

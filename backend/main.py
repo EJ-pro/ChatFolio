@@ -286,12 +286,33 @@ async def generate_network_data(request: DiagramRequest, db: Session = Depends(g
 @app.post("/generate/architecture-analysis")
 async def generate_architecture_analysis(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == request.session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    project = chat_session.project
+    
+    # 1. 캐시 확인
+    if project.architecture_analysis and not request.force_regenerate:
+        return {"analysis": project.architecture_analysis}
+
+    # 1.5. 캐시 없고 자동 생성 방지 모드인 경우
+    if not request.generate_if_missing:
+        return {"analysis": None, "status": "no_cache"}
+
+    # 2. 캐시 없으면 생성
     engine = engine_cache.get(request.session_id)
     if not engine:
-        project = chat_session.project
         engine = ChatFolioEngine({f.file_path: f.content for f in project.files}, nx.node_link_graph(project.graph_data), project_id=project.id, provider=chat_session.provider, model_name=chat_session.model_name)
         engine_cache[request.session_id] = engine
-    return {"analysis": engine.analyze_architecture(language="Korean" if current_user.country == "South Korea" else "English").get("analysis")}
+    
+    result = engine.analyze_architecture(language="Korean" if current_user.country == "South Korea" else "English")
+    analysis_text = result.get("analysis")
+    
+    # 3. DB에 저장 (캐싱)
+    project.architecture_analysis = analysis_text
+    db.commit()
+    
+    return {"analysis": analysis_text}
 
 @app.post("/generate/pipeline")
 async def generate_project_pipeline(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -304,6 +325,10 @@ async def generate_project_pipeline(request: DiagramRequest, db: Session = Depen
     # 1. 캐시 확인
     if project.pipeline_data and not request.force_regenerate:
         return project.pipeline_data
+
+    # 1.5. 캐시 없고 자동 생성 방지 모드인 경우
+    if not request.generate_if_missing:
+        return {"steps": [], "status": "no_cache"}
 
     # 2. 캐시 없거나 강제 갱신이면 생성
     engine = engine_cache.get(request.session_id)
@@ -332,12 +357,36 @@ async def get_project_readmes(project_id: int, db: Session = Depends(get_db), cu
 @app.post("/generate/readme")
 async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == request.session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    project = chat_session.project
+    
+    # 1. 기존 README가 있는지 확인 (강제 재생성이 아닌 경우)
+    if not request.force_regenerate:
+        existing_readme = db.query(GeneratedReadme).filter(GeneratedReadme.project_id == project.id).order_by(GeneratedReadme.created_at.desc()).first()
+        if existing_readme:
+            return {"readme_content": existing_readme.content, "status": "cached"}
+
+    # 1.5. 기존 거 없고 자동 생성 방지 모드인 경우
+    if not request.generate_if_missing:
+        return {"readme_content": None, "status": "no_cache"}
+
+    # 2. 없거나 강제 재생성이면 AI 호출
     engine = engine_cache.get(request.session_id)
+    if not engine:
+        engine = ChatFolioEngine({f.file_path: f.content for f in project.files}, nx.node_link_graph(project.graph_data), project_id=project.id, provider=chat_session.provider, model_name=chat_session.model_name)
+        engine_cache[request.session_id] = engine
+        
     result = engine.generate_readme(languages=request.languages)
-    new_readme = GeneratedReadme(project_id=chat_session.project_id, content=result["readme_content"])
+    readme_content = result["readme_content"]
+    
+    # 3. DB에 저장
+    new_readme = GeneratedReadme(project_id=project.id, content=readme_content)
     db.add(new_readme)
     db.commit()
-    return {"readme_content": result["readme_content"]}
+    
+    return {"readme_content": readme_content, "status": "generated"}
 
 @app.get("/chat/session/{session_id}/info")
 async def get_session_info(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
