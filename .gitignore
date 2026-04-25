@@ -167,6 +167,7 @@ out/
 
 # Database (ChromaDB, etc.)
 chroma/
+vector_storage/
 *.db
 *.sqlite3
 
