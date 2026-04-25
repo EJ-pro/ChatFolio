@@ -3,7 +3,7 @@ from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
 # ChromaDB 영구 저장소 사용
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_core.messages import SystemMessage, HumanMessage
+from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .readme_agent import ReadmeAgent
 import json
 import networkx as nx
@@ -92,7 +92,7 @@ class ChatFolioEngine:
         
         return vector_db
 
-    def ask(self, query: str, language: str = "English"):
+    def ask(self, query: str, history: list = None, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
         file_count = len(self.files_data)
         # 작은 프로젝트는 꼼꼼하게(15개), 큰 프로젝트는 노이즈 최소화(8개)
@@ -210,10 +210,20 @@ class ChatFolioEngine:
         """
         
         user_prompt = f"Context:\n{context_text}\n\nQuestion: {query}"
-        response = self.llm.invoke([
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=user_prompt)
-        ])
+        
+        messages = [SystemMessage(content=system_prompt)]
+        
+        # 이전 대화 내역 추가 (컨텍스트 유지)
+        if history:
+            for msg in history:
+                if msg.get('role') == 'user':
+                    messages.append(HumanMessage(content=msg.get('content', '')))
+                elif msg.get('role') == 'assistant':
+                    messages.append(AIMessage(content=msg.get('content', '')))
+        
+        messages.append(HumanMessage(content=user_prompt))
+        
+        response = self.llm.invoke(messages)
         
         final_answer = response.content
         

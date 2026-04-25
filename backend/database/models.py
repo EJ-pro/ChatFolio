@@ -41,6 +41,7 @@ class Project(Base):
     languages = Column(JSONB, nullable=True) # GitHub 언어 통계 데이터 저장 (Bytes)
     last_commit_hash = Column(String, nullable=True)
     last_commit_message = Column(Text, nullable=True)
+    pipeline_data = Column(JSONB, nullable=True) # 생성된 파이프라인 캐싱
     created_at = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="projects")
@@ -160,6 +161,7 @@ def init_db():
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS languages JSONB"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_hash VARCHAR"))
                     conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS last_commit_message TEXT"))
+                    conn.execute(text("ALTER TABLE projects ADD COLUMN IF NOT EXISTS pipeline_data JSONB"))
                     # ProjectFile 컬럼 추가
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS keywords JSONB"))
                     conn.execute(text("ALTER TABLE project_files ADD COLUMN IF NOT EXISTS line_count INTEGER DEFAULT 0"))

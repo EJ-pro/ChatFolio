@@ -166,8 +166,27 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 graph = builder.build_graph(all_meta)
                 project.node_count, project.edge_count, project.graph_data = graph.number_of_nodes(), graph.number_of_edges(), nx.node_link_data(graph)
                 
-                chat_session = ChatSession(user_id=current_user.id, project_id=project.id, provider=request.provider, model_name=request.model_name)
-                db_session.add(chat_session)
+                # --- [ChatSession 관리] ---
+                # 기존 세션이 있는지 확인 (있으면 재사용, 없으면 생성)
+                chat_session = db_session.query(ChatSession).filter(
+                    ChatSession.project_id == project.id,
+                    ChatSession.user_id == current_user.id,
+                    ChatSession.is_deleted == 0
+                ).order_by(ChatSession.created_at.desc()).first()
+
+                if not chat_session:
+                    chat_session = ChatSession(
+                        user_id=current_user.id,
+                        project_id=project.id,
+                        provider=request.provider,
+                        model_name=request.model_name
+                    )
+                    db_session.add(chat_session)
+                else:
+                    # 기존 세션 정보 업데이트
+                    chat_session.provider = request.provider
+                    chat_session.model_name = request.model_name
+
                 project.status = "COMPLETED"
                 db_session.commit()
                 db_session.refresh(chat_session)
@@ -202,9 +221,37 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         engine = ChatFolioEngine(all_project_files, graph, project_id=project.id, provider=chat_session.provider, model_name=chat_session.model_name)
         engine_cache[session_id] = engine
     try:
+        # 1. 이전 대화 내역 가져오기 (최근 10개)
+        history_msgs = db.query(ChatMessage).filter(
+            ChatMessage.session_id == session_id
+        ).order_by(ChatMessage.created_at.desc()).limit(10).all()
+        
+        # 엔진에 전달할 형식으로 변환 (오래된 순으로)
+        history = [{"role": m.role, "content": m.content} for m in reversed(history_msgs)]
+        
+        # 2. 사용자 질문 저장
         db.add(ChatMessage(session_id=session_id, role="user", content=request.query))
-        result = engine.ask(request.query, language=request.language)
-        db.add(ChatMessage(session_id=session_id, role="assistant", content=result["answer"], sources=result["sources"], evaluation=result.get("evaluation")))
+        
+        # 3. 답변 생성 (히스토리 포함)
+        result = engine.ask(request.query, history=history, language=request.language)
+        
+        # 4. AI 답변 저장
+        db.add(ChatMessage(
+            session_id=session_id, 
+            role="assistant", 
+            content=result["answer"], 
+            sources=result["sources"], 
+            evaluation=result.get("evaluation")
+        ))
+        
+        # 5. 첫 대화인 경우 제목 요약 업데이트
+        if chat_session.title == "New Chat":
+            try:
+                title_info = engine.summarize_title(request.query)
+                chat_session.title = title_info["title"]
+            except:
+                chat_session.title = request.query[:20] + "..."
+        
         db.commit()
         return result
     except Exception as e:
@@ -249,12 +296,33 @@ async def generate_architecture_analysis(request: DiagramRequest, db: Session = 
 @app.post("/generate/pipeline")
 async def generate_project_pipeline(request: DiagramRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     chat_session = db.query(ChatSession).filter(ChatSession.id == request.session_id).first()
+    if not chat_session:
+        raise HTTPException(status_code=404, detail="Session not found")
+        
+    project = chat_session.project
+    
+    # 1. 캐시 확인
+    if project.pipeline_data and not request.force_regenerate:
+        return project.pipeline_data
+
+    # 2. 캐시 없거나 강제 갱신이면 생성
     engine = engine_cache.get(request.session_id)
     if not engine:
-        project = chat_session.project
         engine = ChatFolioEngine({f.file_path: f.content for f in project.files}, nx.node_link_graph(project.graph_data), project_id=project.id, provider=chat_session.provider, model_name=chat_session.model_name)
         engine_cache[request.session_id] = engine
-    return engine.generate_pipeline(language="Korean" if current_user.country == "South Korea" else "English")
+        
+    try:
+        pipeline_data = engine.generate_pipeline(language="Korean" if current_user.country == "South Korea" else "English")
+        
+        # 3. DB에 저장 (캐싱)
+        project.pipeline_data = pipeline_data
+        db.commit()
+        
+        return pipeline_data
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/readmes/{project_id}")
 async def get_project_readmes(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -270,3 +338,50 @@ async def generate_readme(request: ReadmeRequest, db: Session = Depends(get_db),
     db.add(new_readme)
     db.commit()
     return {"readme_content": result["readme_content"]}
+
+@app.get("/chat/session/{session_id}/info")
+async def get_session_info(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {
+        "id": session.id,
+        "project_id": session.project_id,
+        "title": session.title,
+        "provider": session.provider,
+        "model_name": session.model_name,
+        "created_at": session.created_at
+    }
+
+@app.get("/chat/sessions/{project_id}")
+async def get_project_sessions(project_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    sessions = db.query(ChatSession).filter(
+        ChatSession.project_id == project_id,
+        ChatSession.user_id == current_user.id,
+        ChatSession.is_deleted == 0
+    ).order_by(ChatSession.created_at.desc()).all()
+    return [{"session_id": s.id, "title": s.title, "created_at": s.created_at} for s in sessions]
+
+@app.post("/chat/session/new")
+async def create_new_session(request: NewSessionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    new_session = ChatSession(
+        user_id=current_user.id,
+        project_id=request.project_id,
+        provider=request.provider,
+        model_name=request.model_name,
+        title="New Chat"
+    )
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    return {"status": "success", "session_id": new_session.id}
+
+@app.delete("/chat/session/{session_id}")
+async def delete_chat_session(session_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    session = db.query(ChatSession).filter(ChatSession.id == session_id, ChatSession.user_id == current_user.id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.is_deleted = 1
+    db.commit()
+    return {"status": "success", "message": "Session deleted"}
