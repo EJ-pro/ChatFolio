@@ -238,6 +238,7 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                     "id": r.id, 
                     "project_id": r.project_id, 
                     "repo_url": r.project.repo_url, 
+                    "content": r.content, # 실제 내용 추가
                     "created_at": r.created_at, 
                     "latest_session_id": (
                         db.query(ChatSession.id)
@@ -252,6 +253,7 @@ async def get_user_profile(username: str, db: Session = Depends(get_db)):
                 {
                     "id": p.id, 
                     "repo_url": p.repo_url, 
+                    "mermaid_code": p.mermaid_code, # 다이어그램 코드 추가
                     "created_at": p.created_at, 
                     "latest_session_id": (
                         db.query(ChatSession.id)

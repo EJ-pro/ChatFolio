@@ -5,7 +5,7 @@ import {
   ExternalLink, MessageSquare, Share2, FileText,
   Sparkles, ShieldCheck, Trophy, GitBranch,
   Clock, CheckCircle2, AlertCircle, Loader2, ChevronRight,
-  ArrowLeft, RefreshCw, Crown
+  ArrowLeft, RefreshCw, Crown, Copy, Download, Check, Eye
 } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import { authService, projectService } from '../api';
@@ -78,6 +78,23 @@ function MyPage() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
+  };
+
+  const [copiedId, setCopiedId] = useState(null);
+
+  const handleCopy = (text, id) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleDownload = (filename, content) => {
+    const element = document.createElement("a");
+    const file = new Blob([content], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = filename;
+    document.body.appendChild(element);
+    element.click();
   };
 
   if (isLoading) {
@@ -388,32 +405,58 @@ function MyPage() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {profile.assets.readmes.map(readme => (
-                  <div key={readme.id} className="group glass-panel rounded-3xl p-6 border border-white/5 flex flex-col h-full relative overflow-hidden">
+                  <div key={readme.id} className="group glass-panel rounded-3xl p-6 border border-white/5 flex flex-col h-full relative overflow-hidden transition-all hover:border-purple-500/30">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-indigo-500 opacity-50"></div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400">
-                        <FileText className="w-5 h-5" />
+                    
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center text-purple-400 shrink-0">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-white truncate text-sm">{readme.repo_url.split('/').slice(-1)}</h4>
+                          <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{new Date(readme.created_at).toLocaleDateString()}</p>
+                        </div>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-bold text-white truncate text-sm">{readme.repo_url.split('/').slice(-1)}</h4>
-                        <p className="text-[10px] text-slate-500 font-mono uppercase tracking-widest">{new Date(readme.created_at).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="flex-1 bg-slate-950/50 rounded-2xl p-4 mb-6 border border-white/5 overflow-hidden relative">
-                      <div className="space-y-2 opacity-20 pointer-events-none">
-                        <div className="h-4 w-3/4 bg-white/20 rounded"></div>
-                        <div className="h-2 w-full bg-white/10 rounded"></div>
-                        <div className="h-2 w-5/6 bg-white/10 rounded"></div>
-                        <div className="h-2 w-2/3 bg-white/10 rounded"></div>
-                      </div>
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-slate-950/80">
-                        <button
-                          onClick={() => navigate(`/${username}/dashboard/docs`, { state: { sessionId: readme.latest_session_id } })}
-                          className="px-4 py-2 bg-purple-600 text-white rounded-xl text-xs font-bold shadow-lg transform scale-90 group-hover:scale-100 transition-transform"
+                      <div className="flex gap-1">
+                        <button 
+                          onClick={() => handleCopy(readme.content, readme.id)}
+                          className="p-2 rounded-lg bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-purple-400 transition-all"
+                          title="Copy Content"
                         >
-                          View Document
+                          {copiedId === readme.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                        </button>
+                        <button 
+                          onClick={() => handleDownload(`${readme.repo_url.split('/').pop()}_README.md`, readme.content)}
+                          className="p-2 rounded-lg bg-slate-900/50 hover:bg-slate-800 text-slate-400 hover:text-purple-400 transition-all"
+                          title="Download README"
+                        >
+                          <Download className="w-3.5 h-3.5" />
                         </button>
                       </div>
+                    </div>
+
+                    <div className="flex-1 bg-slate-950/80 rounded-2xl p-4 mb-4 border border-white/5 relative group/preview">
+                      <div className="text-[11px] text-slate-400 font-mono line-clamp-[8] whitespace-pre-wrap leading-relaxed">
+                        {readme.content || "No content generated yet."}
+                      </div>
+                      
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent opacity-60"></div>
+                      
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/preview:opacity-100 transition-opacity bg-slate-950/60 backdrop-blur-[2px]">
+                        <button
+                          onClick={() => navigate(`/${username}/dashboard/docs`, { state: { sessionId: readme.latest_session_id } })}
+                          className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold shadow-xl transform scale-90 group-hover/preview:scale-100 transition-all flex items-center gap-2"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          Full View
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-tighter">
+                      <Sparkles className="w-3 h-3" />
+                      AI Generated Documentation
                     </div>
                   </div>
                 ))}
@@ -441,18 +484,22 @@ function MyPage() {
                         <ExternalLink className="w-4 h-4" />
                       </button>
                     </div>
-                    <div className="aspect-video bg-slate-950/50 rounded-2xl border border-white/5 flex items-center justify-center relative overflow-hidden">
-                      {/* Simplified visual representation of a diagram */}
-                      <div className="flex flex-col items-center opacity-10">
-                        <div className="w-20 h-10 border border-white rounded mb-4"></div>
-                        <div className="w-1 h-8 bg-white mb-4"></div>
-                        <div className="flex gap-4">
-                          <div className="w-16 h-8 border border-white rounded"></div>
-                          <div className="w-16 h-8 border border-white rounded"></div>
-                        </div>
+                    <div className="aspect-video bg-slate-950/50 rounded-2xl border border-white/5 flex flex-col p-4 relative overflow-hidden">
+                      <div className="text-[10px] text-blue-400/50 font-mono whitespace-pre-wrap overflow-hidden line-clamp-6 opacity-40">
+                        {diag.mermaid_code || "graph TD\n  A[App] --> B[Module]\n  B --> C[Data]"}
                       </div>
-                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 to-transparent flex items-end p-4">
-                        <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Mermaid.js Generated Architecture</p>
+                      <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent flex items-end p-4">
+                        <div className="w-full flex justify-between items-center">
+                          <p className="text-[10px] text-slate-400 font-mono tracking-widest uppercase">Mermaid Architecture</p>
+                          <div className="flex gap-2">
+                            <button 
+                              onClick={() => handleCopy(diag.mermaid_code, diag.id)}
+                              className="p-1.5 rounded-md bg-slate-900/80 text-slate-500 hover:text-blue-400 transition-all"
+                            >
+                              {copiedId === diag.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
