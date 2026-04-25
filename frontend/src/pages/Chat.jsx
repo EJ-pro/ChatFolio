@@ -379,8 +379,13 @@ function Chat() {
                           className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-900/50 border border-slate-700/50 rounded-lg text-[11px] text-slate-400 hover:text-blue-400 hover:border-blue-500/30 transition-all cursor-default group"
                         >
                           <FileText className="w-3 h-3 text-slate-500 group-hover:text-blue-400" />
-                          <span className="max-w-[120px] truncate">{src.path.split('/').pop()}</span>
-                          <span className="text-[9px] px-1 bg-slate-800 rounded text-slate-600 group-hover:text-blue-500/50">{src.reason === 'Vector Similarity' ? 'RAG' : 'Graph'}</span>
+                          <span className="max-w-[150px] truncate">
+                            {src.path.split('/').pop()}
+                            {src.lines && <span className="ml-1 text-blue-500/70">({src.lines})</span>}
+                          </span>
+                          <span className="text-[9px] px-1 bg-slate-800 rounded text-slate-600 group-hover:text-blue-500/50">
+                            {src.reason.includes('Context') ? 'RAG' : 'Graph'}
+                          </span>
                         </div>
                       ))}
                     </div>

@@ -8,6 +8,7 @@ from .readme_agent import ReadmeAgent
 import json
 import networkx as nx
 import os
+import shutil
 
 class ChatFolioEngine:
     def __init__(self, files_data, graph, project_id=None, tech_stack=None, provider="groq", model_name=None):
@@ -49,22 +50,19 @@ class ChatFolioEngine:
         if self.project_id:
             persist_dir = f"storage/vectors/{self.project_id}"
             
-        # 2. 이미 저장된 데이터가 있는지 확인
+        # 2. 최신성 보장을 위해 기존 인덱스 강제 삭제 및 새로 생성
         if persist_dir and os.path.exists(persist_dir):
             try:
-                print(f"📦 [Chroma] Loading persistent vector DB from {persist_dir}")
-                return Chroma(
-                    persist_directory=persist_dir,
-                    embedding_function=self.embeddings
-                )
+                shutil.rmtree(persist_dir)
+                print(f"🧹 [Chroma] Cleared old vector DB at {persist_dir}")
             except Exception as e:
-                print(f"⚠️ [Chroma] Failed to load persistent DB: {e}. Recreating...")
-
-        # 3. 데이터가 없으면 새로 생성
-        print("🔨 [Chroma] Creating new vector DB...")
+                print(f"⚠️ [Chroma] Failed to clear old DB: {e}")
+                
+        # 3. 데이터가 없으면 새로 생성 (항상 실행)
+        print("🔨 [Chroma] Creating new vector DB from latest files...")
         text_splitter = RecursiveCharacterTextSplitter(
-            chunk_size=1000, 
-            chunk_overlap=100,
+            chunk_size=600, 
+            chunk_overlap=50,
             separators=["\nclass ", "\ndef ", "\nfn ", "\nfun ", "\nfunc ", "\ninterface ", "\nmodule ", "\n\n", "\n"]
         )
         
@@ -73,8 +71,22 @@ class ChatFolioEngine:
         
         for path, content in items:
             chunks = text_splitter.split_text(content)
+            current_pos = 0
             for chunk in chunks:
-                docs.append({"page_content": chunk, "metadata": {"path": path}})
+                # 라인 번호 계산 로직 보강 (공백 무시하고 찾기)
+                clean_chunk = chunk.strip()
+                start_index = content.find(clean_chunk, current_pos)
+                if start_index == -1:
+                    # 못 찾으면 전체에서 다시 찾기
+                    start_index = content.find(clean_chunk)
+                    
+                if start_index != -1:
+                    start_line = content.count('\n', 0, start_index) + 1
+                    end_line = start_line + chunk.count('\n')
+                    current_pos = start_index + len(chunk)
+                    docs.append({"page_content": chunk, "metadata": {"path": path, "start_line": start_line, "end_line": end_line}})
+                else:
+                    docs.append({"page_content": chunk, "metadata": {"path": path}})
         
         if not docs:
             # 빈 결과 방지
@@ -95,8 +107,8 @@ class ChatFolioEngine:
     def ask(self, query: str, history: list = None, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
         file_count = len(self.files_data)
-        # 작은 프로젝트는 꼼꼼하게(15개), 큰 프로젝트는 노이즈 최소화(8개)
-        base_k = 15 if file_count < 50 else (10 if file_count < 200 else 8)
+        # 작은 프로젝트는 매우 꼼꼼하게(20개), 큰 프로젝트도 충분히(12~15개)
+        base_k = 20 if file_count < 50 else (15 if file_count < 200 else 12)
         
         # 2. 유사도 기반 후보군 검색 (2배수 추출)
         # similarity_search_with_score는 (Document, Score) 튜플을 반환
@@ -105,17 +117,43 @@ class ChatFolioEngine:
         # 3. 임계값(Threshold) 필터링 (너무 동떨어진 문맥 제거)
         # OpenAI/Chroma 기준 거리가 너무 멀면(유사도가 낮으면) 제외
         # 참고: 사용 모델/엔진에 따라 스코어 임계값 조정 필요
-        filtered_docs = [doc for doc, score in docs_with_scores if score < 0.6] # 0.0에 가까울수록 유사함 (L2 distance)
+        # 필터링 기준 완화 (0.6 -> 0.8) 하여 더 넓은 문맥 확보
+        filtered_docs = [doc for doc, score in docs_with_scores if score < 0.8] 
         
-        # 4. LLM 기반 지능형 리랭킹 (Self-Reranking)
-        # 단순 검색 결과 중 질문에 진짜 답할 수 있는 것만 골라냄
-        final_docs = self._rerank_with_llm(query, filtered_docs, top_n=base_k)
+        # 4. LLM 기반 지능형 리랭킹 + 키워드 부스팅 (Hybrid Search)
+        # 질문에 포함된 주요 키워드 추출
+        keywords = [k.lower() for k in query.split() if len(k) > 1]
+        
+        # 필터링 및 점수 재계산
+        boosted_docs = []
+        for doc in filtered_docs:
+            content_lower = doc.page_content.lower()
+            path_lower = doc.metadata.get('path', '').lower()
+            
+            # 시스템 프롬프트 코드 조각은 가중치 하락 (자기 자신을 인용하는 것 방지)
+            if "system_prompt =" in doc.page_content or "[Strict Formatting Rules]" in doc.page_content:
+                continue
+                
+            score = 0
+            for kw in keywords:
+                if kw in content_lower: score += 2
+                if kw in path_lower: score += 5 # 파일명에 키워드 있으면 강력 가중치
+            
+            boosted_docs.append((doc, score))
+            
+        # 가중치 순으로 정렬 후 상위 base_k개 추출
+        boosted_docs.sort(key=lambda x: x[1], reverse=True)
+        final_docs = [d for d, s in boosted_docs[:base_k]]
+        
+        # 만약 부스팅된 결과가 너무 적으면 원래 검색 결과 사용
+        if not final_docs:
+            final_docs = self._rerank_with_llm(query, filtered_docs, top_n=base_k)
         
         sources = []
         visited_nodes = []
         
-        # 5. 토큰 예산 관리 (최대 10,000자)
-        CONTEXT_BUDGET = 10000
+        # 5. 토큰 예산 관리 (최대 12,000자)
+        CONTEXT_BUDGET = 12000
         current_usage = 0
         
         # 5-1. 문서(README)와 코드(Implementation) 분리 및 제한
@@ -128,6 +166,8 @@ class ChatFolioEngine:
         for doc in final_docs:
             path = doc.metadata.get('path', 'unknown')
             filename = os.path.basename(path).lower()
+            start_line = doc.metadata.get('start_line', '?')
+            end_line = doc.metadata.get('end_line', '?')
             
             if filename == 'readme.md':
                 if len(readme_chunks) < 2:
@@ -137,14 +177,21 @@ class ChatFolioEngine:
             
             if path not in seen_paths:
                 seen_paths.add(path)
-                sources.append({"path": path, "reason": "AI Ranked Context"})
+                sources.append({
+                    "path": path, 
+                    "reason": "AI Ranked Context",
+                    "lines": f"L{start_line}-L{end_line}"
+                })
                 if path in self.graph:
                     neighbors = list(self.graph.neighbors(path))
                     for n in neighbors[:2]: 
                         if n not in seen_paths:
                             neighbor_paths.append(n)
                             file_name_short = path.split('/')[-1]
-                            sources.append({"path": n, "reason": f"Dependency (from {file_name_short})"})
+                            sources.append({
+                                "path": n, 
+                                "reason": f"Dependency (from {file_name_short})"
+                            })
                         visited_nodes.append({"from": path, "to": n})
 
         # 6. 계층형 컨텍스트 구성
@@ -154,7 +201,9 @@ class ChatFolioEngine:
             context_text += "\n### [SECTION: TECHNICAL IMPLEMENTATION (Source Code)]\n"
             for doc in code_chunks:
                 if current_usage >= CONTEXT_BUDGET: break
-                snippet = f"--- File Chunk: {doc.metadata['path']} ---\n{doc.page_content}\n"
+                start_line = doc.metadata.get('start_line', '?')
+                end_line = doc.metadata.get('end_line', '?')
+                snippet = f"--- File Chunk: {doc.metadata['path']} (Lines {start_line}-{end_line}) ---\n{doc.page_content}\n"
                 context_text += snippet
                 current_usage += len(snippet)
 
@@ -181,9 +230,18 @@ class ChatFolioEngine:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n"
 
         # 7. 소스 코드 중심의 시스템 프롬프트
+        # 주요 파일 목록 (최대 100개)
+        all_paths = list(self.files_data.keys())
+        # 핵심 로직 파일 우선 노출 (정확도 향상)
+        priority_paths = [p for p in all_paths if any(x in p.lower() for x in ['backend', 'core', 'engine', 'main', 'api'])]
+        other_paths = [p for p in all_paths if p not in priority_paths]
+        all_files_list = "\n".join([f"- {p}" for p in (priority_paths + other_paths)[:100]])
         system_prompt = f"""
         You are an experienced full-stack software engineer and code architecture expert.
         Analyze the 'TECHNICAL IMPLEMENTATION' section carefully to answer the user's question.
+        
+        [Project File Structure (Available Files)]
+        {all_files_list}
         
         [Strict Formatting Rules]
         - **Language**: You MUST answer in {language}.
@@ -191,20 +249,29 @@ class ChatFolioEngine:
         - **Spacing**: Use double newlines (\n\n) between EVERY section and EVERY bullet point.
         - **Clarity**: Explain logic step-by-step.
         
+        [Special Section: Analysis Summary]
+        - At the VERY END of your answer, you MUST include a section titled "### 🔍 Analysis Summary".
+        - List the **Key Keywords** you extracted from the question.
+        - List the **Key Files** that were most helpful for this specific answer.
+        
         [Example Template]
         ### 1. Section Title
         Brief explanation...
         
         - **Point 1**: Detail...
         
-        - **Point 2**: Detail...
+        ### 🔍 Analysis Summary
+        - **Keywords**: keyword1, keyword2, keyword3
+        - **Reference Files**: `path/to/file1.js` (L10-L25), `path/to/file2.py` (L45-L60)
         
-        ### 2. Another Section
-        Summary...
+        [Content Rules - CRITICAL]
+        1. **STRICT CONTEXT ONLY**: You are ONLY allowed to answer using the information provided in the 'TECHNICAL IMPLEMENTATION' and 'PROJECT OVERVIEW' sections.
+        2. **NO EXTERNAL KNOWLEDGE**: Do not use your internal training data to guess file names, folder structures, or logic. If it's not in the context, it doesn't exist in this project.
+        3. **FILE PATH VERIFICATION**: Before mentioning a file path, verify it exists in the provided context headers (e.g., "--- File Chunk: path ---"). If you cannot find the exact path, DO NOT INVENT ONE.
+        4. **HALLUCINATION IS FAILURE**: Inventing a file name like 'chroma_initializer.py' when it's not in the context is a CRITICAL ERROR.
         
-        [Content Rules]
-        1. **Code-First**: Prioritize actual code implementation.
-        2. **Evidence**: Quote specific class names or file paths.
+        [If context is missing or irrelevant]
+        - Explicitly state: "I cannot find the relevant code in the currently analyzed files."
         
         {tech_context}
         """
@@ -263,16 +330,17 @@ class ChatFolioEngine:
         [Criteria]
         1. **Faithfulness**: Is the answer derived ONLY from the context? (0-100)
         2. **Technical Accuracy**: Are class/function names and logic correct according to the code? (0-100)
-        3. **Completeness**: Does it fully answer the user's query? (0-100)
+        3. **File Path Integrity**: Are ALL mentioned file paths actually present in the 'Context'? (If AI invented a file name, score must be 0)
         
         [Output Format - JSON only]
         {{
             "score": average_score,
-            "verdict": "High Trust" | "Medium Trust" | "Low Trust",
-            "reason": "summary of evaluation (in Korean)",
+            "verdict": "High Trust" | "Medium Trust" | "Low Trust" | "CRITICAL HALLUCINATION",
+            "reason": "summary of evaluation (in Korean) - Must mention if file paths were verified",
             "checks": {{
                 "faithfulness": 100,
                 "accuracy": 100,
+                "file_path_verified": true,
                 "hallucination_detected": false
             }}
         }}
