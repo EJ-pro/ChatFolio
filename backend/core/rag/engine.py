@@ -1,5 +1,5 @@
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEndpoint, HuggingFaceEmbeddings, ChatHuggingFace
 # ChromaDB 영구 저장소 사용
 from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -21,15 +21,18 @@ class ChatFolioEngine:
         
         # LLM 초기화
         if provider == "huggingface":
-            # HuggingFace 무료 모델 (예: Mistral-7B, Llama-3-8B-Instruct)
-            # HUGGINGFACEHUB_API_TOKEN 환경 변수 필요
-            repo_id = model_name or "mistralai/Mistral-7B-Instruct-v0.2"
-            self.llm = HuggingFaceEndpoint(
+            # HuggingFace 무료 모델 (Qwen 2.5 Coder 기반, 코딩 특화)
+            repo_id = model_name or "Qwen/Qwen2.5-Coder-32B-Instruct"
+            if any(legacy in repo_id.lower() for legacy in ["mistral", "qwen2.5-7b", "qwen3.6"]):
+                repo_id = "Qwen/Qwen2.5-Coder-32B-Instruct"
+                
+            hf_llm = HuggingFaceEndpoint(
                 repo_id=repo_id,
                 max_new_tokens=512,
                 temperature=0.1,
                 huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN")
             )
+            self.llm = ChatHuggingFace(llm=hf_llm)
         else: # Default is groq
             self.llm = ChatGroq(model=model_name or "llama-3.3-70b-versatile", temperature=0)
             
@@ -53,10 +56,14 @@ class ChatFolioEngine:
         # 2. 최신성 보장을 위해 기존 인덱스 강제 삭제 및 새로 생성
         if persist_dir and os.path.exists(persist_dir):
             try:
-                shutil.rmtree(persist_dir)
+                shutil.rmtree(persist_dir, ignore_errors=True)
                 print(f"🧹 [Chroma] Cleared old vector DB at {persist_dir}")
             except Exception as e:
                 print(f"⚠️ [Chroma] Failed to clear old DB: {e}")
+
+        # 디렉토리 미리 생성
+        if persist_dir:
+            os.makedirs(persist_dir, exist_ok=True)
                 
         # 3. 데이터가 없으면 새로 생성 (항상 실행)
         print("🔨 [Chroma] Creating new vector DB from latest files...")
@@ -95,14 +102,21 @@ class ChatFolioEngine:
         texts = [d["page_content"] for d in docs]
         metadatas = [d["metadata"] for d in docs]
         
-        vector_db = Chroma.from_texts(
-            texts=texts, 
-            embedding=self.embeddings, 
-            metadatas=metadatas,
-            persist_directory=persist_dir
-        )
-        
-        return vector_db
+        try:
+            vector_db = Chroma.from_texts(
+                texts=texts, 
+                embedding=self.embeddings, 
+                metadatas=metadatas,
+                persist_directory=persist_dir
+            )
+            print(f"✅ [Chroma] Vector DB created successfully with {len(texts)} chunks.")
+            return vector_db
+        except Exception as e:
+            print(f"❌ [Chroma] Creation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            # Fallback to in-memory if persistence fails
+            return Chroma.from_texts(texts, self.embeddings, metadatas=metadatas)
 
     def ask(self, query: str, history: list = None, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
@@ -141,13 +155,10 @@ class ChatFolioEngine:
             
             boosted_docs.append((doc, score))
             
-        # 가중치 순으로 정렬 후 상위 base_k개 추출
+        # 가중치 순으로 정렬 후 상위 후보군을 LLM 리랭커에게 전달 (리랭킹 알고리즘 도입)
         boosted_docs.sort(key=lambda x: x[1], reverse=True)
-        final_docs = [d for d, s in boosted_docs[:base_k]]
-        
-        # 만약 부스팅된 결과가 너무 적으면 원래 검색 결과 사용
-        if not final_docs:
-            final_docs = self._rerank_with_llm(query, filtered_docs, top_n=base_k)
+        candidates = [d for d, s in boosted_docs[:base_k * 2]] # 충분한 후보군 확보
+        final_docs = self._rerank_with_llm(query, candidates, top_n=base_k)
         
         sources = []
         visited_nodes = []
@@ -184,7 +195,9 @@ class ChatFolioEngine:
                 })
                 if path in self.graph:
                     neighbors = list(self.graph.neighbors(path))
-                    for n in neighbors[:2]: 
+                    # 그래프 기반 검색 고도화: 의존도(in_degree)가 높은 핵심 파일 위주로 정렬
+                    neighbors.sort(key=lambda x: self.graph.in_degree(x) if x in self.graph else 0, reverse=True)
+                    for n in neighbors[:3]: 
                         if n not in seen_paths:
                             neighbor_paths.append(n)
                             file_name_short = path.split('/')[-1]
@@ -230,53 +243,43 @@ class ChatFolioEngine:
             tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n"
 
         # 7. 소스 코드 중심의 시스템 프롬프트
-        # 주요 파일 목록 (최대 100개)
+        # 전체 파일 목록 (최대 500개까지 확장하여 프로젝트 맵 제공)
         all_paths = list(self.files_data.keys())
-        # 핵심 로직 파일 우선 노출 (정확도 향상)
-        priority_paths = [p for p in all_paths if any(x in p.lower() for x in ['backend', 'core', 'engine', 'main', 'api'])]
+        priority_paths = [p for p in all_paths if any(x in p.lower() for x in ['src', 'app', 'core', 'lib', 'main', 'api', 'pkg', 'cmd', 'scripts'])]
         other_paths = [p for p in all_paths if p not in priority_paths]
-        all_files_list = "\n".join([f"- {p}" for p in (priority_paths + other_paths)[:100]])
+        all_files_list = "\n".join([f"- {p}" for p in (priority_paths + other_paths)[:500]])
+
         system_prompt = f"""
-        You are an experienced full-stack software engineer and code architecture expert.
-        Analyze the 'TECHNICAL IMPLEMENTATION' section carefully to answer the user's question.
-        
-        [Project File Structure (Available Files)]
+        You are an elite Software Architect and Code Auditor. 
+        Your goal is to provide 100% technically accurate analysis based ONLY on the provided source code.
+
+        [PROJECT BRAIN MAP (Full File Tree)]
         {all_files_list}
-        
-        [Strict Formatting Rules]
+
+        [STRICT OPERATIONAL RULES - READ CAREFULLY]
+        1. **NO HALLUCINATION**: Never invent file names, directory structures, or logic that is not present in the 'TECHNICAL IMPLEMENTATION' section.
+        2. **STRICT CONTEXTUALITY**: If the answer is not in the provided code snippets, clearly state: "I cannot find the specific implementation of X in the provided context." 
+        3. **FILE PATH VERIFICATION**: You must cross-reference every file path you mention with the [PROJECT BRAIN MAP] and the '--- File Chunk: path ---' headers. 
+        4. **CRITICAL THINKING**: Analyze the code's intent. Don't just repeat what's in the comments; explain the logic and potential edge cases (e.g., error handling, performance).
+        5. **DOMAIN ADAPTATION**: Adapt your tone to the project's archetype (CLI, Web, AI, etc.).
+
+        [STRICT FORMATTING RULES]
         - **Language**: You MUST answer in {language}.
         - **Structure**: Use Markdown headers (###), bullet points (-), and bold text (**bold**).
-        - **Spacing**: Use double newlines (\n\n) between EVERY section and EVERY bullet point.
-        - **Clarity**: Explain logic step-by-step.
-        
-        [Special Section: Analysis Summary]
-        - At the VERY END of your answer, you MUST include a section titled "### 🔍 Analysis Summary".
-        - List the **Key Keywords** you extracted from the question.
-        - List the **Key Files** that were most helpful for this specific answer.
-        
-        [Example Template]
-        ### 1. Section Title
-        Brief explanation...
-        
-        - **Point 1**: Detail...
-        
+        - **Spacing**: Use double newlines (\n\n) between sections.
+
+        [MANDATORY ANALYSIS SUMMARY]
+        At the end of your response, provide the following summary:
         ### 🔍 Analysis Summary
-        - **Keywords**: keyword1, keyword2, keyword3
-        - **Reference Files**: `path/to/file1.js` (L10-L25), `path/to/file2.py` (L45-L60)
-        
-        [Content Rules - CRITICAL]
-        1. **STRICT CONTEXT ONLY**: You are ONLY allowed to answer using the information provided in the 'TECHNICAL IMPLEMENTATION' and 'PROJECT OVERVIEW' sections.
-        2. **NO EXTERNAL KNOWLEDGE**: Do not use your internal training data to guess file names, folder structures, or logic. If it's not in the context, it doesn't exist in this project.
-        3. **FILE PATH VERIFICATION**: Before mentioning a file path, verify it exists in the provided context headers (e.g., "--- File Chunk: path ---"). If you cannot find the exact path, DO NOT INVENT ONE.
-        4. **HALLUCINATION IS FAILURE**: Inventing a file name like 'chroma_initializer.py' when it's not in the context is a CRITICAL ERROR.
-        
-        [If context is missing or irrelevant]
-        - Explicitly state: "I cannot find the relevant code in the currently analyzed files."
-        
+        - **Keywords**: [3-5 core technical keywords]
+        - **Reference Files**: [List exact file paths and line ranges used]
+        - **AI Confidence**: [0-100%] (Based on how much of the needed info was in the context)
+        - **Trust Level**: [Low / Medium / High] (Low if you had to guess any logic)
+
         {tech_context}
         """
         
-        user_prompt = f"Context:\n{context_text}\n\nQuestion: {query}"
+        user_prompt = f"### [SECTION: TECHNICAL IMPLEMENTATION]\n{context_text}\n\n### [USER QUESTION]\n{query}"
         
         messages = [SystemMessage(content=system_prompt)]
         
@@ -450,7 +453,7 @@ class ChatFolioEngine:
         Please provide a detailed architecture analysis in {language} covering:
         1. **Overall Design Pattern**: Identify the main structural pattern (e.g., MVC, Layered Architecture, Hexagonal, Clean Architecture, etc.) based on the file names and dependencies.
         2. **Component Roles**: Explain the roles of the 'Important Files' listed above and how they serve as the project's backbone.
-        3. **Data/Control Flow**: Explain how data or control flows through the system (e.g., Request -> Router -> Controller -> Service -> DB).
+        3. **Data/Control Flow**: Explain how data or control flows through the system (e.g., Request -> Router -> Controller -> Service -> DB for web apps, or Entry Point -> Config -> Core Logic -> Output for CLI/Scripts).
         4. **Architectural Evaluation**: Mention strengths (e.g., good modularity) and potential risks (e.g., circular dependencies, tight coupling in specific areas).
         
         Format the output nicely using Markdown with clear headings.
@@ -507,7 +510,7 @@ class ChatFolioEngine:
         }}
         
         [Rules]
-        1. Identify 5 to 8 logical steps representing the core life cycle (e.g., Request -> Auth -> Validation -> Business Logic -> Persistence).
+        1. Identify 5 to 8 logical steps representing the core life cycle (e.g., Initialization -> Processing -> Output, or Request -> Auth -> Logic -> Response).
         2. Assign a unique vibrant color to each step (Tailwind-like hex colors).
         3. 'payload' should show a realistic example of the data structure processed at that step.
         4. OUTPUT ONLY RAW JSON.

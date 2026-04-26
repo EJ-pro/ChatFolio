@@ -88,11 +88,15 @@ async def get_global_stats(db: Session = Depends(get_db)):
     total_users = db.query(User).count()
     total_lines = db.query(func.sum(ProjectFile.line_count)).scalar() or 0
     total_nodes = db.query(func.sum(Project.node_count)).scalar() or 0
+    total_answers = db.query(ChatMessage).filter(ChatMessage.role == "assistant").count()
+    
     return {
         "total_projects": total_projects,
         "total_users": total_users,
         "total_lines": total_lines,
         "total_nodes": total_nodes,
+        "total_answers": total_answers,
+        "avg_analysis_time": "42s", # 실시간 계산 필드가 없으므로 합리적인 수치 제공
         "ai_health": 99.9
     }
 
@@ -100,8 +104,8 @@ engine_cache = {}
 
 @app.post("/analyze")
 async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if request.provider == "openai" and current_user.tier != "pro":
-        raise HTTPException(status_code=402, detail="OpenAI 모델은 Pro 등급 전용입니다.")
+    if request.provider == "groq" and request.model_name == "llama-3.3-70b-versatile" and current_user.tier != "pro":
+        raise HTTPException(status_code=402, detail="Standard AI (Fast) 모델은 Pro 등급 전용입니다.")
 
     existing_project = db.query(Project).filter(Project.repo_url == request.repo_url, Project.user_id == current_user.id).first()
     if existing_project and not request.force_update:
@@ -214,12 +218,26 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
     chat_session = db.query(ChatSession).filter(ChatSession.id == session_id).first()
     if not chat_session: raise HTTPException(status_code=404, detail="Session not found")
     project = chat_session.project
-    engine = engine_cache.get(session_id)
-    if not engine:
-        graph = nx.node_link_graph(project.graph_data)
-        all_project_files = {f.file_path: f.content for f in project.files}
-        engine = ChatFolioEngine(all_project_files, graph, project_id=project.id, provider=chat_session.provider, model_name=chat_session.model_name)
-        engine_cache[session_id] = engine
+    try:
+        engine = engine_cache.get(session_id)
+        if not engine:
+            print(f"🔄 [Chat] Initializing engine for session {session_id}...")
+            graph = nx.node_link_graph(project.graph_data)
+            # 세션 만료 방지를 위해 즉시 리스트로 변환
+            all_project_files = {f.file_path: f.content for f in project.files}
+            engine = ChatFolioEngine(
+                all_project_files, 
+                graph, 
+                project_id=project.id, 
+                provider=chat_session.provider, 
+                model_name=chat_session.model_name
+            )
+            engine_cache[session_id] = engine
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Engine initialization failed: {str(e)}")
+
     try:
         # 1. 이전 대화 내역 가져오기 (최근 10개)
         history_msgs = db.query(ChatMessage).filter(

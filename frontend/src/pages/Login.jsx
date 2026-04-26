@@ -1,6 +1,7 @@
 import { Github, Brain, Sparkles, Shield, Zap, ArrowRight, GitBranch, FileText, MessageSquare, Network, CheckCircle2, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef } from 'react';
+import { dashboardService } from '../api';
 
 /* ─── 타이핑 애니메이션 ─── */
 const TYPING_TEXTS = [
@@ -154,20 +155,49 @@ function ChatMock() {
 }
 
 /* ─── Stat chips ─── */
-const STATS = [
-  { label: 'Repos Analyzed', value: '12,400+', color: '#60a5fa' },
-  { label: 'AI Answers', value: '98,000+', color: '#a78bfa' },
-  { label: 'Avg. Analysis', value: '< 60s', color: '#34d399' },
+const STATS_CONFIG = [
+  { key: 'total_projects', label: 'Repos Analyzed', color: '#60a5fa', suffix: '+' },
+  { key: 'total_answers', label: 'AI Answers', color: '#a78bfa', suffix: '+' },
+  { key: 'avg_analysis_time', label: 'Avg. Analysis', color: '#34d399', prefix: '< ' },
 ];
 
 /* ─── Main ─── */
 function Login() {
   const navigate = useNavigate();
   const [hover, setHover] = useState(false);
+  const [stats, setStats] = useState({
+    total_projects: 0,
+    total_answers: 0,
+    avg_analysis_time: '60s'
+  });
 
   useEffect(() => {
     if (localStorage.getItem('token')) navigate('/');
+    
+    // 글로벌 통계 가져오기
+    dashboardService.getGlobalStats()
+      .then(data => {
+        setStats({
+          total_projects: data.total_projects || 0,
+          total_answers: data.total_answers || 0,
+          avg_analysis_time: data.avg_analysis_time || '60s'
+        });
+      })
+      .catch(err => console.error("Failed to fetch stats:", err));
   }, [navigate]);
+
+  const statsToDisplay = STATS_CONFIG.map(config => {
+    const rawValue = stats[config.key];
+    const formattedValue = typeof rawValue === 'number' 
+      ? rawValue.toLocaleString() 
+      : rawValue;
+      
+    return {
+      label: config.label,
+      value: `${config.prefix || ''}${formattedValue}${config.suffix || ''}`,
+      color: config.color
+    };
+  });
 
   const handleGithubLogin = () => {
     window.location.href = 'http://localhost:8000/auth/github/login';
@@ -244,7 +274,7 @@ function Login() {
             </div>
             {/* Stats */}
             <div className="col-span-2 flex flex-col gap-3">
-              {STATS.map(s => (
+              {statsToDisplay.map(s => (
                 <div key={s.label} className="flex-1 bg-slate-900/80 border border-white/5 rounded-xl p-3 backdrop-blur-sm flex flex-col justify-center">
                   <p className="text-[18px] font-black" style={{ color: s.color }}>{s.value}</p>
                   <p className="text-[9px] text-slate-500 font-bold uppercase tracking-wider mt-0.5">{s.label}</p>

@@ -41,13 +41,8 @@ function DocsTab() {
 
   const models = {
     groq: [
-      { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', desc: 'Fast & Versatile' },
-      { id: 'llama-3.1-70b-versatile', name: 'Llama 3.1 70B', desc: 'Large Context' },
-      { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', desc: 'Ultra Fast' }
-    ],
-    openai: [
-      { id: 'gpt-4o-mini', name: 'GPT-4o Mini', desc: 'Smarter & Precise' },
-      { id: 'gpt-4o', name: 'GPT-4o (Pro)', desc: 'High Quality Docs' }
+      { id: 'llama-3.1-8b-instant', name: '빠른 답변', desc: '초고속 기술 문서 초안 생성' },
+      { id: 'llama-3.3-70b-versatile', name: '심층 답변', desc: '정교한 아키텍처 및 상세 분석' }
     ]
   };
 
@@ -283,20 +278,13 @@ function DocsTab() {
                   : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
                 }`}
               >
-                Groq (Free)
+                Standard AI (Free)
               </button>
               <button
-                onClick={() => {
-                  setProvider('openai');
-                  setModelName('gpt-4o-mini');
-                }}
-                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
-                  provider === 'openai' 
-                  ? 'bg-indigo-600/10 border-indigo-500/50 text-indigo-400 shadow-[0_0_15px_rgba(99,102,241,0.1)]' 
-                  : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
-                }`}
+                disabled
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold border bg-slate-950/50 border-white/5 text-slate-700 cursor-not-allowed"
               >
-                OpenAI (Pro)
+                Standard AI (Pro)
               </button>
             </div>
             
@@ -306,10 +294,10 @@ function DocsTab() {
                 className="w-full flex items-center justify-between px-4 py-3 bg-slate-950/50 border border-white/10 rounded-xl hover:bg-slate-900 transition-all"
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-2 h-2 rounded-full ${provider === 'groq' ? 'bg-blue-500' : 'bg-indigo-500'} animate-pulse`}></div>
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
                   <div className="text-left">
                     <div className="text-[11px] font-black text-white leading-none mb-0.5">{currentModel.name}</div>
-                    <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{currentModel.desc}</div>
+                    <div className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">{provider === 'groq' ? 'Standard AI (Free)' : 'Standard AI (Pro)'}</div>
                   </div>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />

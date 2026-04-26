@@ -19,22 +19,23 @@ function Chat() {
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [provider, setProvider] = useState('groq');
-  const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
+  const [provider, setProvider] = useState('huggingface');
+  const [modelName, setModelName] = useState('Qwen/Qwen2.5-Coder-32B-Instruct');
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
   const [selectedLanguage, setSelectedLanguage] = useState('English');
   const availableLanguages = ['English', 'Korean'];
   const messagesEndRef = useRef(null);
+  const [loadingMessage, setLoadingMessage] = useState('Thinking...');
 
   const models = {
     huggingface: [
-      { id: 'mistralai/Mistral-7B-Instruct-v0.2', name: 'Standard AI (Type A)', desc: 'Efficient basic analysis' },
-      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: 'Standard AI (Type B)', desc: 'Balanced open-source engine' }
+      { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: '코딩 특화 답변 (Qwen Coder)', desc: '레포지토리 분석 최적화 32B 모델' },
+      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: '일반 답변 (Llama)', desc: '균형 잡힌 오픈소스 엔진' }
     ],
     groq: [
-      { id: 'llama-3.3-70b-versatile', name: 'Standard AI (Fast)', desc: 'High-speed processing (Pro)', pro: true },
-      { id: 'llama-3.1-8b-instant', name: 'Standard AI (Instant)', desc: 'Real-time response engine (Pro)', pro: true }
+      { id: 'llama-3.1-8b-instant', name: '초고속 답변', desc: '실시간에 가까운 분석 속도 (Pro)', pro: true },
+      { id: 'llama-3.3-70b-versatile', name: '심층 사고 답변', desc: '가장 정교한 추론 및 분석 (Pro)', pro: true }
     ]
   };
 
@@ -102,6 +103,25 @@ function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (isLoading) {
+      // 1. Loading Message Cycle
+      const messagesList = [
+        'Analyzing codebase...', 
+        'Tracing dependency graph...', 
+        'Composing detailed response...', 
+        'Verifying technical facts...'
+      ];
+      let i = 0;
+      setLoadingMessage(messagesList[0]);
+      const interval = setInterval(() => {
+        i = (i + 1) % messagesList.length;
+        setLoadingMessage(messagesList[i]);
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [isLoading, selectedLanguage]);
 
   const handleNewSession = async () => {
     if (!currentProjectId) return;
@@ -220,12 +240,12 @@ function Chat() {
               className="w-full flex items-center justify-between p-3 bg-slate-800/50 border border-slate-700/50 rounded-xl hover:bg-slate-800 transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className={`p-1.5 rounded-lg ${provider === 'openai' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-blue-500/10 text-blue-400'}`}>
-                  {provider === 'openai' ? <Sparkles size={14} /> : <Zap size={14} />}
+                <div className="p-1.5 rounded-lg bg-blue-500/10 text-blue-400">
+                  <Zap size={14} />
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-bold text-slate-200">{models[provider].find(m => m.id === modelName)?.name}</div>
-                  <div className="text-[10px] text-slate-500">{provider === 'openai' ? 'OpenAI Pro' : 'Groq Free'}</div>
+                  <div className="text-[10px] text-slate-500">{provider === 'groq' ? 'Standard AI (Pro)' : 'Standard AI (Free)'}</div>
                 </div>
               </div>
               <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${isModelMenuOpen ? 'rotate-180' : ''}`} />
@@ -234,13 +254,13 @@ function Chat() {
             {isModelMenuOpen && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-2 border-b border-slate-800 flex gap-1">
-                  {['huggingface', 'groq', 'openai'].map(p => (
+                  {['huggingface', 'groq'].map(p => (
                     <button
                       key={p}
                       onClick={(e) => { e.stopPropagation(); setProvider(p); setModelName(models[p][0].id); }}
                       className={`flex-1 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all ${provider === p ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-800'}`}
                     >
-                      {p === 'huggingface' ? 'HF' : p}
+                      {p === 'groq' ? 'PRO' : 'FREE'}
                     </button>
                   ))}
                 </div>
@@ -251,7 +271,7 @@ function Chat() {
                       onClick={(e) => { 
                         e.stopPropagation(); 
                         if (m.pro && user?.tier !== 'pro') {
-                          alert('OpenAI 모델은 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
+                          alert('Standard AI (Pro) 모델은 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
                           return;
                         }
                         setModelName(m.id); 
@@ -421,8 +441,9 @@ function Chat() {
               <div className="w-8 h-8 rounded-full bg-purple-600 flex items-center justify-center shrink-0 shadow-md">
                 <Bot className="w-5 h-5 text-white" />
               </div>
-              <div className="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-700/50 rounded-tl-none">
+              <div className="bg-slate-800/80 backdrop-blur-sm p-4 rounded-2xl shadow-md border border-slate-700/50 rounded-tl-none flex items-center gap-3">
                 <Loader2 className="w-5 h-5 animate-spin text-purple-400" />
+                <span className="text-xs text-slate-400 font-medium animate-pulse">{loadingMessage}</span>
               </div>
             </div>
           </div>

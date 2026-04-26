@@ -12,8 +12,8 @@ function Analysis() {
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState('');
-  const [provider, setProvider] = useState('groq');
-  const [modelName, setModelName] = useState('llama-3.3-70b-versatile');
+  const [provider, setProvider] = useState('huggingface');
+  const [modelName, setModelName] = useState('Qwen/Qwen2.5-Coder-32B-Instruct');
   const [logs, setLogs] = useState([]);
   const [currentLog, setCurrentLog] = useState('');
   const [projects, setProjects] = useState([]);
@@ -31,6 +31,7 @@ function Analysis() {
   const [showSurvey, setShowSurvey] = useState(false);
   const [surveyData, setSurveyData] = useState({ country: '', job: '' });
   const [selectedLanguage, setSelectedLanguage] = useState('English');
+  const [loadingMessage, setLoadingMessage] = useState('Analyzing');
 
   const formatStat = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -186,17 +187,38 @@ function Analysis() {
 
   useEffect(() => {
     if (isLoading) {
+      // 1. Loading Message Cycle
+      const messagesList = [
+        'Cloning repository...', 
+        'Parsing code structure...', 
+        'Extracting dependencies...', 
+        'Generating vector index...', 
+        'Summarizing final report...'
+      ];
+      let i = 0;
+      setLoadingMessage(messagesList[0]);
+      const msgInterval = setInterval(() => {
+        i = (i + 1) % messagesList.length;
+        setLoadingMessage(messagesList[i]);
+      }, 3000);
+
+      // 2. Buffered Phase Logic (for visual progress)
       const targetPhase = getActivePhase();
       if (targetPhase > bufferedPhase) {
         const timer = setTimeout(() => {
           setBufferedPhase(prev => prev + 1);
         }, 800); 
-        return () => clearTimeout(timer);
+        return () => {
+          clearInterval(msgInterval);
+          clearTimeout(timer);
+        };
       }
+      
+      return () => clearInterval(msgInterval);
     } else {
       setBufferedPhase(1);
     }
-  }, [isLoading, currentLog, bufferedPhase]);
+  }, [isLoading, selectedLanguage, currentLog, bufferedPhase]);
 
   const phases = [
     { id: 1, name: "Collection", icon: <Github size={16} /> },
@@ -258,12 +280,12 @@ function Analysis() {
               onClick={() => { setProvider('huggingface'); setModelName('mistralai/Mistral-7B-Instruct-v0.2'); }}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'huggingface' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Standard AI (Eco)
+              Standard AI (Free)
             </button>
             <button
               onClick={() => { 
                 if (user?.tier !== 'pro') {
-                  alert('Standard AI (Fast) is exclusive to Pro members. Please upgrade using the button at the top.');
+                  alert('Standard AI (Pro) 모델은 Pro 등급 전용입니다. 상단 버튼을 통해 업그레이드 해주세요.');
                   return;
                 }
                 setProvider('groq'); 
@@ -271,7 +293,7 @@ function Analysis() {
               }}
               className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 flex items-center gap-2 ${provider === 'groq' ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-white'}`}
             >
-              Standard AI (Fast)
+              Standard AI (Pro)
               <Crown className={`w-3.5 h-3.5 ${user?.tier === 'pro' ? 'text-yellow-400' : 'text-slate-400'}`} />
             </button>
           </div>
@@ -299,7 +321,7 @@ function Analysis() {
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
-                    <Loader2 className="w-5 h-5 animate-spin" /> Analyzing
+                    <Loader2 className="w-5 h-5 animate-spin" /> {loadingMessage}
                   </span>
                 ) : (
                   'Start Analysis'
