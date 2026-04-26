@@ -21,3 +21,4 @@ fastapi-sso>=0.15.0
 PyJWT>=2.8.0
 langgraph
 chromadb
+rank_bm25

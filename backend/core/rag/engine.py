@@ -5,10 +5,13 @@ from langchain_community.vectorstores import Chroma
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .readme_agent import ReadmeAgent
+from langchain_community.retrievers import BM25Retriever
+from langchain_core.documents import Document
 import json
 import networkx as nx
 import os
 import shutil
+import re
 
 class ChatFolioEngine:
     def __init__(self, files_data, graph, project_id=None, tech_stack=None, provider="groq", model_name=None):
@@ -39,13 +42,15 @@ class ChatFolioEngine:
         # 검증용 모델 (항상 GROQ 사용)
         self.verifier_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0)
             
-        # OpenAI 대신 무료 임베딩 모델 사용 (all-MiniLM-L6-v2)
+        # OpenAI 대신 최고성능 무료 임베딩 모델 사용 (BGE-M3)
+        print("🚀 [Embeddings] Loading BGE-M3 model...")
         self.embeddings = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name="BAAI/bge-m3"
         )
         
-        # 1. 벡터 스토어 구축
+        # 1. 벡터 스토어 및 BM25 검색기 구축
         self.vector_db = self._prepare_vector_db()
+        self.bm25_retriever = self._prepare_bm25_retriever()
 
     def _prepare_vector_db(self):
         # 1. 영구 저장 경로 설정
@@ -118,47 +123,61 @@ class ChatFolioEngine:
             # Fallback to in-memory if persistence fails
             return Chroma.from_texts(texts, self.embeddings, metadatas=metadatas)
 
+    def _prepare_bm25_retriever(self):
+        """키워드 기반 검색을 위한 BM25 리트리버 준비"""
+        print("🔍 [BM25] Initializing keyword search engine...")
+        docs = []
+        
+        items = self.files_data.items() if isinstance(self.files_data, dict) else self.files_data
+        for path, content in items:
+            if not content or len(content.strip()) < 10: continue
+            
+            # 파일당 하나의 문서로 간주하거나, 너무 크면 줄 단위로 분할
+            lines = content.split('\n')
+            # 50줄 단위로 묶어서 문서 생성
+            for i in range(0, len(lines), 50):
+                chunk = '\n'.join(lines[i:i+50])
+                docs.append(Document(
+                    page_content=chunk,
+                    metadata={"path": path, "start_line": i+1, "end_line": i+len(lines[i:i+50])}
+                ))
+        
+        if not docs:
+            docs = [Document(page_content=" ", metadata={"path": "none"})]
+            
+        return BM25Retriever.from_documents(docs)
+
     def ask(self, query: str, history: list = None, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
         file_count = len(self.files_data)
         # 작은 프로젝트는 매우 꼼꼼하게(20개), 큰 프로젝트도 충분히(12~15개)
         base_k = 20 if file_count < 50 else (15 if file_count < 200 else 12)
         
-        # 2. 유사도 기반 후보군 검색 (2배수 추출)
-        # similarity_search_with_score는 (Document, Score) 튜플을 반환
-        docs_with_scores = self.vector_db.similarity_search_with_score(query, k=base_k * 2)
+        # 2. 하이브리드 검색 (Vector + BM25)
+        # 2.1 벡터 검색 (의미 기반)
+        print(f"📡 [Hybrid] Searching for: {query}")
+        vector_results = self.vector_db.similarity_search(query, k=base_k * 2)
         
-        # 3. 임계값(Threshold) 필터링 (너무 동떨어진 문맥 제거)
-        # OpenAI/Chroma 기준 거리가 너무 멀면(유사도가 낮으면) 제외
-        # 참고: 사용 모델/엔진에 따라 스코어 임계값 조정 필요
-        # 필터링 기준 완화 (0.6 -> 0.8) 하여 더 넓은 문맥 확보
-        filtered_docs = [doc for doc, score in docs_with_scores if score < 0.8] 
+        # 2.2 BM25 검색 (키워드 기반)
+        bm25_results = self.bm25_retriever.get_relevant_documents(query)
+        bm25_results = bm25_results[:base_k] # 상위 K개만 사용
         
-        # 4. LLM 기반 지능형 리랭킹 + 키워드 부스팅 (Hybrid Search)
-        # 질문에 포함된 주요 키워드 추출
-        keywords = [k.lower() for k in query.split() if len(k) > 1]
+        # 2.3 결과 결합 및 중복 제거
+        combined_results = []
+        seen_ids = set()
         
-        # 필터링 및 점수 재계산
-        boosted_docs = []
-        for doc in filtered_docs:
-            content_lower = doc.page_content.lower()
-            path_lower = doc.metadata.get('path', '').lower()
-            
-            # 시스템 프롬프트 코드 조각은 가중치 하락 (자기 자신을 인용하는 것 방지)
-            if "system_prompt =" in doc.page_content or "[Strict Formatting Rules]" in doc.page_content:
-                continue
-                
-            score = 0
-            for kw in keywords:
-                if kw in content_lower: score += 2
-                if kw in path_lower: score += 5 # 파일명에 키워드 있으면 강력 가중치
-            
-            boosted_docs.append((doc, score))
-            
-        # 가중치 순으로 정렬 후 상위 후보군을 LLM 리랭커에게 전달 (리랭킹 알고리즘 도입)
-        boosted_docs.sort(key=lambda x: x[1], reverse=True)
-        candidates = [d for d, s in boosted_docs[:base_k * 2]] # 충분한 후보군 확보
-        final_docs = self._rerank_with_llm(query, candidates, top_n=base_k)
+        # 벡터 결과와 BM25 결과 결합
+        for doc in vector_results + bm25_results:
+            # 경로와 내용의 일부를 조합하여 고유 ID 생성
+            doc_id = f"{doc.metadata.get('path')}:{doc.page_content[:100]}"
+            if doc_id not in seen_ids:
+                combined_results.append(doc)
+                seen_ids.add(doc_id)
+
+        # 3. LLM 기반 Re-ranking (정밀도 극대화)
+        # 검색된 후보들 중 질문과 가장 관련 높은 문서를 선별 (최대 20개 후보 제공)
+        candidates = combined_results[:20]
+        final_docs = self._rerank_with_llm(query, candidates, top_n=8) # 최종 상위 8개 선택
         
         sources = []
         visited_nodes = []

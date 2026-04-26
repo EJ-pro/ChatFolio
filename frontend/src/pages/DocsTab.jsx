@@ -40,6 +40,10 @@ function DocsTab() {
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
 
   const models = {
+    huggingface: [
+      { id: 'Qwen/Qwen2.5-Coder-32B-Instruct', name: '코딩 특화 답변 (Qwen Coder)', desc: '레포지토리 분석 최적화 32B 모델' },
+      { id: 'meta-llama/Meta-Llama-3-8B-Instruct', name: '일반 답변 (Llama)', desc: '균형 잡힌 오픈소스 엔진' }
+    ],
     groq: [
       { id: 'llama-3.1-8b-instant', name: '빠른 답변', desc: '초고속 기술 문서 초안 생성' },
       { id: 'llama-3.3-70b-versatile', name: '심층 답변', desc: '정교한 아키텍처 및 상세 분석' }
@@ -269,6 +273,19 @@ function DocsTab() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
+                  setProvider('huggingface');
+                  setModelName('Qwen/Qwen2.5-Coder-32B-Instruct');
+                }}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                  provider === 'huggingface' 
+                  ? 'bg-blue-600/10 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.1)]' 
+                  : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
+                }`}
+              >
+                Standard AI (Free)
+              </button>
+              <button
+                onClick={() => {
                   setProvider('groq');
                   setModelName('llama-3.3-70b-versatile');
                 }}
@@ -277,12 +294,6 @@ function DocsTab() {
                   ? 'bg-blue-600/10 border-blue-500/50 text-blue-400 shadow-[0_0_15px_rgba(37,99,235,0.1)]' 
                   : 'bg-slate-900/50 border-white/5 text-slate-500 hover:border-white/10'
                 }`}
-              >
-                Standard AI (Free)
-              </button>
-              <button
-                disabled
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold border bg-slate-950/50 border-white/5 text-slate-700 cursor-not-allowed"
               >
                 Standard AI (Pro)
               </button>
