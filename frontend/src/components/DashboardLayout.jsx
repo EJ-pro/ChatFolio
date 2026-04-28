@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, Share2, GitBranch, ChevronDown } from 'lucide-react';
+import { MessageSquare, FileText, Target, Github, Share2, GitBranch, ChevronDown, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import UserProfile from './UserProfile';
 
@@ -15,6 +15,7 @@ function DashboardLayout() {
 
   const [projects, setProjects] = useState([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const dropdownRef = useRef(null);
   
   // 외부 클릭 시 드롭다운 닫기
@@ -72,15 +73,24 @@ function DashboardLayout() {
   return (
     <div className="flex h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900/50 backdrop-blur-xl text-slate-300 flex flex-col border-r border-white/5 z-30">
-        <div 
-          onClick={() => navigate(`/${username}/analysis`)}
-          className="p-6 flex items-center gap-3 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors group"
-        >
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
-            <Github className="w-6 h-6 text-white" />
+      <aside className={`${isSidebarCollapsed ? 'w-0 opacity-0 invisible pointer-events-none' : 'w-64 opacity-100 visible'} transition-all duration-300 ease-in-out bg-slate-900/50 backdrop-blur-xl text-slate-300 flex flex-col border-r border-white/5 z-30 relative shrink-0`}>
+        <div className="p-6 flex items-center justify-between border-b border-white/5">
+          <div 
+            onClick={() => navigate(`/${username}/analysis`)}
+            className="flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors group"
+          >
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
+              <Github className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-xl font-black text-white tracking-tighter">ChatFolio</h1>
           </div>
-          <h1 className="text-xl font-black text-white tracking-tighter">ChatFolio</h1>
+          <button 
+            onClick={() => setIsSidebarCollapsed(true)}
+            className="p-2 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-white/5 transition-all"
+            title="Collapse Sidebar"
+          >
+            <PanelLeftClose className="w-5 h-5" />
+          </button>
         </div>
 
         <nav className="flex-1 px-4 py-8 space-y-2">
@@ -115,6 +125,15 @@ function DashboardLayout() {
         {/* Header Bar */}
         <header className="h-16 bg-slate-950 border-b border-white/5 flex items-center justify-between px-8 shrink-0 z-[100]">
           <div className="flex items-center gap-4">
+            {isSidebarCollapsed && (
+              <button 
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="p-2 rounded-xl bg-white/5 border border-white/5 text-slate-400 hover:text-white hover:bg-white/10 hover:border-blue-500/30 transition-all mr-2 animate-in fade-in zoom-in duration-200"
+                title="Expand Sidebar"
+              >
+                <PanelLeft className="w-5 h-5" />
+              </button>
+            )}
             <div className="relative" ref={dropdownRef}>
               <button 
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
