@@ -14,19 +14,22 @@ import shutil
 import re
 
 class ChatFolioEngine:
-    def __init__(self, files_data, graph, project_id=None, tech_stack=None, provider="groq", model_name=None):
+    def __init__(self, files_data, graph, project_id=None, tech_stack=None, provider="groq", model_name=None, force_reload=False):
         self.files_data = files_data
         self.graph = graph
         self.project_id = project_id
         self.tech_stack = tech_stack # {main_language, frameworks, used_parsers, language_distribution}
         self.provider = provider
         self.model_name = model_name
+        self.force_reload = force_reload
         
         # LLM 초기화
         if provider == "huggingface":
             # HuggingFace 무료 모델 (Qwen 2.5 Coder 기반, 코딩 특화)
-            repo_id = model_name or "Qwen/Qwen2.5-Coder-32B-Instruct"
-            if any(legacy in repo_id.lower() for legacy in ["mistral", "qwen2.5-7b", "qwen3.6"]):
+            repo_id = model_name or "Qwen/Qwen2.5-Coder-7B-Instruct"
+            if "qwen2.5-7b" in repo_id.lower() or "qwen3.6" in repo_id.lower() or "mistral" in repo_id.lower():
+                repo_id = "Qwen/Qwen2.5-Coder-7B-Instruct"
+            elif "qwen2.5-32b" in repo_id.lower():
                 repo_id = "Qwen/Qwen2.5-Coder-32B-Instruct"
                 
             hf_llm = HuggingFaceEndpoint(
@@ -58,7 +61,15 @@ class ChatFolioEngine:
         if self.project_id:
             persist_dir = f"storage/vectors/{self.project_id}"
             
-        # 2. 최신성 보장을 위해 기존 인덱스 강제 삭제 및 새로 생성
+        # 2. 캐시 사용 여부 확인
+        if not self.force_reload and persist_dir and os.path.exists(persist_dir) and os.listdir(persist_dir):
+            print(f"📦 [Chroma] Loading existing vector DB from {persist_dir}")
+            try:
+                return Chroma(persist_directory=persist_dir, embedding_function=self.embeddings)
+            except Exception as e:
+                print(f"⚠️ [Chroma] Failed to load existing DB: {e}. Recreating...")
+
+        # 3. 최신성 보장을 위해 기존 인덱스 강제 삭제 및 새로 생성
         if persist_dir and os.path.exists(persist_dir):
             try:
                 shutil.rmtree(persist_dir, ignore_errors=True)
@@ -70,7 +81,7 @@ class ChatFolioEngine:
         if persist_dir:
             os.makedirs(persist_dir, exist_ok=True)
                 
-        # 3. 데이터가 없으면 새로 생성 (항상 실행)
+        # 4. 데이터가 없으면 새로 생성
         print("🔨 [Chroma] Creating new vector DB from latest files...")
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=600, 
@@ -159,7 +170,7 @@ class ChatFolioEngine:
         vector_results = self.vector_db.similarity_search(query, k=base_k * 2)
         
         # 2.2 BM25 검색 (키워드 기반)
-        bm25_results = self.bm25_retriever.get_relevant_documents(query)
+        bm25_results = self.bm25_retriever.invoke(query)
         bm25_results = bm25_results[:base_k] # 상위 K개만 사용
         
         # 2.3 결과 결합 및 중복 제거

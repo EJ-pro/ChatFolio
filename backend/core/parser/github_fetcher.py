@@ -97,7 +97,7 @@ class GitHubFetcher:
                     if progress_callback:
                         progress = int(((i + 1) / total_files) * 100)
                         progress_callback(f"PROGRESS:{progress}")
-                        progress_callback(f"📄 수집 완료: {element.path}")
+                        progress_callback(f"📄 Collection completed: {element.path}")
                     
                     yield element.path, content
                 except Exception as e:

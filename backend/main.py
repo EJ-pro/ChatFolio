@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Request
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, DiagramRequest, DiagramResponse, ReadmeRequest, ReadmeResponse, NewSessionRequest, ProfileUpdateRequest
@@ -52,7 +52,6 @@ app.add_middleware(
 app.include_router(auth_router)
 
 # 문의하기 등록 엔드포인트
-from fastapi import Request
 @app.post("/inquiries")
 async def create_inquiry(request: Request, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     data = await request.json()
@@ -195,7 +194,7 @@ async def analyze_repository(request: AnalyzeRequest, db: Session = Depends(get_
                 db_session.commit()
                 db_session.refresh(chat_session)
                 
-                engine = ChatFolioEngine(all_files, graph, project_id=project.id, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name)
+                engine = ChatFolioEngine(all_files, graph, project_id=project.id, tech_stack=tech_stack_json, provider=request.provider, model_name=request.model_name, force_reload=True)
                 engine_cache[chat_session.id] = engine
                 
                 q.put(f"RESULT:{json.dumps({'status': 'success', 'session_id': chat_session.id, 'file_count': project.file_count, 'message': 'Analysis complete'})}")

@@ -184,3 +184,5 @@ frontend/dist/
 frontend/.eslintcache
 docker-compose.override.yml
 *.log
+
+hf_cache/
