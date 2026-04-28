@@ -191,21 +191,86 @@ function Chat() {
     setIsLoading(true);
 
     try {
-      const data = await chatService.ask({ 
-        session_id: sessionId, 
-        query: input,
-        provider: provider,
-        model_name: modelName,
-        language: selectedLanguage
+      const response = await fetch('http://localhost:8000/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          session_id: sessionId, 
+          query: input,
+          provider: provider,
+          model_name: modelName,
+          language: selectedLanguage
+        })
       });
 
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      
+      // 일단 빈 답변 메시지를 추가해 둡니다.
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: data.answer,
-        sources: data.sources,
-        evaluation: data.evaluation,
-        graph_trace: data.graph_trace
+        content: '',
+        sources: [],
+        evaluation: null,
+        graph_trace: []
       }]);
+
+      let assistantText = '';
+      let assistantSources = [];
+      let assistantGraphTrace = [];
+      let assistantEvaluation = null;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const dataStr = line.replace('data: ', '').trim();
+              if (!dataStr) continue;
+              const parsed = JSON.parse(dataStr);
+
+              if (parsed.sources) {
+                assistantSources = parsed.sources;
+                assistantGraphTrace = parsed.graph_trace;
+              }
+              if (parsed.token) {
+                assistantText += parsed.token;
+              }
+              if (parsed.evaluation) {
+                assistantEvaluation = parsed.evaluation;
+                // [자가검증 경고창 구현] 환각 감지 시 경고 팝업
+                if (parsed.evaluation.checks?.hallucination_detected || parsed.evaluation.verdict === 'CRITICAL HALLUCINATION') {
+                  alert(`⚠️ [AI 자가검증 위험 알림]\n답변에서 사실과 다른 환각(Hallucination) 가능성이 감지되었습니다.\n\n사유: ${parsed.evaluation.reason}`);
+                }
+              }
+
+              // 마지막 assistant 메시지 상태 갱신
+              setMessages(prev => {
+                const updated = [...prev];
+                const lastMsg = updated[updated.length - 1];
+                if (lastMsg && lastMsg.role === 'assistant') {
+                  lastMsg.content = assistantText;
+                  lastMsg.sources = assistantSources;
+                  lastMsg.graph_trace = assistantGraphTrace;
+                  lastMsg.evaluation = assistantEvaluation;
+                }
+                return updated;
+              });
+            } catch (e) {
+              // 불완전한 JSON 버퍼 발생 시 파싱 무시 (다음 청크와 연결됨)
+            }
+          }
+        }
+      }
     } catch (err) {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, an error occurred: ' + err.message }]);
     } finally {

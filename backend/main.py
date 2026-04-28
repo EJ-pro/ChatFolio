@@ -248,29 +248,84 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         
         # 2. 사용자 질문 저장
         db.add(ChatMessage(session_id=session_id, role="user", content=request.query))
-        
-        # 3. 답변 생성 (히스토리 포함)
-        result = engine.ask(request.query, history=history, language=request.language)
-        
-        # 4. AI 답변 저장
-        db.add(ChatMessage(
-            session_id=session_id, 
-            role="assistant", 
-            content=result["answer"], 
-            sources=result["sources"], 
-            evaluation=result.get("evaluation")
-        ))
-        
-        # 5. 첫 대화인 경우 제목 요약 업데이트
-        if chat_session.title == "New Chat":
-            try:
-                title_info = engine.summarize_title(request.query)
-                chat_session.title = title_info["title"]
-            except:
-                chat_session.title = request.query[:20] + "..."
-        
         db.commit()
-        return result
+
+        async def chat_stream():
+            try:
+                # We must use ask_stream from the engine!
+                stream_generator = engine.ask_stream(request.query, history=history, language=request.language)
+                
+                sources = []
+                graph_trace = []
+                context_text = ""
+                full_answer = ""
+                
+                for item in stream_generator:
+                    if item["type"] == "meta":
+                        sources = item["sources"]
+                        graph_trace = item["graph_trace"]
+                        context_text = item.get("context_text", "")
+                        yield f"data: {json.dumps({'sources': sources, 'graph_trace': graph_trace})}\n\n"
+                    elif item["type"] == "token":
+                        full_answer += item["token"]
+                        yield f"data: {json.dumps({'token': item['token']})}\n\n"
+                    elif item["type"] == "done":
+                        # After completion, record assistant answer in DB
+                        db_session = SessionLocal()
+                        try:
+                            db_session.add(ChatMessage(
+                                session_id=session_id, 
+                                role="assistant", 
+                                content=full_answer, 
+                                sources=sources
+                            ))
+                            
+                            # 첫 대화인 경우 제목 요약 업데이트
+                            current_sess = db_session.query(ChatSession).filter(ChatSession.id == session_id).first()
+                            if current_sess and current_sess.title == "New Chat":
+                                try:
+                                    title_info = engine.summarize_title(request.query)
+                                    current_sess.title = title_info["title"]
+                                except:
+                                    current_sess.title = request.query[:20] + "..."
+                            db_session.commit()
+                        except Exception as e:
+                            db_session.rollback()
+                            print(f"Error saving chat assistant message: {e}")
+                        finally:
+                            db_session.close()
+                        
+                        yield f"data: {json.dumps({'status': 'done'})}\n\n"
+                        
+                        # 4. 백그라운드 자가 검증 수행
+                        print("🔍 [SSE] Running Background Self-Evaluation...")
+                        evaluation = engine._evaluate_answer(request.query, full_answer, context_text)
+                        print(f"✅ [SSE] Self-Evaluation Result: {evaluation}")
+                        
+                        db_session = SessionLocal()
+                        try:
+                            msg = db_session.query(ChatMessage).filter(
+                                ChatMessage.session_id == session_id,
+                                ChatMessage.role == "assistant"
+                            ).order_by(ChatMessage.created_at.desc()).first()
+                            if msg:
+                                msg.evaluation = evaluation
+                                db_session.commit()
+                        except Exception as e:
+                            db_session.rollback()
+                            print(f"Error updating evaluation: {e}")
+                        finally:
+                            db_session.close()
+                            
+                        # 검증 결과 전송
+                        yield f"data: {json.dumps({'evaluation': evaluation})}\n\n"
+                        
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        return StreamingResponse(chat_stream(), media_type="text/event-stream")
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))

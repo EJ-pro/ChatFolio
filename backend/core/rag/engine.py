@@ -7,6 +7,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from .readme_agent import ReadmeAgent
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
+from sentence_transformers import CrossEncoder
 import json
 import networkx as nx
 import os
@@ -50,6 +51,9 @@ class ChatFolioEngine:
         self.embeddings = HuggingFaceEmbeddings(
             model_name="BAAI/bge-m3"
         )
+        
+        print("🚀 [Reranker] Loading local Cross-Encoder (ms-marco-MiniLM-L-6-v2)...")
+        self.reranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
         
         # 1. 벡터 스토어 및 BM25 검색기 구축
         self.vector_db = self._prepare_vector_db()
@@ -157,6 +161,14 @@ class ChatFolioEngine:
             docs = [Document(page_content=" ", metadata={"path": "none"})]
             
         return BM25Retriever.from_documents(docs)
+        
+    def _clean_code_snippet(self, code: str) -> str:
+        """프롬프트 압축 및 최적화를 위해 불필요한 공백과 라이선스 블록 주석을 제거합니다."""
+        if not code: return ""
+        code = re.sub(r'\n\s*\n', '\n\n', code)
+        code = re.sub(r'/\*.*?\*/', '', code, flags=re.DOTALL)
+        code = re.sub(r'"""(.*?)"""', '"""[Docstring trimmed for token budget]"""', code, flags=re.DOTALL)
+        return code.strip()
 
     def ask(self, query: str, history: list = None, language: str = "English"):
         # 1. 동적 k 설정 (프로젝트 규모에 비례)
@@ -346,6 +358,159 @@ class ChatFolioEngine:
             "usage": response.response_metadata.get("token_usage", {})
         }
 
+    def ask_stream(self, query: str, history: list = None, language: str = "English"):
+        """SSE 기반 스트리밍을 지원하는 질의응답 처리 엔진입니다."""
+        file_count = len(self.files_data)
+        base_k = 20 if file_count < 50 else (15 if file_count < 200 else 12)
+        
+        vector_results = self.vector_db.similarity_search(query, k=base_k * 2)
+        bm25_results = self.bm25_retriever.invoke(query)
+        bm25_results = bm25_results[:base_k]
+        
+        combined_results = []
+        seen_ids = set()
+        for doc in vector_results + bm25_results:
+            doc_id = f"{doc.metadata.get('path')}:{doc.page_content[:100]}"
+            if doc_id not in seen_ids:
+                combined_results.append(doc)
+                seen_ids.add(doc_id)
+
+        candidates = combined_results[:20]
+        final_docs = self._rerank_with_llm(query, candidates, top_n=8)
+        
+        sources = []
+        visited_nodes = []
+        
+        CONTEXT_BUDGET = 8000
+        current_usage = 0
+        
+        readme_chunks = []
+        code_chunks = []
+        seen_paths = set()
+        neighbor_paths = []
+
+        for doc in final_docs:
+            path = doc.metadata.get('path', 'unknown')
+            filename = os.path.basename(path).lower()
+            start_line = doc.metadata.get('start_line', '?')
+            end_line = doc.metadata.get('end_line', '?')
+            
+            if filename == 'readme.md':
+                if len(readme_chunks) < 2:
+                    readme_chunks.append(doc)
+            else:
+                doc.page_content = self._clean_code_snippet(doc.page_content)
+                code_chunks.append(doc)
+            
+            if path not in seen_paths:
+                seen_paths.add(path)
+                sources.append({
+                    "path": path, 
+                    "reason": "AI Ranked Context",
+                    "lines": f"L{start_line}-L{end_line}"
+                })
+                if path in self.graph:
+                    neighbors = list(self.graph.neighbors(path))
+                    neighbors.sort(key=lambda x: self.graph.in_degree(x) if x in self.graph else 0, reverse=True)
+                    for n in neighbors[:3]: 
+                        if n not in seen_paths:
+                            neighbor_paths.append(n)
+                            file_name_short = path.split('/')[-1]
+                            sources.append({
+                                "path": n, 
+                                "reason": f"Dependency (from {file_name_short})"
+                            })
+                        visited_nodes.append({"from": path, "to": n})
+
+        context_text = ""
+        if code_chunks:
+            context_text += "\n### [SECTION: TECHNICAL IMPLEMENTATION (Source Code)]\n"
+            for doc in code_chunks:
+                if current_usage >= CONTEXT_BUDGET: break
+                start_line = doc.metadata.get('start_line', '?')
+                end_line = doc.metadata.get('end_line', '?')
+                snippet = f"--- File Chunk: {doc.metadata['path']} (Lines {start_line}-{end_line}) ---\n{doc.page_content}\n"
+                context_text += snippet
+                current_usage += len(snippet)
+
+        if readme_chunks and current_usage < CONTEXT_BUDGET:
+            context_text += "\n### [SECTION: PROJECT OVERVIEW (Documentation)]\n"
+            for doc in readme_chunks:
+                if current_usage >= CONTEXT_BUDGET: break
+                doc.page_content = self._clean_code_snippet(doc.page_content)
+                snippet = f"- Source: {doc.metadata['path']}\n{doc.page_content}\n\n"
+                context_text += snippet
+                current_usage += len(snippet)
+
+        if neighbor_paths and current_usage < CONTEXT_BUDGET:
+            context_text += "\n### [SECTION: RELATED CONTEXT (Dependencies)]\n"
+            for path in neighbor_paths:
+                if current_usage >= CONTEXT_BUDGET: break
+                if path in self.files_data:
+                    content = self._clean_code_snippet(self.files_data[path][:500])
+                    snippet = f"\n--- File (Partial): {path} ---\n{content}\n"
+                    context_text += snippet
+                    current_usage += len(snippet)
+
+        tech_context = ""
+        if self.tech_stack:
+            tech_context = f"\n[Project Tech Stack]\n- Main Language: {self.tech_stack.get('main_language')}\n- Frameworks: {', '.join(self.tech_stack.get('frameworks', []))}\n"
+
+        all_paths = list(self.files_data.keys())
+        priority_paths = [p for p in all_paths if any(x in p.lower() for x in ['src', 'app', 'core', 'lib', 'main', 'api', 'pkg', 'cmd', 'scripts'])]
+        other_paths = [p for p in all_paths if p not in priority_paths]
+        all_files_list = "\n".join([f"- {p}" for p in (priority_paths + other_paths)[:500]])
+
+        system_prompt = f"""
+        You are an elite Software Architect and Code Auditor. 
+        Your goal is to provide 100% technically accurate analysis based ONLY on the provided source code.
+
+        [PROJECT BRAIN MAP (Full File Tree)]
+        {all_files_list}
+
+        [STRICT OPERATIONAL RULES - READ CAREFULLY]
+        1. **NO HALLUCINATION**: Never invent file names, directory structures, or logic that is not present in the 'TECHNICAL IMPLEMENTATION' section.
+        2. **STRICT CONTEXTUALITY**: If the answer is not in the provided code snippets, clearly state: "I cannot find the specific implementation of X in the provided context." 
+        3. **FILE PATH VERIFICATION**: You must cross-reference every file path you mention with the [PROJECT BRAIN MAP] and the '--- File Chunk: path ---' headers. 
+        4. **CRITICAL THINKING**: Analyze the code's intent. Don't just repeat what's in the comments; explain the logic and potential edge cases.
+        5. **DOMAIN ADAPTATION**: Adapt your tone to the project's archetype.
+
+        [STRICT FORMATTING RULES]
+        - **Language**: You MUST answer in {language}.
+        - **Structure**: Use Markdown headers (###), bullet points (-), and bold text (**bold**).
+        - **Spacing**: Use double newlines (\\n\\n) between sections.
+
+        [MANDATORY ANALYSIS SUMMARY]
+        At the end of your response, provide the following summary:
+        ### 🔍 Analysis Summary
+        - **Keywords**: [3-5 core technical keywords]
+        - **Reference Files**: [List exact file paths and line ranges used]
+        - **AI Confidence**: [0-100%]
+        - **Trust Level**: [Low / Medium / High]
+
+        {tech_context}
+        """
+        
+        user_prompt = f"### [SECTION: TECHNICAL IMPLEMENTATION]\\n{context_text}\\n\\n### [USER QUESTION]\\n{query}"
+        
+        messages = [SystemMessage(content=system_prompt)]
+        if history:
+            for msg in history:
+                if msg.get('role') == 'user': messages.append(HumanMessage(content=msg.get('content', '')))
+                elif msg.get('role') == 'assistant': messages.append(AIMessage(content=msg.get('content', '')))
+        
+        messages.append(HumanMessage(content=user_prompt))
+        
+        yield {"type": "meta", "sources": sources, "graph_trace": visited_nodes, "context_text": context_text}
+        
+        full_answer = ""
+        for chunk in self.llm.stream(messages):
+            token = chunk.content
+            full_answer += token
+            yield {"type": "token", "token": token}
+            
+        yield {"type": "done", "answer": full_answer}
+
     def _evaluate_answer(self, query: str, answer: str, context: str) -> dict:
         """LLM을 사용하여 생성된 답변의 정확성과 신뢰도를 검증합니다."""
         eval_prompt = f"""
@@ -399,44 +564,23 @@ class ChatFolioEngine:
         }
 
     def _rerank_with_llm(self, query: str, docs: list, top_n: int) -> list:
-        """가벼운 LLM을 사용하여 검색된 후보군 중 질문과 가장 관련 있는 문서를 선별합니다."""
+        """Cross-Encoder를 사용하여 검색된 후보군 중 질문과 가장 관련 있는 문서를 선별합니다."""
         if not docs: return []
         if len(docs) <= top_n: return docs
         
-        cheap_llm = self._get_cheap_llm()
-        
-        # 각 문서의 관련성을 평가하기 위한 콤팩트한 리스트 작성
-        doc_list_str = ""
-        for i, doc in enumerate(docs):
-            content_preview = doc.page_content[:300].replace("\n", " ")
-            doc_list_str += f"[{i}] Path: {doc.metadata.get('path')}\nContent: {content_preview}\n\n"
-            
-        rerank_prompt = f"""
-        Analyze the following code snippets and select the top {top_n} most relevant snippets that can help answer the question: "{query}".
-        
-        [Candidates]
-        {doc_list_str}
-        
-        [Instruction]
-        Respond with only a JSON list of indices. Example: [0, 2, 5]
-        """
-        
         try:
-            response = cheap_llm.invoke([
-                SystemMessage(content="You are a Technical Re-ranker. Select only the most relevant code indices."),
-                HumanMessage(content=rerank_prompt)
-            ])
+            # 질문과 각 문서 본문 쌍 구축
+            pairs = [[query, doc.page_content] for doc in docs]
+            scores = self.reranker.predict(pairs)
             
-            # JSON 리스트 추출
-            import json, re
-            match = re.search(r'\[.*\]', response.content)
-            if match:
-                indices = json.loads(match.group())
-                return [docs[i] for i in indices if i < len(docs)][:top_n]
+            # 점수와 함께 문서 정렬
+            scored_docs = sorted(zip(scores, docs), key=lambda x: x[0], reverse=True)
+            
+            # 상위 top_n개 반환
+            return [doc for score, doc in scored_docs][:top_n]
         except Exception as e:
-            print(f"Re-ranking failed: {e}")
-            
-        return docs[:top_n]
+            print(f"Cross-Encoder Re-ranking failed: {e}")
+            return docs[:top_n]
 
     def analyze_architecture(self, language: str = "English"):
         """프로젝트 그래프와 테크 스택을 기반으로 아키텍처 분석 리포트 생성"""
