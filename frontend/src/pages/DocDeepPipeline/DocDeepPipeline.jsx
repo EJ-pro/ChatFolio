@@ -420,31 +420,37 @@ export default function DocDeepPipeline() {
           <div className="flex bg-slate-900/50 p-1 rounded-2xl border border-slate-800 self-center md:self-end">
             <button 
               onClick={() => setViewType("pipeline")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "pipeline" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "pipeline" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               메인 파이프라인
             </button>
             <button 
               onClick={() => setViewType("agent")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "agent" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "agent" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               README 에이전트
             </button>
             <button 
               onClick={() => setViewType("sequence")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "sequence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "sequence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               분석 시퀀스
             </button>
             <button 
               onClick={() => setViewType("dashboard")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "dashboard" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "dashboard" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               대시보드 RAG
             </button>
             <button 
+              onClick={() => setViewType("docchat")}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "docchat" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+            >
+              Doc Chat
+            </button>
+            <button 
               onClick={() => setViewType("intelligence")}
-              className={`px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "intelligence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
+              className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${viewType === "intelligence" ? "bg-emerald-500 text-black shadow-lg shadow-emerald-500/20" : "text-slate-500 hover:text-slate-300"}`}
             >
               AI 의사결정
             </button>
@@ -453,10 +459,10 @@ export default function DocDeepPipeline() {
           <div className="flex gap-4">
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 min-w-[140px] shadow-lg">
               <div className="text-[11px] text-slate-500 mb-1 font-bold tracking-wider uppercase">
-                {viewType === "pipeline" ? "분석 단계" : viewType === "agent" ? "에이전트 수" : viewType === "sequence" ? "핵심 모듈" : viewType === "dashboard" ? "RAG Flow" : "판단 포인트"}
+                {viewType === "pipeline" ? "분석 단계" : viewType === "agent" ? "에이전트 수" : viewType === "sequence" ? "핵심 모듈" : viewType === "dashboard" ? "RAG Flow" : viewType === "docchat" ? "RAG 파이프라인" : "판단 포인트"}
               </div>
               <div className="text-2xl font-black text-slate-100">
-                {viewType === "pipeline" ? "10 단계" : viewType === "agent" ? "4개 에이전트" : viewType === "sequence" ? "6개 모듈" : viewType === "dashboard" ? "RAG 흐름" : "5개 포인트"}
+                {viewType === "pipeline" ? "10 단계" : viewType === "agent" ? "4개 에이전트" : viewType === "sequence" ? "6개 모듈" : viewType === "dashboard" ? "RAG 흐름" : viewType === "docchat" ? "10개 단계" : "5개 포인트"}
               </div>
             </div>
             <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 min-w-[140px] shadow-lg">
@@ -615,6 +621,102 @@ export default function DocDeepPipeline() {
                   </h4>
                   <p className="text-xs text-slate-400 leading-relaxed">
                     <b>구현:</b> 수집된 코드 청크 데이터를 <code className="text-emerald-300">SystemPrompt</code>에 주입하며, <b>Code-First Analysis</b> 전략을 통해 실제 소스 코드 로직을 우선하여 답변을 생성합니다.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : viewType === "docchat" ? (
+        <div className="w-full max-w-6xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="glass-panel bg-slate-900/60 border border-slate-800 rounded-[2.5rem] p-12 overflow-hidden relative">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-emerald-500/50 to-blue-500/50"></div>
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-12">
+                <div>
+                  <h2 className="text-3xl font-black text-white mb-2 tracking-tighter flex items-center gap-3">
+                    <MessageSquare className="text-emerald-400" />
+                    Doc Chat 답변 생성 프로세스 (RAG Pipeline)
+                  </h2>
+                  <p className="text-slate-400 text-sm">하이브리드 검색, AI 리랭킹 및 자가 검증을 통한 신뢰도 높은 응답 생성</p>
+                </div>
+                <div className="flex items-center gap-3 bg-black/40 px-4 py-2 rounded-xl border border-white/5">
+                  <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                  <span className="text-[10px] text-slate-400 font-black uppercase tracking-widest">Doc Chat Pipeline</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-950/80 rounded-3xl p-8 border border-white/5 shadow-2xl overflow-x-auto custom-scrollbar flex justify-center">
+                <MermaidDiagram chart={`
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant B as Backend (FastAPI)
+    participant V as Hybrid Store (Chroma/BM25)
+    participant R as AI Reranker (Qwen-7B)
+    participant AI as Generator & Verifier
+
+    rect rgb(15, 23, 42)
+    Note over U, V: 1. 하이브리드 검색 (Hybrid Retrieval)
+    U->>B: 질문 입력 (Query)
+    B->>V: 질문 벡터화 및 의미/키워드 통합 검색
+    V-->>B: 상위 20개 후보 코드 스니펫 반환
+    end
+
+    rect rgb(30, 41, 59)
+    Note over B, R: 2. AI 리랭킹 (Smart Reranking)
+    B->>R: 20개 후보군 전달 및 중요도 재평가 요청
+    R-->>B: 가장 결정적인 핵심 스니펫 8개 선별
+    end
+
+    rect rgb(15, 23, 42)
+    Note over B, AI: 3. 컨텍스트 최적화 및 답변 생성
+    B->>B: 12,000자 토큰 버젯 내 최적 맥락 조립
+    B->>AI: 컨텍스트 + 질문 주입하여 답변 생성 요청
+    AI-->>B: 초안 답변 (Markdown) 생성
+    end
+
+    rect rgb(30, 41, 59)
+    Note over B, AI: 4. 자가 검증 및 전송 (Self-Evaluation)
+    B->>AI: 답변의 사실성 및 환각(Hallucination) 검증
+    AI-->>B: 검증 통과 (Faithfulness Check)
+    B-->>U: 최종 기술 답변 스트리밍 반환
+    end
+                `} />
+              </div>
+
+              <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+                  <h4 className="text-blue-400 font-bold mb-2 flex items-center gap-2">
+                    <Search size={16} /> 하이브리드 검색
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    ChromaDB 기반 의미 검색(BGE-M3)과 텍스트 매칭 중심의 BM25 검색을 결합하여 후보군을 꼼꼼히 탐색합니다.
+                  </p>
+                </div>
+                <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+                  <h4 className="text-purple-400 font-bold mb-2 flex items-center gap-2">
+                    <Layers size={16} /> AI 리랭커 (Qwen-7B)
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    20개의 후보 스니펫 중 질문 해결에 가장 적합한 8개의 정예 코드 조각을 LLM을 통해 스마트하게 재정렬합니다.
+                  </p>
+                </div>
+                <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+                  <h4 className="text-emerald-400 font-bold mb-2 flex items-center gap-2">
+                    <Sparkles size={16} /> 컨텍스트 최적화
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    12,000자 제한 내에서 연관된 의존성 경로 및 메타데이터를 유기적으로 조합하여 완성도 높은 맥락을 제공합니다.
+                  </p>
+                </div>
+                <div className="p-6 bg-slate-900/40 rounded-2xl border border-white/5 hover:border-emerald-500/20 transition-all">
+                  <h4 className="text-pink-400 font-bold mb-2 flex items-center gap-2">
+                    <MessageSquare size={16} /> 자가 검증 (Evaluation)
+                  </h4>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    답변이 코드 영역을 벗어났거나 거짓(Hallucination)이 없는지 사후 평가하여 고품질 가이드를 보장합니다.
                   </p>
                 </div>
               </div>
