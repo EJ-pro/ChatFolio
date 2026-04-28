@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users, Crown, Database, Trophy } from 'lucide-react';
+import { Search, Github, Loader2, GitBranch, FileCode2, Share2, Sparkles, MessageSquare, BookOpen, Layers, CheckCircle2, Activity, Globe, Cpu, Zap, ArrowRight, Terminal, Users, Crown, Database, Trophy, Brain } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 import './Analysis.css';
 import { authService, projectService, dashboardService } from '../api';
@@ -245,8 +245,10 @@ function Analysis() {
       </div>
 
       <header className="w-full px-8 py-4 flex justify-between items-center sticky top-0 z-50 backdrop-blur-md border-b border-white/5 bg-slate-900/50">
-        <div className="flex items-center gap-2 text-slate-400 select-none group">
-          <Github className="w-6 h-6 group-hover:rotate-12 transition-transform" />
+        <div className="flex items-center gap-3 select-none group">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
           <span className="font-black tracking-tighter text-xl text-white">ChatFolio</span>
         </div>
         <div className="flex items-center gap-6">

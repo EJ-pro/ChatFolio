@@ -348,7 +348,7 @@ function Login() {
           <div className="mb-8">
             <h1 className="text-2xl font-black text-white mb-2">시작하기</h1>
             <p className="text-slate-400 text-sm leading-relaxed">
-              GitHub 계정으로 1초 만에 로그인하고<br />첫 번째 레포지토리를 분석해보세요.
+              GitHub 계정으로 로그인하고<br />첫 번째 레포지토리를 분석해보세요.
             </p>
           </div>
 

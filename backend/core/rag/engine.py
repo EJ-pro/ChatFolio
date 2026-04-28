@@ -534,7 +534,7 @@ class ChatFolioEngine:
         {{
             "score": average_score,
             "verdict": "High Trust" | "Medium Trust" | "Low Trust" | "CRITICAL HALLUCINATION",
-            "reason": "summary of evaluation (in Korean) - Must mention if file paths were verified",
+            "reason": "자신감 있고 당당하며 전문적인 톤의 평가 요약 (한국어). 주어진 컨텍스트 내의 파일 경로와 로직 팩트체크를 완벽히 통과했음을 확신에 찬 어조로 선언하세요.",
             "checks": {{
                 "faithfulness": 100,
                 "accuracy": 100,

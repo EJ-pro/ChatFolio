@@ -508,8 +508,8 @@ const Doc = () => {
       <header className="sticky top-0 z-50 backdrop-blur-xl border-b border-white/5 bg-slate-950/50 px-8 py-4">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:rotate-12 transition-transform">
-              <Layers className="text-white" size={24} />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+              <Brain className="w-5 h-5 text-white" />
             </div>
             <span className="text-2xl font-black tracking-tighter text-white">ChatFolio <span className="text-blue-500">Docs</span></span>
           </div>

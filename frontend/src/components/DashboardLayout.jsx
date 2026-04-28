@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { MessageSquare, FileText, Target, Github, Share2, GitBranch, ChevronDown, PanelLeftClose, PanelLeft } from 'lucide-react';
+import { MessageSquare, FileText, Target, Github, Share2, GitBranch, ChevronDown, PanelLeftClose, PanelLeft, Brain } from 'lucide-react';
 import { useEffect, useState, useRef } from 'react';
 import UserProfile from './UserProfile';
 
@@ -79,10 +79,10 @@ function DashboardLayout() {
             onClick={() => navigate(`/${username}/analysis`)}
             className="flex items-center gap-3 cursor-pointer hover:bg-white/5 transition-colors group"
           >
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform">
-              <Github className="w-6 h-6 text-white" />
-            </div>
-            <h1 className="text-xl font-black text-white tracking-tighter">ChatFolio</h1>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
+          <h1 className="text-xl font-black text-white tracking-tighter">ChatFolio</h1>
           </div>
           <button 
             onClick={() => setIsSidebarCollapsed(true)}

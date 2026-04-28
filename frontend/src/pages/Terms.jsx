@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, Github } from 'lucide-react';
+import { ArrowLeft, FileText, Github, Brain } from 'lucide-react';
 import UserProfile from '../components/UserProfile';
 
 function Terms() {
@@ -23,8 +23,10 @@ function Terms() {
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-bold">Back</span>
         </button>
-        <div className="flex items-center gap-2" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
-          <Github className="w-6 h-6 text-white" />
+        <div className="flex items-center gap-3" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+            <Brain className="w-5 h-5 text-white" />
+          </div>
           <span className="font-black tracking-tighter text-xl">ChatFolio</span>
         </div>
         <UserProfile />
