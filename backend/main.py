@@ -5,6 +5,7 @@ from models.schemas import AnalyzeRequest, ChatRequest, AnalysisResponse, Diagra
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 import os
+import re
 import networkx as nx
 from dotenv import load_dotenv
 import json
@@ -39,6 +40,18 @@ def record_token_usage(db: Session, user_id: int, model_name: str, feature_name:
     except Exception as e:
         print(f"Failed to record token usage: {e}")
         db.rollback()
+
+def contains_pii(text: str) -> bool:
+    if not text:
+        return False
+    
+    phone_pattern = re.compile(r"(?:01[016789]|02|0[3-6]\d)[-.\s]?\d{3,4}[-.\s]?\d{4}")
+    rrn_pattern = re.compile(r"\d{6}[-.\s]?[1-4]\d{6}")
+    email_pattern = re.compile(r"[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+")
+    
+    if phone_pattern.search(text) or rrn_pattern.search(text) or email_pattern.search(text):
+        return True
+    return False
 
 app = FastAPI(title="ChatFolio API")
 
@@ -247,6 +260,13 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
         history = [{"role": m.role, "content": m.content} for m in reversed(history_msgs)]
         
         # 2. 사용자 질문 저장
+        # 2. 사용자 질문 저장 (개인정보 포함 시 차단)
+        if contains_pii(request.query):
+            async def pii_blocked_stream():
+                yield f"data: {json.dumps({'token': '개인정보(전화번호, 주민번호, 이메일 등)가 포함된 요청은 처리할 수 없습니다.'})}\n\n"
+                yield f"data: {json.dumps({'status': 'done'})}\n\n"
+            return StreamingResponse(pii_blocked_stream(), media_type="text/event-stream")
+            
         db.add(ChatMessage(session_id=session_id, role="user", content=request.query))
         db.commit()
 
@@ -262,12 +282,16 @@ async def chat_ask(request: ChatRequest, db: Session = Depends(get_db), current_
                 
                 for item in stream_generator:
                     if item["type"] == "meta":
-                        sources = item["sources"]
+                        sources = item["sources"][:8]
                         graph_trace = item["graph_trace"]
                         context_text = item.get("context_text", "")
                         yield f"data: {json.dumps({'sources': sources, 'graph_trace': graph_trace})}\n\n"
                     elif item["type"] == "token":
                         full_answer += item["token"]
+                        if contains_pii(full_answer):
+                            yield f"data: {json.dumps({'token': '\n\n[개인정보 보호를 위해 답변이 중단되었습니다.]'})}\n\n"
+                            yield f"data: {json.dumps({'status': 'done'})}\n\n"
+                            break
                         yield f"data: {json.dumps({'token': item['token']})}\n\n"
                     elif item["type"] == "done":
                         # After completion, record assistant answer in DB
